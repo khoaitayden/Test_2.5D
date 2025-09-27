@@ -1,10 +1,10 @@
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerController), typeof(Animator))]
 public class PlayerAnimation : MonoBehaviour
 {
     private Animator animator;
     private Transform mainCameraTransform;
+    private Transform playerParentTransform; // Reference to the parent
     private PlayerController playerController;
 
     private readonly int animHorizontal = Animator.StringToHash("HorizontalInput");
@@ -13,20 +13,20 @@ public class PlayerAnimation : MonoBehaviour
 
     void Start()
     {
-        playerController = GetComponent<PlayerController>();
+        playerController = GetComponentInParent<PlayerController>();
+        playerParentTransform = playerController.transform; // Get the parent's transform
         animator = GetComponent<Animator>();
         mainCameraTransform = Camera.main.transform;
     }
     
     void LateUpdate()
     {
-        // --- Part 1: Calculate Directional Animation ---
+        // --- Part 1: Directional Animation ---
+        // Get the parent's stable forward direction.
+        Vector3 playerForward = playerParentTransform.forward;
 
-        Vector3 playerForward = playerController.ForwardDirection;
-
-        // --- THIS IS THE FIX ---
-        // Get the direction FROM the camera TOWARDS the player
-        Vector3 cameraDirection = transform.position - mainCameraTransform.position;
+        // Use the fixed vector calculation from before.
+        Vector3 cameraDirection = playerParentTransform.position - mainCameraTransform.position;
         cameraDirection.y = 0;
         cameraDirection.Normalize();
 
@@ -36,11 +36,11 @@ public class PlayerAnimation : MonoBehaviour
         
         animator.SetFloat(animVertical, verticalInput);
         animator.SetFloat(animHorizontal, horizontalInput);
+        animator.SetFloat(animSpeed, playerController.WorldSpaceMoveDirection.magnitude);
 
-        float currentSpeed = playerController.WorldSpaceMoveDirection.magnitude;
-        animator.SetFloat(animSpeed, currentSpeed);
-
-        // --- Part 2: Rotate the Sprite to Face the Camera (Billboarding) ---
+        // --- Part 2: Billboarding ---
+        // The child sprite rotates to face the camera. This no longer conflicts
+        // with the parent's movement rotation. The vibration is gone.
         Vector3 lookPos = mainCameraTransform.position;
         lookPos.y = transform.position.y;
         transform.LookAt(lookPos);
