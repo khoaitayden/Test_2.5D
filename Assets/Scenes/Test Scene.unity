@@ -206,7 +206,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 354005855}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.17364822, y: -0.0000000018783513, z: 3.31204e-10, w: 0.9848078}
+  m_LocalRotation: {x: 0.06815222, y: 0.10082347, z: -0.0069229673, w: 0.9925432}
   m_LocalPosition: {x: 36.18, y: 10.920201, z: 9.063073}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -922,7 +922,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2033134505}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.1736482, y: -0.0000000019377844, z: 6.6826905e-10, w: 0.9848078}
+  m_LocalRotation: {x: 0.06815222, y: 0.10082348, z: -0.006922969, w: 0.9925432}
   m_LocalPosition: {x: 36.18, y: 10.920201, z: 9.063073}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1063,7 +1063,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineRotationComposer
   Composition:
-    ScreenPosition: {x: 0, y: 0}
+    ScreenPosition: {x: -0.1, y: 0.1}
     DeadZone:
       Enabled: 0
       Size: {x: 0.2, y: 0.2}
@@ -1072,7 +1072,7 @@ MonoBehaviour:
       Size: {x: 0.8, y: 0.8}
       Offset: {x: 0, y: 0}
   CenterOnActivate: 1
-  TargetOffset: {x: 0, y: 0, z: 0}
+  TargetOffset: {x: 0, y: 1, z: 0}
   Damping: {x: 0.5, y: 0.5}
   Lookahead:
     Enabled: 0
