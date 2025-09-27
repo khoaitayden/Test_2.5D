@@ -206,8 +206,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 354005855}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.06815222, y: 0.10082347, z: -0.0069229673, w: 0.9925432}
-  m_LocalPosition: {x: 36.18, y: 10.920201, z: 9.063073}
+  m_LocalRotation: {x: 0.006457611, y: 0.10105876, z: -0.00065597025, w: 0.99485934}
+  m_LocalPosition: {x: 36.18, y: 9.55212, z: 12.821843}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -521,6 +521,9 @@ GameObject:
   - component: {fileID: 948732235}
   - component: {fileID: 948732234}
   - component: {fileID: 948732233}
+  - component: {fileID: 948732237}
+  - component: {fileID: 948732238}
+  - component: {fileID: 948732239}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -543,7 +546,7 @@ MonoBehaviour:
   moveSpeed: 5
   jumpHeight: 2
   gravity: -9.81
-  rotationSpeed: 7
+  rotationSpeed: 10
   groundLayer:
     serializedVersion: 2
     m_Bits: 9
@@ -620,7 +623,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 833034515, guid: 73b85c80ca762ef4eb517750e971f59d, type: 3}
+  m_Sprite: {fileID: -422936736, guid: bbcec72357671a648b85b7a84c7a3a96, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -646,6 +649,59 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &948732237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 948732232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6a7149abe521d2448618e123e01665b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraShoulderSwapController
+  virtualCamera: {fileID: 2033134508}
+  rightShoulderX: -0.1
+  leftShoulderX: 0.1
+  swapSpeed: 0.3
+--- !u!95 &948732238
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 948732232}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 9c8c349cb18e43a4699f2f4a38ce1981, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &948732239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 948732232}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed143bcdbbb64594780c1af0daea0279, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
+  animator: {fileID: 948732238}
+  playerController: {fileID: 948732233}
+  spriteTransform: {fileID: 948732236}
 --- !u!1 &1408815719
 GameObject:
   m_ObjectHideFlags: 0
@@ -922,8 +978,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2033134505}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.06815222, y: 0.10082348, z: -0.006922969, w: 0.9925432}
-  m_LocalPosition: {x: 36.18, y: 10.920201, z: 9.063073}
+  m_LocalRotation: {x: 0.0064591016, y: 0.10105875, z: -0.00065615657, w: 0.9948593}
+  m_LocalPosition: {x: 36.18, y: 9.55212, z: 12.821843}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1007,7 +1063,7 @@ MonoBehaviour:
     RotationDamping: {x: 1, y: 1, z: 1}
     QuaternionDamping: 1
   OrbitStyle: 0
-  Radius: 10
+  Radius: 6
   Orbits:
     Top:
       Radius: 2
@@ -1063,7 +1119,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineRotationComposer
   Composition:
-    ScreenPosition: {x: -0.1, y: 0.1}
+    ScreenPosition: {x: -0.1, y: 0.15}
     DeadZone:
       Enabled: 0
       Size: {x: 0.2, y: 0.2}
