@@ -34,7 +34,6 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 spherePosition = transform.position + controller.center - new Vector3(0, controller.height / 2, 0);
         isGrounded = Physics.CheckSphere(spherePosition, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
-        Debug.Log("Is Grounded: " + isGrounded);
 
         if (isGrounded && velocity.y < 0) velocity.y = -1f;
 
