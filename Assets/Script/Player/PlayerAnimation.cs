@@ -21,11 +21,8 @@ public class PlayerAnimation : MonoBehaviour
     
     void LateUpdate()
     {
-        // --- Part 1: Directional Animation ---
-        // Get the parent's stable forward direction.
         Vector3 playerForward = playerParentTransform.forward;
 
-        // Use the fixed vector calculation from before.
         Vector3 cameraDirection = playerParentTransform.position - mainCameraTransform.position;
         cameraDirection.y = 0;
         cameraDirection.Normalize();
@@ -38,9 +35,6 @@ public class PlayerAnimation : MonoBehaviour
         animator.SetFloat(animHorizontal, horizontalInput);
         animator.SetFloat(animSpeed, playerController.WorldSpaceMoveDirection.magnitude);
 
-        // --- Part 2: Billboarding ---
-        // The child sprite rotates to face the camera. This no longer conflicts
-        // with the parent's movement rotation. The vibration is gone.
         Vector3 lookPos = mainCameraTransform.position;
         lookPos.y = transform.position.y;
         transform.LookAt(lookPos);
