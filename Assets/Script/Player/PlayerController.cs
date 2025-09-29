@@ -18,7 +18,6 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private Transform mainCameraTransform;
     public Vector3 WorldSpaceMoveDirection { get; private set; }
-
     private bool wasGrounded;
 
     void Start()
@@ -27,15 +26,20 @@ public class PlayerController : MonoBehaviour
         mainCameraTransform = Camera.main.transform;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        wasGrounded = true;
     }
 
     void Update()
     {
 
         isGrounded = Physics.CheckSphere(transform.position + controller.center - new Vector3(0, controller.height / 2, 0), 0.2f, groundLayer, QueryTriggerInteraction.Ignore);
-        //Check ground state change 
         if (isGrounded != wasGrounded)
         {
+            if (isGrounded)
+            {
+                float fallIntensity = Mathf.Abs(velocity.y);
+                particleController.PlayLandEffect(fallIntensity);
+            }
             wasGrounded = isGrounded;
             particleController.ToggleDirtTrail(isGrounded);
         }
