@@ -13,6 +13,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Reference")]
     [SerializeField] private PlayerParticleController particleController;
+    [SerializeField] private PlayerAnimation playerAnimation;
     private CharacterController controller;
     private Vector3 velocity;
     private bool isGrounded;
@@ -39,6 +40,7 @@ public class PlayerController : MonoBehaviour
             {
                 float fallIntensity = Mathf.Abs(velocity.y);
                 particleController.PlayLandEffect(fallIntensity);
+                playerAnimation.Land();
             }
             wasGrounded = isGrounded;
             particleController.ToggleDirtTrail(isGrounded);
@@ -58,8 +60,12 @@ public class PlayerController : MonoBehaviour
             Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
-        
-        if (Input.GetButtonDown("Jump") && isGrounded) { velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity); }
+
+        if (Input.GetButtonDown("Jump") && isGrounded)
+        {
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            playerAnimation.Jump();
+        }
         velocity.y += gravity * Time.deltaTime;
 
         Vector3 finalMove = WorldSpaceMoveDirection * moveSpeed + velocity;

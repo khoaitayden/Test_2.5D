@@ -18,7 +18,7 @@ public class PlayerAnimation : MonoBehaviour
         animator = GetComponent<Animator>();
         mainCameraTransform = Camera.main.transform;
     }
-    
+
     void LateUpdate()
     {
         Vector3 playerForward = playerParentTransform.forward;
@@ -30,7 +30,7 @@ public class PlayerAnimation : MonoBehaviour
         float verticalInput = Vector3.Dot(cameraDirection, playerForward);
         Vector3 playerRight = Vector3.Cross(Vector3.up, playerForward);
         float horizontalInput = Vector3.Dot(cameraDirection, playerRight);
-        
+
         animator.SetFloat(animVertical, verticalInput);
         animator.SetFloat(animHorizontal, horizontalInput);
         animator.SetFloat(animSpeed, playerController.WorldSpaceMoveDirection.magnitude);
@@ -38,5 +38,17 @@ public class PlayerAnimation : MonoBehaviour
         Vector3 lookPos = mainCameraTransform.position;
         lookPos.y = transform.position.y;
         transform.LookAt(lookPos);
+    }
+
+    public void Jump()
+    {
+        animator.SetTrigger("Jump");
+        Debug.Log("Jump animation triggered");
+    }
+
+    public void Land()
+    {
+        animator.SetTrigger("Land");
+        Debug.Log("Land animation triggered");
     }
 }
