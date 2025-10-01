@@ -43,12 +43,10 @@ public class PlayerAnimation : MonoBehaviour
     public void Jump()
     {
         animator.SetTrigger("Jump");
-        Debug.Log("Jump animation triggered");
     }
 
     public void Land()
     {
         animator.SetTrigger("Land");
-        Debug.Log("Land animation triggered");
     }
 }

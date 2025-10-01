@@ -11,9 +11,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float rotationSpeed = 20f; 
     [SerializeField] private LayerMask groundLayer;
 
+    [Header("Advanced Gravity")]
+    [Tooltip("Multiplier for gravity when the player is falling.")]
+    [SerializeField] private float fallMultiplier = 2.5f;
+    [Tooltip("Multiplier for gravity when the player releases the jump button early.")]
+    [SerializeField] private float lowJumpMultiplier = 2f;
+    [Tooltip("The maximum speed the player can fall at.")]
+    [SerializeField] private float terminalVelocity = 50f;
+
     [Header("Reference")]
     [SerializeField] private PlayerParticleController particleController;
     [SerializeField] private PlayerAnimation playerAnimation;
+    
     private CharacterController controller;
     private Vector3 velocity;
     private bool isGrounded;
@@ -32,19 +41,19 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-
+        float verticalVelocityOnImpact = velocity.y;
         isGrounded = Physics.CheckSphere(transform.position + controller.center - new Vector3(0, controller.height / 2, 0), 0.2f, groundLayer, QueryTriggerInteraction.Ignore);
-        if (isGrounded != wasGrounded)
+        
+        if (isGrounded && !wasGrounded)
         {
-            if (isGrounded)
-            {
-                float fallIntensity = Mathf.Abs(velocity.y);
-                particleController.PlayLandEffect(fallIntensity);
-                playerAnimation.Land();
-            }
-            wasGrounded = isGrounded;
-            particleController.ToggleDirtTrail(isGrounded);
+            Debug.Log("verticalVelocityOnImpact: " + verticalVelocityOnImpact);
+            float fallIntensity = Mathf.Abs(verticalVelocityOnImpact);
+            particleController.PlayLandEffect(fallIntensity);
+            playerAnimation.Land();
         }
+        wasGrounded = isGrounded;
+        particleController.ToggleDirtTrail(isGrounded);
+        
         if (isGrounded && velocity.y < 0) { velocity.y = -2f; }
 
         float x = Input.GetAxis("Horizontal");
@@ -66,7 +75,20 @@ public class PlayerController : MonoBehaviour
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             playerAnimation.Jump();
         }
+
+        // --- NEW GRAVITY LOGIC ---
+        if (velocity.y < 0) // The player is falling
+        {
+            velocity.y += gravity * (fallMultiplier - 1) * Time.deltaTime;
+        }
+        else if (velocity.y > 0 && !Input.GetButton("Jump")) // The player is rising but released jump
+        {
+            velocity.y += gravity * (lowJumpMultiplier - 1) * Time.deltaTime;
+        }
+
         velocity.y += gravity * Time.deltaTime;
+
+        velocity.y = Mathf.Max(velocity.y, -terminalVelocity);
 
         Vector3 finalMove = WorldSpaceMoveDirection * moveSpeed + velocity;
         controller.Move(finalMove * Time.deltaTime);
