@@ -46,7 +46,6 @@ public class PlayerController : MonoBehaviour
         
         if (isGrounded && !wasGrounded)
         {
-            Debug.Log("verticalVelocityOnImpact: " + verticalVelocityOnImpact);
             float fallIntensity = Mathf.Abs(verticalVelocityOnImpact);
             particleController.PlayLandEffect(fallIntensity);
             playerAnimation.Land();

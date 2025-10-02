@@ -235,7 +235,7 @@ Light:
   m_Lightmapping: 4
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
-  m_BounceIntensity: 10
+  m_BounceIntensity: 0
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
@@ -261,8 +261,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLightController
   player: {fileID: 948732236}
   followOffset: {x: 0, y: 3, z: 1.5}
-  floatStrength: 0.8
-  floatSpeed: 1
+  floatStrength: 0.5
+  floatSpeed: 2
   smoothTime: 0.16
 --- !u!1 &354005855
 GameObject:
@@ -519,7 +519,7 @@ ParticleSystemRenderer:
   m_MeshDistribution: 0
   m_SortMode: 0
   m_MinParticleSize: 0
-  m_MaxParticleSize: 0.5
+  m_MaxParticleSize: 2
   m_CameraVelocityScale: 0
   m_VelocityScale: 0
   m_LengthScale: 2
@@ -737,7 +737,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 0.9245283, g: 0.74105555, b: 0.6541474, a: 1}
+      maxColor: {r: 0.98490566, g: 0.9107371, b: 0.8752652, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -801,7 +801,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.6
+      scalar: 0.8
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -1436,8 +1436,8 @@ ParticleSystem:
         m_RotationOrder: 4
     rateOverDistance:
       serializedVersion: 2
-      minMaxState: 3
-      scalar: 2
+      minMaxState: 0
+      scalar: 1.5
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -1823,7 +1823,7 @@ ParticleSystem:
       maxGradient:
         serializedVersion: 2
         key0: {r: 0.25882354, g: 0.20784315, b: 0.13333334, a: 1}
-        key1: {r: 0.34509805, g: 0.25490198, b: 0.14901961, a: 1}
+        key1: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 1}
         key2: {r: 0.34509805, g: 0.25490198, b: 0.14901961, a: 1}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -1831,7 +1831,7 @@ ParticleSystem:
         key6: {r: 0, g: 0, b: 0, a: 0}
         key7: {r: 0, g: 0, b: 0, a: 0}
         ctime0: 231
-        ctime1: 65535
+        ctime1: 65458
         ctime2: 65535
         ctime3: 0
         ctime4: 0
@@ -2005,11 +2005,11 @@ ParticleSystem:
     flipU: 0
     flipV: 0
   VelocityModule:
-    enabled: 0
+    enabled: 1
     x:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: -0.2
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -2062,7 +2062,7 @@ ParticleSystem:
     y:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: 0.2
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -5484,7 +5484,7 @@ ParticleSystem:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 682436470}
   serializedVersion: 8
-  lengthInSec: 5
+  lengthInSec: 2
   simulationSpeed: 1
   stopAction: 0
   cullingMode: 0
@@ -5730,7 +5730,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.6
+      scalar: 0.45
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -6046,7 +6046,7 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
     randomizeRotationDirection: 0
-    gravitySource: 0
+    gravitySource: 1
     maxNumParticles: 1000
     customEmitterVelocity: {x: 0, y: 0, z: 0}
     size3D: 0
@@ -6111,7 +6111,7 @@ ParticleSystem:
     angle: 30
     length: 5
     boxThickness: {x: 0, y: 0, z: 0}
-    radiusThickness: 0.8
+    radiusThickness: 0.6
     donutRadius: 0.2
     m_Position: {x: 0, y: 0, z: 0}
     m_Rotation: {x: 0, y: 0, z: 0}
@@ -6423,7 +6423,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 10
+        scalar: 100
         minScalar: 30
         maxCurve:
           serializedVersion: 2
@@ -6489,18 +6489,18 @@ ParticleSystem:
         - serializedVersion: 3
           time: 0
           value: 1
-          inSlope: -1
-          outSlope: -1
-          tangentMode: 34
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
           time: 1
           value: 0
-          inSlope: -1
-          outSlope: -1
-          tangentMode: 34
+          inSlope: -2
+          outSlope: -2
+          tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
@@ -6809,9 +6809,9 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 0.20000002, g: 0.17254902, b: 0.1137255, a: 1}
-        key1: {r: 0.3921569, g: 0.29411766, b: 0.16862746, a: 1}
-        key2: {r: 0.7283019, g: 0.36760423, b: 0.19650406, a: 0}
+        key0: {r: 0.18490559, g: 0.14150193, b: 0.048494093, a: 1}
+        key1: {r: 0.4716981, g: 0.24917299, b: 0.00978995, a: 1}
+        key2: {r: 0.5320754, g: 0.33775046, b: 0.12749729, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
         key5: {r: 0, g: 0, b: 0, a: 0}
@@ -9186,7 +9186,7 @@ ParticleSystem:
     m_Bounce:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.5
+      scalar: 0.2
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -9239,7 +9239,7 @@ ParticleSystem:
     m_EnergyLossOnCollision:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: 0.1
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -9295,7 +9295,7 @@ ParticleSystem:
     collidesWith:
       serializedVersion: 2
       m_Bits: 8
-    maxCollisionShapes: 256
+    maxCollisionShapes: 250
     quality: 2
     voxelSize: 0.5
     collisionMessages: 0
@@ -10287,7 +10287,7 @@ Light:
   serializedVersion: 11
   m_Type: 1
   m_Color: {r: 1, g: 0.8283019, b: 0.8283019, a: 1}
-  m_Intensity: 2
+  m_Intensity: 0
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -10349,13 +10349,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 847630726}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.258819, z: 0, w: 0.9659259}
+  m_LocalRotation: {x: -0.33036605, y: -0.24321032, z: -0.0885213, w: 0.9076734}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: -30, z: 0}
+  m_LocalEulerAnglesHint: {x: -40, y: -30, z: 0}
 --- !u!114 &847630729
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10417,12 +10417,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 8
-  jumpHeight: 5
+  jumpHeight: 4
   gravity: -12
   rotationSpeed: 16
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  fallMultiplier: 2
+  lowJumpMultiplier: 1.5
+  terminalVelocity: 50
   particleController: {fileID: 1720072640}
   playerAnimation: {fileID: 1720072639}
 --- !u!143 &948732234
@@ -10861,10 +10864,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerParticleController
   dirtTrail: {fileID: 402319775}
   landEffect: {fileID: 682436473}
-  minFallIntensity: 5
-  maxFallIntensity: 20
-  minParticleCount: 2
-  maxParticleCount: 15
+  minFallIntensity: 7
+  maxFallIntensity: 50
+  minParticleCount: 1
+  maxParticleCount: 60
+  minStartSpeed: 3
+  maxStartSpeed: 15
+  minBounce: 0.2
+  maxBounce: 0.5
 --- !u!1 &2033134505
 GameObject:
   m_ObjectHideFlags: 0
