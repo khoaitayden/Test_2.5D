@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 146150540}
   - component: {fileID: 146150542}
   - component: {fileID: 146150541}
+  - component: {fileID: 146150543}
   m_Layer: 0
   m_Name: Point Light
   m_TagString: Untagged
@@ -246,6 +247,23 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &146150543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 146150539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 664d9d21876959844a6832cc4c1be0bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLightController
+  player: {fileID: 948732236}
+  followOffset: {x: 0, y: 3, z: 1.5}
+  floatStrength: 0.5
+  floatSpeed: 2
+  smoothTime: 0.16
 --- !u!1 &354005855
 GameObject:
   m_ObjectHideFlags: 0
@@ -10377,6 +10395,8 @@ GameObject:
   m_Component:
   - component: {fileID: 848357415}
   - component: {fileID: 848357416}
+  - component: {fileID: 848357417}
+  - component: {fileID: 848357418}
   m_Layer: 0
   m_Name: Wisp Sprite
   m_TagString: Untagged
@@ -10457,6 +10477,51 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!95 &848357417
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 848357414}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: f081272845e6ac24dafe4fe2f1147651, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &848357418
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 848357414}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 403ab39a6edb9f547983dd4702bf4b94, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WispSpriteController
+  playerTransform: {fileID: 948732236}
+  playerController: {fileID: 948732233}
+  behindOffset: {x: 1.5, y: 3, z: -1}
+  frontOffset: {x: -1.5, y: 3, z: 0.5}
+  minDistanceFromCamera: 2
+  followSmoothTime: 0.2
+  bobSpeed: 2
+  bobHeight: 0.5
+  swaySpeed: 2
+  swayRadius: 0.4
+  mainCameraTransform: {fileID: 354005858}
 --- !u!1 &948732232
 GameObject:
   m_ObjectHideFlags: 0
@@ -10661,7 +10726,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1611232322}
-  - component: {fileID: 1611232323}
   m_Layer: 0
   m_Name: Wisp
   m_TagString: Untagged
@@ -10686,25 +10750,6 @@ Transform:
   - {fileID: 848357415}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1611232323
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1611232318}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 664d9d21876959844a6832cc4c1be0bd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerLightController
-  player: {fileID: 948732236}
-  wispLightTransform: {fileID: 848357415}
-  mainCamera: {fileID: 354005857}
-  followOffset: {x: 0, y: 3, z: 1.5}
-  floatStrength: 0.5
-  floatSpeed: 2
-  smoothTime: 0.16
 --- !u!1 &1643872722
 GameObject:
   m_ObjectHideFlags: 0
@@ -11245,7 +11290,7 @@ GameObject:
   - component: {fileID: 2043335965}
   - component: {fileID: 2043335964}
   m_Layer: 0
-  m_Name: s
+  m_Name: Map dimmed light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11291,7 +11336,7 @@ Light:
   serializedVersion: 11
   m_Type: 3
   m_Color: {r: 0.4716981, g: 0.47028825, b: 0.3551086, a: 1}
-  m_Intensity: 0.5
+  m_Intensity: 0.095
   m_Range: 20
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -11354,7 +11399,7 @@ Transform:
   m_GameObject: {fileID: 2043335963}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 77, y: 23.2, z: -67.56405}
+  m_LocalPosition: {x: 77, y: 26.9, z: -67.56405}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

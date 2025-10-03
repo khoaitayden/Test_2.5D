@@ -1,12 +1,10 @@
 using UnityEngine;
 
-public class PlayerWispController : MonoBehaviour
+public class WispLightController : MonoBehaviour
 {
     [Header("Target")]
     public Transform player;
     private Transform mainCameraTransform;
-    public Transform wispLightTransform;
-    public Camera mainCamera;
 
     [Header("Positioning")]
     [Tooltip("Controls the light's position. X is left/right of player, Y is above player, Z is distance from player towards the camera.")]
@@ -31,7 +29,6 @@ public class PlayerWispController : MonoBehaviour
 
     void LateUpdate()
     {
-        wispLightTransform.LookAt(mainCameraTransform);
         if (player == null || mainCameraTransform == null) return;
 
         // --- 1. Calculate the Base Target Position ---

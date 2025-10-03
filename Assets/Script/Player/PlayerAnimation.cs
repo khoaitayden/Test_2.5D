@@ -4,7 +4,7 @@ public class PlayerAnimation : MonoBehaviour
 {
     private Animator animator;
     private Transform mainCameraTransform;
-    private Transform playerParentTransform; // Reference to the parent
+    private Transform playerParentTransform; 
     private PlayerController playerController;
 
     private readonly int animHorizontal = Animator.StringToHash("HorizontalInput");
