@@ -262,7 +262,7 @@ MonoBehaviour:
   player: {fileID: 948732236}
   followOffset: {x: 0, y: 3, z: 1.5}
   floatStrength: 0.5
-  floatSpeed: 2
+  floatSpeed: 1
   smoothTime: 0.16
 --- !u!1 &354005855
 GameObject:
@@ -10397,6 +10397,7 @@ GameObject:
   - component: {fileID: 848357416}
   - component: {fileID: 848357417}
   - component: {fileID: 848357418}
+  - component: {fileID: 848357419}
   m_Layer: 0
   m_Name: Wisp Sprite
   m_TagString: Untagged
@@ -10413,7 +10414,7 @@ Transform:
   m_GameObject: {fileID: 848357414}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.26, y: -2.87, z: -0.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10513,15 +10514,29 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WispSpriteController
   playerTransform: {fileID: 948732236}
   playerController: {fileID: 948732233}
-  behindOffset: {x: 1.5, y: 3, z: -1}
-  frontOffset: {x: -1.5, y: 3, z: 0.5}
-  minDistanceFromCamera: 2
-  followSmoothTime: 0.2
-  bobSpeed: 2
+  orbitRadius: 2
+  orbitHeight: 2
+  orbitSpeed: 50
+  followLag: 0.5
+  bobSpeed: 1
   bobHeight: 0.5
-  swaySpeed: 2
-  swayRadius: 0.4
   mainCameraTransform: {fileID: 354005858}
+  minDistanceFromCamera: 2
+--- !u!114 &848357419
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 848357414}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
+  sortingOrderBase: 1
+  offset: 0
+  precision: 1000
 --- !u!1 &948732232
 GameObject:
   m_ObjectHideFlags: 0
@@ -10874,6 +10889,7 @@ GameObject:
   - component: {fileID: 1720072639}
   - component: {fileID: 1720072638}
   - component: {fileID: 1720072640}
+  - component: {fileID: 1720072641}
   m_Layer: 0
   m_Name: Player Sprite
   m_TagString: Untagged
@@ -11010,6 +11026,21 @@ MonoBehaviour:
   maxStartSpeed: 15
   minBounce: 0.2
   maxBounce: 0.5
+--- !u!114 &1720072641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1720072635}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
+  sortingOrderBase: 1
+  offset: 0
+  precision: 1000
 --- !u!1 &2033134505
 GameObject:
   m_ObjectHideFlags: 0
@@ -11336,7 +11367,7 @@ Light:
   serializedVersion: 11
   m_Type: 3
   m_Color: {r: 0.4716981, g: 0.47028825, b: 0.3551086, a: 1}
-  m_Intensity: 0.095
+  m_Intensity: 0.1
   m_Range: 20
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
