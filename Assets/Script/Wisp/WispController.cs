@@ -18,7 +18,13 @@ public class WispController : MonoBehaviour
 
     [Header("Camera Safety")]
     public Transform mainCameraTransform;
-    public float minDistanceFromCamera = 2f; 
+    public float minDistanceFromCamera = 2f;
+
+    [Header("Inner Glow")]
+    public Light innerGlowLight;
+    public float maxGlowIntensity;
+    public float minGlowIntensity;
+    public float innerGlowSpeed;
 
     // Internal variables
     private Vector3 currentVelocity = Vector3.zero;
@@ -61,7 +67,7 @@ public class WispController : MonoBehaviour
         float bobOffset = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
 
         // --- 5. Combine ---
-        Vector3 finalTargetPosition = playerTransform.position 
+        Vector3 finalTargetPosition = playerTransform.position
                                     + orbitOffset
                                     + lagOffset
                                     + new Vector3(0, bobOffset, 0);
@@ -88,5 +94,16 @@ public class WispController : MonoBehaviour
         {
             transform.position = mainCameraTransform.position + cameraToWisp.normalized * minDistanceFromCamera;
         }
+
+        // --- 8. Inner glow pulsation ---
+        float noise1 = Mathf.PerlinNoise(Time.time * 0.7f, 0f);
+        float noise2 = Mathf.PerlinNoise(Time.time * 3.1f, 100f);
+        float noise3 = Mathf.PerlinNoise(Time.time * 10f, 200f) * 0.3f;
+
+        float combinedNoise = noise1 * 0.5f + noise2 * 0.4f + noise3 * 0.1f;
+        combinedNoise = Mathf.Clamp01(combinedNoise); 
+
+        float glowIntensity = Mathf.Lerp(minGlowIntensity, maxGlowIntensity, combinedNoise);
+        innerGlowLight.intensity = glowIntensity;
     }
 }

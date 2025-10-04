@@ -11,8 +11,8 @@ public class WispLightController : MonoBehaviour
     public Vector3 followOffset = new Vector3(1.5f, 2.5f, -2.0f);
 
     [Header("Floating Motion")]
-    public float floatStrength = 0.2f;
-    public float floatSpeed = 2.0f;
+    public float floatStrength ;
+    public float floatSpeed ;
 
     [Header("Smooth Follow")]
     public float smoothTime = 0.3f;
