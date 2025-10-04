@@ -301,7 +301,7 @@ Camera:
   m_GameObject: {fileID: 354005855}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 4
+  m_ClearFlags: 1
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
@@ -310,12 +310,12 @@ Camera:
   m_ShutterSpeed: 0.005
   m_Aperture: 16
   m_FocusDistance: 10
-  m_FocalLength: 50
+  m_FocalLength: 13.858139
   m_BladeCount: 5
   m_Curvature: {x: 2, y: 11}
   m_BarrelClipping: 0.25
   m_Anamorphism: 0
-  m_SensorSize: {x: 36, y: 24}
+  m_SensorSize: {x: 21.946, y: 16.002}
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
@@ -351,7 +351,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 354005855}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.018649807, y: 0.051109735, z: -0.00095460116, w: 0.99851847}
+  m_LocalRotation: {x: 0.01864981, y: 0.051109735, z: -0.00095460133, w: 0.99851847}
   m_LocalPosition: {x: 35, y: 8.394141, z: -76.67785}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -382,7 +382,7 @@ MonoBehaviour:
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
   m_RenderPostProcessing: 1
-  m_Antialiasing: 0
+  m_Antialiasing: 1
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
@@ -10397,7 +10397,6 @@ GameObject:
   - component: {fileID: 848357416}
   - component: {fileID: 848357417}
   - component: {fileID: 848357418}
-  - component: {fileID: 848357419}
   m_Layer: 6
   m_Name: Wisp Sprite
   m_TagString: Untagged
@@ -10414,7 +10413,7 @@ Transform:
   m_GameObject: {fileID: 848357414}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.26, y: -1.96, z: -0.17}
+  m_LocalPosition: {x: 0.26, y: -0.66, z: 2.38}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10528,21 +10527,6 @@ MonoBehaviour:
   maxGlowIntensity: 1
   minGlowIntensity: 0
   innerGlowSpeed: 1
---- !u!114 &848357419
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 848357414}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
-  sortingOrderBase: 1
-  offset: 100000
-  precision: 2000
 --- !u!1 &948732232
 GameObject:
   m_ObjectHideFlags: 0
@@ -10897,7 +10881,6 @@ GameObject:
   - component: {fileID: 1720072639}
   - component: {fileID: 1720072638}
   - component: {fileID: 1720072640}
-  - component: {fileID: 1720072641}
   m_Layer: 0
   m_Name: Player Sprite
   m_TagString: Untagged
@@ -11034,21 +11017,6 @@ MonoBehaviour:
   maxStartSpeed: 15
   minBounce: 0.2
   maxBounce: 0.5
---- !u!114 &1720072641
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1720072635}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
-  sortingOrderBase: 1
-  offset: 100000
-  precision: 2000
 --- !u!1 &1786398618
 GameObject:
   m_ObjectHideFlags: 0
@@ -11245,7 +11213,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.4
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -15957,7 +15925,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2033134505}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.018649809, y: 0.051109735, z: -0.00095460116, w: 0.99851847}
+  m_LocalRotation: {x: 0.01864981, y: 0.05110974, z: -0.00095460104, w: 0.99851847}
   m_LocalPosition: {x: 35, y: 8.394141, z: -76.67785}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
