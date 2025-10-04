@@ -194,7 +194,7 @@ Light:
   m_Type: 2
   m_Color: {r: 0.2079957, g: 0.3074731, b: 0.8415094, a: 1}
   m_Intensity: 150
-  m_Range: 20
+  m_Range: 25
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -260,9 +260,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLightController
   player: {fileID: 948732236}
-  followOffset: {x: 0, y: 3, z: 1.5}
-  floatStrength: 0.5
-  floatSpeed: 1
+  followOffset: {x: 0, y: 4, z: 1.5}
+  floatStrength: 1
+  floatSpeed: 0.5
   smoothTime: 0.15
 --- !u!1 &354005855
 GameObject:
@@ -301,7 +301,7 @@ Camera:
   m_GameObject: {fileID: 354005855}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
+  m_ClearFlags: 4
   m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
@@ -514,7 +514,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_RenderMode: 2
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -563,7 +563,7 @@ ParticleSystem:
   ringBufferLoopRange: {x: 0, y: 1}
   emitterVelocityMode: 0
   looping: 1
-  prewarm: 0
+  prewarm: 1
   playOnAwake: 1
   useUnscaledTime: 0
   autoRandomSeed: 1
@@ -5443,7 +5443,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_RenderMode: 0
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -6054,7 +6054,7 @@ ParticleSystem:
     gravityModifier:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.7
+      scalar: 0.8
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -10414,7 +10414,7 @@ Transform:
   m_GameObject: {fileID: 848357414}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.26, y: -0.94, z: -0.116}
+  m_LocalPosition: {x: 0.26, y: -1.96, z: -0.17}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10535,13 +10535,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 848357414}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
   sortingOrderBase: 1
-  offset: 10000
+  offset: 100000
   precision: 2000
 --- !u!1 &948732232
 GameObject:
@@ -10575,12 +10575,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 8
-  jumpHeight: 4
+  jumpHeight: 3
   gravity: -12
   rotationSpeed: 16
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  acceleration: 5
+  deceleration: 10
   fallMultiplier: 2
   lowJumpMultiplier: 1.5
   terminalVelocity: 50
@@ -11022,7 +11024,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22458e13a07907542948691cc3abb630, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerParticleController
-  dirtTrail: {fileID: 402319775}
+  dirtTrail: {fileID: 402319778}
   landEffect: {fileID: 682436473}
   minFallIntensity: 7
   maxFallIntensity: 50
@@ -11039,13 +11041,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1720072635}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 784f82e291334084aaebc2eeab4946f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpriteSortingOrder
   sortingOrderBase: 1
-  offset: 10000
+  offset: 100000
   precision: 2000
 --- !u!1 &1786398618
 GameObject:
@@ -11127,7 +11129,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -100
+  m_SortingOrder: -1
   m_RenderMode: 3
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -11233,7 +11235,7 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
   randomSeed: 0
@@ -16208,8 +16210,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 11
   m_Type: 3
-  m_Color: {r: 0.4716981, g: 0.47028825, b: 0.3551086, a: 1}
-  m_Intensity: 0.1
+  m_Color: {r: 0.4264151, g: 0.4264151, b: 0.4264151, a: 1}
+  m_Intensity: 0.12
   m_Range: 20
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208

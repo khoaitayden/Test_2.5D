@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PlayerParticleController : MonoBehaviour
 {
-    [SerializeField] private GameObject dirtTrail;
+    [SerializeField] private ParticleSystem dirtTrail;
     [SerializeField] private ParticleSystem landEffect;
 
     [Header("Landing Effect Settings")]
@@ -65,9 +65,8 @@ public class PlayerParticleController : MonoBehaviour
 
     public void ToggleDirtTrail(bool isOn)
     {
-        if (dirtTrail != null)
-        {
-            dirtTrail.SetActive(isOn);
-        }
+        if (dirtTrail == null) return;
+        var emission = dirtTrail.emission;
+        emission.enabled = isOn;
     }
 }

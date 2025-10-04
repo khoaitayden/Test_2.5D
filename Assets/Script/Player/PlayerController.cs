@@ -11,6 +11,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float rotationSpeed = 20f; 
     [SerializeField] private LayerMask groundLayer;
 
+    [Header("Momentum Settings")]
+    [SerializeField] private float acceleration = 10f;    // How fast you reach max speed
+    [SerializeField] private float deceleration = 15f;    // How fast you stop
+
     [Header("Advanced Gravity")]
     [Tooltip("Multiplier for gravity when the player is falling.")]
     [SerializeField] private float fallMultiplier = 2.5f;
@@ -24,7 +28,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerAnimation playerAnimation;
     
     private CharacterController controller;
-    private Vector3 velocity;
+    private Vector3 velocity; // only used for Y (gravity/jump)
+    private Vector3 horizontalVelocity = Vector3.zero; // X/Z momentum
     private bool isGrounded;
     private Transform mainCameraTransform;
     public Vector3 WorldSpaceMoveDirection { get; private set; }
@@ -37,6 +42,7 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         wasGrounded = true;
+        isGrounded = false;
     }
 
     void Update()
@@ -75,21 +81,39 @@ public class PlayerController : MonoBehaviour
             playerAnimation.Jump();
         }
 
-        // --- NEW GRAVITY LOGIC ---
-        if (velocity.y < 0) // The player is falling
+        // --- Gravity Logic (unchanged) ---
+        if (velocity.y < 0)
         {
             velocity.y += gravity * (fallMultiplier - 1) * Time.deltaTime;
         }
-        else if (velocity.y > 0 && !Input.GetButton("Jump")) // The player is rising but released jump
+        else if (velocity.y > 0 && !Input.GetButton("Jump"))
         {
             velocity.y += gravity * (lowJumpMultiplier - 1) * Time.deltaTime;
         }
 
         velocity.y += gravity * Time.deltaTime;
-
         velocity.y = Mathf.Max(velocity.y, -terminalVelocity);
 
-        Vector3 finalMove = WorldSpaceMoveDirection * moveSpeed + velocity;
-        controller.Move(finalMove * Time.deltaTime);
+        // --- HORIZONTAL MOMENTUM ---
+        Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * moveSpeed;
+
+        if (WorldSpaceMoveDirection.magnitude > 0.1f)
+        {
+            horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, 
+                acceleration * Time.deltaTime);
+        }
+        else
+        {
+            horizontalVelocity = Vector3.Lerp(horizontalVelocity, Vector3.zero, 
+                deceleration * Time.deltaTime);
+        }
+
+        // Prevent tiny drift
+        if (horizontalVelocity.magnitude < 0.1f) 
+            horizontalVelocity = Vector3.zero;
+
+        // Combine horizontal + vertical
+        Vector3 totalVelocity = horizontalVelocity + Vector3.up * velocity.y;
+        controller.Move(totalVelocity * Time.deltaTime);
     }
 }
