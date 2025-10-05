@@ -88,6 +88,7 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
+            particleController.PlayJumpEffect();
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             playerAnimation.Jump();
         }
