@@ -16,7 +16,7 @@ public class PlayerParticleController : MonoBehaviour
     public void PlayLandEffect(float fallIntensity)
     {
         if (landEffect == null) return;
-        
+
         float intensityT = Mathf.InverseLerp(minFallIntensity, maxFallIntensity, fallIntensity);
         int newParticleCount = Mathf.RoundToInt(Mathf.Lerp(minParticleCount, maxParticleCount, intensityT));
 
@@ -26,13 +26,12 @@ public class PlayerParticleController : MonoBehaviour
         emission.SetBurst(0, burst); // Set the modified burst back
 
         landEffect.Play();
+        Debug.Log($"Played land effect with {newParticleCount} particles for fall intensity {fallIntensity}");
     }
 
     // --- THIS IS THE NEW, ROBUST TOGGLE LOGIC ---
     public void ToggleTrail(bool isOn)
     {
-        if (trailEffect == null) return;
-
         if (isOn)
         {
             trailEffect.Play();
