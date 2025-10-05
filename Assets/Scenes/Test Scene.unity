@@ -193,7 +193,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0.2079957, g: 0.3074731, b: 0.8415094, a: 1}
-  m_Intensity: 150
+  m_Intensity: 100
   m_Range: 25
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -446,7 +446,7 @@ GameObject:
   - component: {fileID: 402319778}
   - component: {fileID: 402319777}
   m_Layer: 0
-  m_Name: PlayerDirtTrailParticle
+  m_Name: PlayerTrailParticle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -461,7 +461,7 @@ Transform:
   m_GameObject: {fileID: 402319775}
   serializedVersion: 2
   m_LocalRotation: {x: -0.99904823, y: 0, z: 0, w: 0.043619502}
-  m_LocalPosition: {x: 0, y: -1.44, z: -0.86}
+  m_LocalPosition: {x: 0, y: -1.3, z: -0.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -514,7 +514,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -1
+  m_SortingOrder: 0
   m_RenderMode: 2
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -557,14 +557,14 @@ ParticleSystem:
   serializedVersion: 8
   lengthInSec: 5
   simulationSpeed: 1
-  stopAction: 1
+  stopAction: 0
   cullingMode: 2
   ringBufferMode: 0
   ringBufferLoopRange: {x: 0, y: 1}
   emitterVelocityMode: 0
   looping: 1
-  prewarm: 1
-  playOnAwake: 1
+  prewarm: 0
+  playOnAwake: 0
   useUnscaledTime: 0
   autoRandomSeed: 1
   startDelay:
@@ -630,7 +630,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.5
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -683,7 +683,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 2
+      scalar: 0.7
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -801,7 +801,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.8
+      scalar: 0.2
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -1178,7 +1178,7 @@ ParticleSystem:
   ShapeModule:
     serializedVersion: 6
     enabled: 1
-    type: 4
+    type: 12
     angle: 0
     length: 5
     boxThickness: {x: 0, y: 0, z: 0}
@@ -1265,7 +1265,7 @@ ParticleSystem:
     sphericalDirectionAmount: 0
     randomPositionAmount: 0
     radius:
-      value: 0.3
+      value: 0.4
       mode: 0
       spread: 0
       speed:
@@ -1437,7 +1437,7 @@ ParticleSystem:
     rateOverDistance:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1.5
+      scalar: 30
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -1822,20 +1822,20 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 0.25882354, g: 0.20784315, b: 0.13333334, a: 1}
-        key1: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 1}
-        key2: {r: 0.34509805, g: 0.25490198, b: 0.14901961, a: 1}
-        key3: {r: 0, g: 0, b: 0, a: 0}
-        key4: {r: 0, g: 0, b: 0, a: 0}
-        key5: {r: 0, g: 0, b: 0, a: 0}
+        key0: {r: 0, g: 0, b: 0, a: 1}
+        key1: {r: 0.003921569, g: 0.30980393, b: 0.7254902, a: 1}
+        key2: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 1}
+        key3: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 0}
+        key4: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 0}
+        key5: {r: 0.5169811, g: 0.29778498, b: 0.04974723, a: 0}
         key6: {r: 0, g: 0, b: 0, a: 0}
         key7: {r: 0, g: 0, b: 0, a: 0}
         ctime0: 231
-        ctime1: 65458
-        ctime2: 65535
-        ctime3: 0
-        ctime4: 0
-        ctime5: 0
+        ctime1: 65535
+        ctime2: 65458
+        ctime3: 65458
+        ctime4: 65458
+        ctime5: 65458
         ctime6: 0
         ctime7: 0
         atime0: 0
@@ -3360,12 +3360,12 @@ ParticleSystem:
         m_PostInfinity: 2
         m_RotationOrder: 4
     separateAxes: 0
-    frequency: 0.5
+    frequency: 1
     damping: 1
     octaves: 1
     octaveMultiplier: 0
     octaveScale: 2
-    quality: 0
+    quality: 1
     scrollSpeed:
       serializedVersion: 2
       minMaxState: 0
@@ -5375,7 +5375,7 @@ GameObject:
   - component: {fileID: 682436473}
   - component: {fileID: 682436472}
   m_Layer: 0
-  m_Name: PlayerDirtLandParticle
+  m_Name: PlayerLandParticle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5443,7 +5443,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -1
+  m_SortingOrder: 0
   m_RenderMode: 0
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -5559,7 +5559,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 2
+      scalar: 3
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -5612,7 +5612,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 3
+      scalar: 1
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -5730,7 +5730,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.45
+      scalar: 0.3
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -6054,7 +6054,7 @@ ParticleSystem:
     gravityModifier:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.8
+      scalar: 1
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -6111,7 +6111,7 @@ ParticleSystem:
     angle: 30
     length: 5
     boxThickness: {x: 0, y: 0, z: 0}
-    radiusThickness: 0.6
+    radiusThickness: 0.3
     donutRadius: 0.2
     m_Position: {x: 0, y: 0, z: 0}
     m_Rotation: {x: 0, y: 0, z: 0}
@@ -6809,8 +6809,8 @@ ParticleSystem:
       maxColor: {r: 1, g: 1, b: 1, a: 1}
       maxGradient:
         serializedVersion: 2
-        key0: {r: 0.18490559, g: 0.14150193, b: 0.048494093, a: 1}
-        key1: {r: 0.4716981, g: 0.24917299, b: 0.00978995, a: 1}
+        key0: {r: 0, g: 0, b: 0, a: 1}
+        key1: {r: 0.003921569, g: 0.1764706, b: 0.52156866, a: 1}
         key2: {r: 0.5320754, g: 0.33775046, b: 0.12749729, a: 0}
         key3: {r: 0, g: 0, b: 0, a: 0}
         key4: {r: 0, g: 0, b: 0, a: 0}
@@ -10524,7 +10524,7 @@ MonoBehaviour:
   mainCameraTransform: {fileID: 354005858}
   minDistanceFromCamera: 1
   innerGlowLight: {fileID: 2129125209}
-  maxGlowIntensity: 1
+  maxGlowIntensity: 0.7
   minGlowIntensity: 0
   innerGlowSpeed: 1
 --- !u!1 &948732232
@@ -10562,11 +10562,12 @@ MonoBehaviour:
   jumpHeight: 3
   gravity: -12
   rotationSpeed: 16
+  acceleration: 5
+  deceleration: 10
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  acceleration: 5
-  deceleration: 10
+  groundCheckDistance: 0.3
   fallMultiplier: 2
   lowJumpMultiplier: 1.5
   terminalVelocity: 50
@@ -11007,16 +11008,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22458e13a07907542948691cc3abb630, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerParticleController
-  dirtTrail: {fileID: 402319778}
+  trailEffect: {fileID: 402319778}
   landEffect: {fileID: 682436473}
-  minFallIntensity: 7
+  minFallIntensity: 5
   maxFallIntensity: 50
-  minParticleCount: 1
-  maxParticleCount: 60
-  minStartSpeed: 2
-  maxStartSpeed: 15
-  minBounce: 0.2
-  maxBounce: 0.5
+  minParticleCount: 7
+  maxParticleCount: 100
 --- !u!1 &1786398618
 GameObject:
   m_ObjectHideFlags: 0
@@ -11097,7 +11094,7 @@ ParticleSystemRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: -1
+  m_SortingOrder: 0
   m_RenderMode: 3
   m_MeshDistribution: 0
   m_SortMode: 0
@@ -16179,7 +16176,7 @@ Light:
   serializedVersion: 11
   m_Type: 3
   m_Color: {r: 0.4264151, g: 0.4264151, b: 0.4264151, a: 1}
-  m_Intensity: 0.12
+  m_Intensity: 0.1
   m_Range: 20
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -16370,7 +16367,7 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0, g: 0.49411774, b: 1, a: 1}
-  m_Intensity: 1
+  m_Intensity: 0.6
   m_Range: 1
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208

@@ -2,71 +2,46 @@ using UnityEngine;
 
 public class PlayerParticleController : MonoBehaviour
 {
-    [SerializeField] private ParticleSystem dirtTrail;
+    // --- CHANGE THIS ---
+    // We want a direct reference to the ParticleSystem component itself.
+    [SerializeField] private ParticleSystem trailEffect;
     [SerializeField] private ParticleSystem landEffect;
 
     [Header("Landing Effect Settings")]
-    [Tooltip("The downward velocity at which the minimum effect will be used.")]
     [SerializeField] private float minFallIntensity = 5f;
-    [Tooltip("The downward velocity at which the maximum effect will be used.")]
     [SerializeField] private float maxFallIntensity = 20f;
-    
-    [Header("Count")]
     [SerializeField] private int minParticleCount = 8;
     [SerializeField] private int maxParticleCount = 40;
-
-    [Header("Force (Start Speed)")]
-    [SerializeField] private float minStartSpeed = 2f;
-    [SerializeField] private float maxStartSpeed = 10f;
-
-    [Header("Bounce")]
-    [SerializeField] private float minBounce = 0.2f;
-    [SerializeField] private float maxBounce = 0.5f;
-
 
     public void PlayLandEffect(float fallIntensity)
     {
         if (landEffect == null) return;
-
-        // --- 1. Calculate the normalized intensity (0 to 1) ---
-        // This single value will drive all our other calculations.
-        float intensityT = Mathf.InverseLerp(minFallIntensity, maxFallIntensity, fallIntensity);
-
-        // --- 2. Calculate new values using the intensity ---
-        int newParticleCount = Mathf.RoundToInt(Mathf.Lerp(minParticleCount, maxParticleCount, intensityT));
-        float newStartSpeed = Mathf.Lerp(minStartSpeed, maxStartSpeed, intensityT);
-        float newBounce = Mathf.Lerp(minBounce, maxBounce, intensityT);
-
-        // --- 3. Apply the new values to the Particle System modules ---
-
-        // Get the modules. Modifying these structs applies the changes.
-        var main = landEffect.main;
-        var emission = landEffect.emission;
-        var collision = landEffect.collision;
-
-        // Apply the new Start Speed (Force)
-        main.startSpeed = newStartSpeed;
-
-        // Apply the new Bounce value
-        collision.bounce = newBounce;
         
-        // Apply the new Burst Count
-        ParticleSystem.Burst[] bursts = new ParticleSystem.Burst[emission.burstCount];
-        emission.GetBursts(bursts);
-        if (bursts.Length > 0)
-        {
-            bursts[0].count = newParticleCount;
-            emission.SetBursts(bursts);
-        }
+        float intensityT = Mathf.InverseLerp(minFallIntensity, maxFallIntensity, fallIntensity);
+        int newParticleCount = Mathf.RoundToInt(Mathf.Lerp(minParticleCount, maxParticleCount, intensityT));
 
-        // --- 4. Play the effect ---
+        var emission = landEffect.emission;
+        var burst = emission.GetBurst(0); // Get the first burst
+        burst.count = newParticleCount;
+        emission.SetBurst(0, burst); // Set the modified burst back
+
         landEffect.Play();
     }
 
-    public void ToggleDirtTrail(bool isOn)
+    // --- THIS IS THE NEW, ROBUST TOGGLE LOGIC ---
+    public void ToggleTrail(bool isOn)
     {
-        if (dirtTrail == null) return;
-        var emission = dirtTrail.emission;
-        emission.enabled = isOn;
+        if (trailEffect == null) return;
+
+        if (isOn)
+        {
+            trailEffect.Play();
+            Debug.Log("Trail effect played");
+        }
+        else
+        {
+            trailEffect.Stop();
+            Debug.Log("Trail effect stopped");
+        }
     }
 }
