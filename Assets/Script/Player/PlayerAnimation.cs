@@ -14,7 +14,7 @@ public class PlayerAnimation : MonoBehaviour
     void Start()
     {
         playerController = GetComponentInParent<PlayerController>();
-        playerParentTransform = playerController.transform; // Get the parent's transform
+        playerParentTransform = playerController.transform;
         animator = GetComponent<Animator>();
         mainCameraTransform = Camera.main.transform;
     }
