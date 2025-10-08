@@ -10808,12 +10808,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MonsterMovementAI
   chasePlayerSatellite: {fileID: 1386643908}
   player: {fileID: 948732236}
-  lightSource: {fileID: 146150542}
-  baseDetectionRange: 10
-  minAggressionChance: 0.1
-  maxAggressionChance: 0.9
-  requiredExposureTime: 2
-  retreatWaitTime: 3
+  playerLight: {fileID: 146150542}
+  minLight: 0
+  maxLight: 50
+  minAttackDelay: 1
+  maxAttackDelay: 8
+  stoppingDistance: 10
 --- !u!195 &1078382547
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -10881,9 +10881,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSatellite
   player: {fileID: 948732236}
-  orbitRadius: 40
-  rotateSpeed: 20
-  heightOffset: 0.5
+  orbitRadius: 50
+  rotateSpeed: 10
+  heightOffset: 1
 --- !u!1 &1408815719
 GameObject:
   m_ObjectHideFlags: 0
