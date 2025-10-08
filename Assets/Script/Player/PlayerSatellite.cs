@@ -27,8 +27,6 @@ public class PlayerSatellite : MonoBehaviour
         // Optionally: smooth follow (or just set directly)
         transform.position = targetPosition;
 
-        // Optional: make satellite always face forward, or look at player, etc.
-        // transform.LookAt(player);
     }
 
     private void OnDrawGizmos()

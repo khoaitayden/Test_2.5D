@@ -5,24 +5,25 @@ using System.Collections;
 public class MonsterMovementAI : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Transform chasePlayerSatellite; // Orbit point near player
+    [SerializeField] private Transform chasePlayerSatellite; // Orbit point
     [SerializeField] private Transform player;
     [SerializeField] private Light playerLight;
 
     [Header("Light Settings")]
-    [SerializeField] private float minLight = 0f;   // Player light at minimum (e.g., range = 2)
-    [SerializeField] private float maxLight = 10f;  // Player light at maximum (e.g., range = 10)
+    [SerializeField] private float minLight = 2f;    // Min light range (e.g., when nearly dead)
+    [SerializeField] private float maxLight = 10f;   // Max light range
 
     [Header("Attack Timing")]
-    [SerializeField] private float minAttackDelay = 1f;   // When light is MIN → attack fast
-    [SerializeField] private float maxAttackDelay = 8f;   // When light is MAX → attack slow
+    [SerializeField] private float minAttackDelay = 1f;   // Attack fast when dark
+    [SerializeField] private float maxAttackDelay = 8f;   // Attack slow when bright
 
     [Header("Movement")]
-    [SerializeField] private float stoppingDistance = 1f;
+    [SerializeField] private float attackDistance = 1.5f; // Distance to "attack"
+    [SerializeField] private float orbitDistanceThreshold = 1f; // How close to orbit point is "close enough"
 
     private NavMeshAgent agent;
     private bool isChasing = false;
-    private Coroutine attackCycleCoroutine;
+    private bool hasAttacked = false;
 
     void Start()
     {
@@ -33,74 +34,82 @@ public class MonsterMovementAI : MonoBehaviour
             enabled = false;
             return;
         }
-        agent.stoppingDistance = stoppingDistance;
 
-        StartAttackCycle();
+        // Start at orbit
+        GoToOrbit();
+        StartCoroutine(AttackCycle());
     }
 
     void Update()
     {
-        if (isChasing)
+        if (isChasing && !hasAttacked)
         {
-            agent.SetDestination(player.position);
-
-            if (agent.pathStatus == NavMeshPathStatus.PathComplete && 
-                agent.remainingDistance <= agent.stoppingDistance)
+            // Check if close enough to attack
+            if (Vector3.Distance(transform.position, player.position) <= attackDistance)
             {
-                ReturnToOrbit();
+                OnAttack();
             }
         }
-        else
+        else if (!isChasing)
         {
-            // Stay near orbit point
-            if (chasePlayerSatellite != null && 
-                Vector3.Distance(transform.position, chasePlayerSatellite.position) > 1f)
+            // Gently stay near orbit point
+            if (chasePlayerSatellite != null &&
+                Vector3.Distance(transform.position, chasePlayerSatellite.position) > orbitDistanceThreshold)
             {
                 agent.SetDestination(chasePlayerSatellite.position);
             }
         }
     }
 
-    void StartAttackCycle()
-    {
-        if (attackCycleCoroutine != null) StopCoroutine(attackCycleCoroutine);
-        attackCycleCoroutine = StartCoroutine(AttackCycle());
-    }
-
     IEnumerator AttackCycle()
     {
-        while (true)
+        while (enabled)
         {
-            // Get current player light level (use range or intensity)
+            // Get current light level from player's light range
             float currentLight = playerLight ? playerLight.range : maxLight;
             currentLight = Mathf.Clamp(currentLight, minLight, maxLight);
 
-            // Normalize: 0 = min light (dark), 1 = max light (bright)
+            // Normalize: 0 = dark (minLight), 1 = bright (maxLight)
             float lightNormalized = Mathf.InverseLerp(minLight, maxLight, currentLight);
 
-            // Darker = more aggressive → shorter delay
+            // Darker = more aggressive = shorter delay
             float delay = Mathf.Lerp(minAttackDelay, maxAttackDelay, lightNormalized);
 
             yield return new WaitForSeconds(delay);
 
-            // Start chasing
-            isChasing = true;
-            
-            // Wait until reached player
-            while (isChasing)
+            // Start chase (only if not already chasing)
+            if (!isChasing)
             {
-                yield return null;
+                StartChase();
             }
         }
     }
 
-    void ReturnToOrbit()
+    void StartChase()
+    {
+        isChasing = true;
+        hasAttacked = false;
+        agent.SetDestination(player.position);
+    }
+
+    void OnAttack()
+    {
+        hasAttacked = true;
+        Debug.Log("Monster attacks player!");
+
+        // TODO: Play animation, deal damage, etc.
+
+        // After attack, return to orbit
+        Invoke(nameof(GoToOrbit), 0.5f); // Optional: short delay before retreating
+    }
+
+    void GoToOrbit()
     {
         isChasing = false;
+        hasAttacked = false;
         if (chasePlayerSatellite != null)
         {
             agent.SetDestination(chasePlayerSatellite.position);
         }
-        // Attack cycle continues automatically
     }
 }
