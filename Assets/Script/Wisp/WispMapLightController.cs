@@ -1,5 +1,6 @@
 // WispMapLightController.cs
 using UnityEngine;
+using System.Collections.Generic;
 
 public class WispMapLightController : MonoBehaviour
 {
@@ -17,6 +18,9 @@ public class WispMapLightController : MonoBehaviour
     public Light focusLight;
     public Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
 
+    [Header("Detection")]
+    public LayerMask detectionLayer = -1;
+
     [Header("Floating & Movement")]
     public float floatStrength = 0.2f;
     public float floatSpeed = 2f;
@@ -25,7 +29,7 @@ public class WispMapLightController : MonoBehaviour
     [Header("Controls")]
     public KeyCode switchKey = KeyCode.F;
 
-    // Original full settings
+    // Original settings (full power)
     private float origPointI, origPointR;
     private float origVisionI, origVisionR;
     private float origFocusI, origFocusR;
@@ -36,6 +40,7 @@ public class WispMapLightController : MonoBehaviour
 
     private enum LightMode { Point, Vision, Focus }
     private LightMode currentMode = LightMode.Point;
+    private Light activeLight;
 
     void Start()
     {
@@ -54,16 +59,32 @@ public class WispMapLightController : MonoBehaviour
             ApplyLightMode();
         }
 
-        // Apply global energy to all lights
+        // Apply global energy with separate range/intensity curves
         if (LightEnergyManager.Instance != null)
         {
-            float energy = LightEnergyManager.Instance.GetIntensityFactor();
-            ApplyEnergyToAllLights(energy);
+            float energy = LightEnergyManager.Instance.GetIntensityFactor(); // 0–1
+
+            // Range drops linearly (or faster)
+            float effectiveRange = energy; // You can use Mathf.Pow(energy, 1.5f) for faster drop
+
+            // Intensity drops slower (e.g., sqrt)
+            float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
+
+            ApplyDimmedSettings(effectiveRange, effectiveIntensity);
 
             if (energy <= 0f)
             {
                 TurnOffAllLights();
+                activeLight = null;
             }
+        }
+    }
+    void FixedUpdate()
+    {
+        Collider[] litObjects = GetObjectsInLight();
+        foreach (Collider obj in litObjects)
+        {
+            Debug.Log(obj.name);
         }
     }
 
@@ -94,6 +115,7 @@ public class WispMapLightController : MonoBehaviour
             light.transform.rotation = mainCameraTransform.rotation;
         else
             light.transform.rotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
+        
     }
 
     void CacheOriginalSettings()
@@ -108,10 +130,17 @@ public class WispMapLightController : MonoBehaviour
         TurnOffAllLights();
         switch (currentMode)
         {
-            case LightMode.Point: if (pointLight != null) pointLight.enabled = true; break;
-            case LightMode.Vision: if (visionLight != null) visionLight.enabled = true; break;
-            case LightMode.Focus: if (focusLight != null) focusLight.enabled = true; break;
+            case LightMode.Point:
+                if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
+                break;
+            case LightMode.Vision:
+                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
+                break;
+            case LightMode.Focus:
+                if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
+                break;
         }
+
     }
 
     void TurnOffAllLights()
@@ -119,24 +148,81 @@ public class WispMapLightController : MonoBehaviour
         if (pointLight != null) pointLight.enabled = false;
         if (visionLight != null) visionLight.enabled = false;
         if (focusLight != null) focusLight.enabled = false;
+        activeLight = null;
     }
 
-    void ApplyEnergyToAllLights(float energy)
+    // ✅ Apply dimming with separate curves for range and intensity
+    void ApplyDimmedSettings(float rangeFactor, float intensityFactor)
     {
+        rangeFactor = Mathf.Clamp01(rangeFactor);
+        intensityFactor = Mathf.Clamp01(intensityFactor);
+
         if (pointLight != null)
         {
-            pointLight.intensity = origPointI * energy;
-            pointLight.range = origPointR * energy;
+            pointLight.range = origPointR * rangeFactor;
+            pointLight.intensity = origPointI * intensityFactor;
         }
         if (visionLight != null)
         {
-            visionLight.intensity = origVisionI * energy;
-            visionLight.range = origVisionR * energy;
+            visionLight.range = origVisionR * rangeFactor;
+            visionLight.intensity = origVisionI * intensityFactor;
         }
         if (focusLight != null)
         {
-            focusLight.intensity = origFocusI * energy;
-            focusLight.range = origFocusR * energy;
+            focusLight.range = origFocusR * rangeFactor;
+            focusLight.intensity = origFocusI * intensityFactor;
         }
+    }
+
+    // ✅ Detection uses the CURRENT (dimmed) light range
+    public Collider[] GetObjectsInLight()
+    {
+        if (activeLight == null || !activeLight.enabled)
+            return new Collider[0];
+
+        float currentRange = activeLight.range; // This is already dimmed!
+
+        if (activeLight.type == LightType.Point)
+        {
+            return Physics.OverlapSphere(activeLight.transform.position, currentRange, detectionLayer);
+        }
+        else if (activeLight.type == LightType.Spot)
+        {
+            return OverlapSpot(
+                activeLight.transform.position,
+                activeLight.transform.forward,
+                currentRange,
+                activeLight.spotAngle,
+                detectionLayer
+            );
+        }
+
+        return new Collider[0];
+    }
+
+    private Collider[] OverlapSpot(Vector3 origin, Vector3 direction, float range, float angle, LayerMask layerMask)
+    {
+        List<Collider> results = new List<Collider>();
+        if (range <= 0) return results.ToArray();
+
+        Collider[] colliders = Physics.OverlapSphere(origin, range, layerMask);
+        float halfAngle = angle * 0.5f * Mathf.Deg2Rad; // Convert to radians for dot product
+
+        foreach (Collider col in colliders)
+        {
+            Vector3 toCollider = col.transform.position - origin;
+            if (toCollider.sqrMagnitude > range * range) continue; // Skip if outside sphere (rare)
+
+            toCollider.Normalize();
+            float dot = Vector3.Dot(direction, toCollider);
+
+            // Compare using cosine (more efficient than acos)
+            if (dot >= Mathf.Cos(halfAngle))
+            {
+                results.Add(col);
+            }
+        }
+
+        return results.ToArray();
     }
 }
