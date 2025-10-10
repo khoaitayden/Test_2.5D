@@ -41,6 +41,7 @@ public class WispMapLightController : MonoBehaviour
     private enum LightMode { Point, Vision, Focus }
     private LightMode currentMode = LightMode.Point;
     private Light activeLight;
+    private HashSet<Collider> currentlyLit = new HashSet<Collider>();
 
     void Start()
     {
@@ -78,6 +79,32 @@ public class WispMapLightController : MonoBehaviour
                 activeLight = null;
             }
         }
+        Collider[] newlyLitColliders = GetObjectsInLight();
+        HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
+
+        // Find newly lit objects
+        foreach (Collider col in newLitSet)
+        {
+            if (!currentlyLit.Contains(col))
+            {
+                ILitObject litObj = col.GetComponent<ILitObject>();
+                if (litObj != null)
+                    litObj.OnLit();
+            }
+        }
+
+        // Find objects that are no longer lit
+        foreach (Collider col in currentlyLit)
+        {
+            if (!newLitSet.Contains(col))
+            {
+                ILitObject litObj = col.GetComponent<ILitObject>();
+                if (litObj != null)
+                    litObj.OnUnlit();
+            }
+        }
+
+        currentlyLit = newLitSet;
     }
     void FixedUpdate()
     {
@@ -184,7 +211,7 @@ public class WispMapLightController : MonoBehaviour
 
         if (activeLight.type == LightType.Point)
         {
-            return Physics.OverlapSphere(activeLight.transform.position, currentRange, detectionLayer);
+            return Physics.OverlapSphere(activeLight.transform.position, currentRange-10, detectionLayer);
         }
         else if (activeLight.type == LightType.Spot)
         {

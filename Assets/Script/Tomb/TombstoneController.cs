@@ -1,29 +1,43 @@
+// TombstoneController.cs
 using UnityEngine;
 
-public class TombstoneController : MonoBehaviour
+public class TombstoneController : MonoBehaviour, ILitObject
 {
-    private Camera mainCamera;
+    [SerializeField] private ParticleSystem wispSoul;
 
     void Start()
     {
-        mainCamera = Camera.main;
-        if (mainCamera == null)
-        {
-            Debug.LogWarning("No main camera found! Tombstone rotation may not work.");
-        }
+        if (wispSoul != null)
+            wispSoul.Stop();
+
+        // Optional: register itself automatically (not required if using physics query)
     }
 
+    public void OnLit()
+    {
+        Debug.Log($"{name} is lit!");
+        if (wispSoul != null && !wispSoul.isPlaying)
+            wispSoul.Play();
+    }
+
+    public void OnUnlit()
+    {
+        Debug.Log($"{name} is unlit!");
+        if (wispSoul != null && wispSoul.isPlaying)
+            wispSoul.Stop();
+    }
+
+    // Keep your billboard rotation logic
     void Update()
     {
-        if (mainCamera == null) return;
+        Camera cam = Camera.main;
+        if (cam == null) return;
 
-        Vector3 direction = mainCamera.transform.position - transform.position;
-        direction.y = 0; // Ignore vertical difference
-
-        if (direction.magnitude > 0.01f)
+        Vector3 dir = cam.transform.position - transform.position;
+        dir.y = 0;
+        if (dir.magnitude > 0.01f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Euler(0f, targetRotation.eulerAngles.y, 0f);
+            transform.rotation = Quaternion.LookRotation(dir);
         }
     }
 }
