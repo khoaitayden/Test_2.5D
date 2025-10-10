@@ -54,65 +54,16 @@ public class WispMapLightController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(switchKey))
-        {
-            currentMode = (LightMode)(((int)currentMode + 1) % 3);
-            ApplyLightMode();
-        }
-
-        // Apply global energy with separate range/intensity curves
-        if (LightEnergyManager.Instance != null)
-        {
-            float energy = LightEnergyManager.Instance.GetIntensityFactor(); // 0–1
-
-            // Range drops linearly (or faster)
-            float effectiveRange = energy; // You can use Mathf.Pow(energy, 1.5f) for faster drop
-
-            // Intensity drops slower (e.g., sqrt)
-            float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
-
-            ApplyDimmedSettings(effectiveRange, effectiveIntensity);
-
-            if (energy <= 0f)
-            {
-                TurnOffAllLights();
-                activeLight = null;
-            }
-        }
-        Collider[] newlyLitColliders = GetObjectsInLight();
-        HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
-
-        // Find newly lit objects
-        foreach (Collider col in newLitSet)
-        {
-            if (!currentlyLit.Contains(col))
-            {
-                ILitObject litObj = col.GetComponent<ILitObject>();
-                if (litObj != null)
-                    litObj.OnLit();
-            }
-        }
-
-        // Find objects that are no longer lit
-        foreach (Collider col in currentlyLit)
-        {
-            if (!newLitSet.Contains(col))
-            {
-                ILitObject litObj = col.GetComponent<ILitObject>();
-                if (litObj != null)
-                    litObj.OnUnlit();
-            }
-        }
-
-        currentlyLit = newLitSet;
+        HandleInput();
+        ApplyGlobalLightEnergy();
+        UpdateLitObjects();
     }
+
     void FixedUpdate()
     {
-        Collider[] litObjects = GetObjectsInLight();
-        foreach (Collider obj in litObjects)
-        {
-            Debug.Log(obj.name);
-        }
+        // Optional: keep for debugging, or remove
+        // Collider[] litObjects = GetObjectsInLight();
+        // foreach (Collider obj in litObjects) Debug.Log(obj.name);
     }
 
     void LateUpdate()
@@ -127,6 +78,85 @@ public class WispMapLightController : MonoBehaviour
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
 
+    // --- Input Handling ---
+    void HandleInput()
+    {
+        if (Input.GetKeyDown(switchKey))
+        {
+            currentMode = (LightMode)(((int)currentMode + 1) % 3);
+            ApplyLightMode();
+        }
+    }
+
+    // --- Global Light Energy (Dimming) ---
+    void ApplyGlobalLightEnergy()
+    {
+        if (LightEnergyManager.Instance == null) return;
+
+        float energy = LightEnergyManager.Instance.GetIntensityFactor();
+        float effectiveRange = energy;
+        float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
+
+        ApplyDimmedSettings(effectiveRange, effectiveIntensity);
+
+        if (energy <= 0f)
+        {
+            TurnOffAllLights();
+            activeLight = null;
+        }
+    }
+
+    // --- Lit Object Management (Observer Pattern) ---
+    void UpdateLitObjects()
+    {
+        Collider[] newlyLitColliders = GetObjectsInLight();
+        HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
+
+        // Handle newly lit objects
+        foreach (Collider col in newLitSet)
+        {
+            if (!currentlyLit.Contains(col))
+            {
+                NotifyLit(col, true);
+            }
+            else
+            {
+                DrainEnergyFrom(col);
+            }
+        }
+
+        // Handle objects that are no longer lit
+        foreach (Collider col in currentlyLit)
+        {
+            if (!newLitSet.Contains(col))
+            {
+                NotifyLit(col, false);
+            }
+        }
+
+        currentlyLit = newLitSet;
+    }
+
+    void NotifyLit(Collider col, bool isLit)
+    {
+        ILitObject litObj = col.GetComponent<ILitObject>();
+        if (litObj != null)
+        {
+            if (isLit)
+                litObj.OnLit();
+            else
+                litObj.OnUnlit();
+        }
+    }
+
+    void DrainEnergyFrom(Collider col)
+    {
+        TombstoneController tomb = col.GetComponent<TombstoneController>();
+        if (tomb != null)
+            tomb.DrainEnergy(Time.deltaTime);
+    }
+
+    // --- Light Position & Rotation ---
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
     {
         if (light == null) return;
@@ -142,9 +172,9 @@ public class WispMapLightController : MonoBehaviour
             light.transform.rotation = mainCameraTransform.rotation;
         else
             light.transform.rotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
-        
     }
 
+    // --- Initialization ---
     void CacheOriginalSettings()
     {
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
@@ -167,7 +197,6 @@ public class WispMapLightController : MonoBehaviour
                 if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
                 break;
         }
-
     }
 
     void TurnOffAllLights()
@@ -178,7 +207,6 @@ public class WispMapLightController : MonoBehaviour
         activeLight = null;
     }
 
-    // ✅ Apply dimming with separate curves for range and intensity
     void ApplyDimmedSettings(float rangeFactor, float intensityFactor)
     {
         rangeFactor = Mathf.Clamp01(rangeFactor);
@@ -201,13 +229,13 @@ public class WispMapLightController : MonoBehaviour
         }
     }
 
-    // ✅ Detection uses the CURRENT (dimmed) light range
+    // --- Detection ---
     public Collider[] GetObjectsInLight()
     {
         if (activeLight == null || !activeLight.enabled)
             return new Collider[0];
 
-        float currentRange = activeLight.range; // This is already dimmed!
+        float currentRange = activeLight.range;
 
         if (activeLight.type == LightType.Point)
         {
@@ -233,18 +261,17 @@ public class WispMapLightController : MonoBehaviour
         if (range <= 0) return results.ToArray();
 
         Collider[] colliders = Physics.OverlapSphere(origin, range, layerMask);
-        float halfAngle = angle * 0.5f * Mathf.Deg2Rad; // Convert to radians for dot product
+        float halfAngleRad = angle * 0.5f * Mathf.Deg2Rad;
 
         foreach (Collider col in colliders)
         {
             Vector3 toCollider = col.transform.position - origin;
-            if (toCollider.sqrMagnitude > range * range) continue; // Skip if outside sphere (rare)
+            if (toCollider.sqrMagnitude > range * range) continue;
 
             toCollider.Normalize();
             float dot = Vector3.Dot(direction, toCollider);
 
-            // Compare using cosine (more efficient than acos)
-            if (dot >= Mathf.Cos(halfAngle))
+            if (dot >= Mathf.Cos(halfAngleRad))
             {
                 results.Add(col);
             }

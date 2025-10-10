@@ -203,7 +203,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 272212140252739823, guid: a5ed23652c8a41d41b70ba0d0f754d67, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -25.2
+      value: -93.75
       objectReference: {fileID: 0}
     - target: {fileID: 272212140252739823, guid: a5ed23652c8a41d41b70ba0d0f754d67, type: 3}
       propertyPath: m_LocalPosition.y
@@ -816,6 +816,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce1e465c42dc5f24392a8867cd1a7ef5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tombstonecontroller
+  maxEnergy: 0.5
+  transferRate: 0.1
+  rechargeDelay: 5
+  regainRate: 0.1
+  energyIndicatorLight: {fileID: 1682399006}
   wispSoul: {fileID: 972518281}
 --- !u!65 &815981587
 BoxCollider:
@@ -1073,7 +1078,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 10
+      scalar: 20
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -3261,7 +3266,7 @@ ParticleSystem:
     multiplierCurve:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.5
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -4845,7 +4850,7 @@ ParticleSystem:
     lifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0.05
+      scalar: 0.01
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -5686,7 +5691,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 5430157891689449509, guid: 5391c22f1645e89488a55f5233726104, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -25.95
+      value: -94.5
       objectReference: {fileID: 0}
     - target: {fileID: 5430157891689449509, guid: 5391c22f1645e89488a55f5233726104, type: 3}
       propertyPath: m_LocalPosition.y
@@ -5959,7 +5964,7 @@ ParticleSystemForceField:
     m_GravityCurve:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 20
+      scalar: 50
       minScalar: 1
       maxCurve:
         serializedVersion: 2
@@ -6118,7 +6123,7 @@ ParticleSystemForceField:
     m_DragCurve:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.3
       minScalar: 0
       maxCurve:
         serializedVersion: 2
@@ -6599,7 +6604,7 @@ Transform:
   m_GameObject: {fileID: 1471539298}
   serializedVersion: 2
   m_LocalRotation: {x: 0.01864984, y: 0.051109742, z: -0.0009546029, w: 0.99851847}
-  m_LocalPosition: {x: -25.95, y: 13.214141, z: 5.032151}
+  m_LocalPosition: {x: -94.5, y: 13.214141, z: 5.032151}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7007,7 +7012,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LightEnergyManager
   startingEnergy: 1
-  maxDuration: 1000000
+  maxDuration: 100
   useSmoothDimming: 1
 --- !u!1001 &1901812065
 PrefabInstance:
@@ -7023,7 +7028,7 @@ PrefabInstance:
       objectReference: {fileID: 1241685187}
     - target: {fileID: 2398521217622766619, guid: 3a22210b11610504d9ce59340c1bcf7d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -25.95
+      value: -94.5
       objectReference: {fileID: 0}
     - target: {fileID: 2398521217622766619, guid: 3a22210b11610504d9ce59340c1bcf7d, type: 3}
       propertyPath: m_LocalPosition.y

@@ -27,7 +27,6 @@ public class PlayerParticleController : MonoBehaviour
         emission.SetBurst(0, burst); // Set the modified burst back
 
         landEffect.Play();
-        Debug.Log($"Played land effect with {newParticleCount} particles for fall intensity {fallIntensity}");
     }
     public void PlayJumpEffect()
     {
@@ -43,12 +42,10 @@ public class PlayerParticleController : MonoBehaviour
         if (isOn)
         {
             trailEffect.Play();
-            Debug.Log("Trail effect played");
         }
         else
         {
             trailEffect.Stop();
-            Debug.Log("Trail effect stopped");
         }
     }
 }

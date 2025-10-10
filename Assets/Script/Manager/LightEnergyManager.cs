@@ -39,6 +39,7 @@ public class LightEnergyManager : MonoBehaviour
         // Drain energy every frame (even if no light is on — optional)
         currentEnergy -= energyDrainRate * Time.deltaTime;
         currentEnergy = Mathf.Clamp01(currentEnergy);
+        Debug.Log($"[Wisp Energy] Current: {currentEnergy:F2} / 1.0 ({currentEnergy * 100:F1}%)");
     }
 
     // Call this later to restore light (e.g., near campfire)
