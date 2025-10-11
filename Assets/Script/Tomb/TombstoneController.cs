@@ -1,11 +1,18 @@
 // TombstoneController.cs
 using UnityEngine;
-
+using System.Collections;
 public class TombstoneController : MonoBehaviour, ILitObject
 {
+    [Header("Energy Randomization")]
+    public Vector2 energyRange = new Vector2(0.5f, 1.0f); // Min and Max energy
+
+    [Header("Visual Variants")]
+    public SpriteRenderer spriteRenderer;
+    public Sprite[] tombstoneSprites; // Assign in Inspector
+
     [Header("Energy Settings")]
-    public float maxEnergy = 1f;
-    public float transferRate = 0.5f;      // Energy per second transferred to player
+    [HideInInspector] public float maxEnergy; // Set randomly at start
+    public float transferRate = 0.5f;
     public float rechargeDelay = 2f;
     public float regainRate = 0.2f;
 
@@ -13,15 +20,27 @@ public class TombstoneController : MonoBehaviour, ILitObject
     public Light energyIndicatorLight;
     public ParticleSystem wispSoul;
 
-    private float currentEnergy = 1f;
+    private float currentEnergy;
     private float lastDrainTime = 0f;
     private bool isLit = false;
 
     void Start()
     {
+        // 1. Randomize max energy
+        maxEnergy = Random.Range(energyRange.x, energyRange.y);
         currentEnergy = maxEnergy;
+
+        // 2. Randomize sprite (if available)
+        if (spriteRenderer != null && tombstoneSprites != null && tombstoneSprites.Length > 0)
+        {
+            Sprite randomSprite = tombstoneSprites[Random.Range(0, tombstoneSprites.Length)];
+            spriteRenderer.sprite = randomSprite;
+        }
+
+        // Initialize visuals
         if (wispSoul != null) wispSoul.Stop();
         UpdateIndicatorLight();
+
     }
 
     void Update()
@@ -63,18 +82,23 @@ public class TombstoneController : MonoBehaviour, ILitObject
     {
         if (!isLit || currentEnergy <= 0f)
         {
-            currentEnergy = 0f; // Ensure it's exactly 0
+            currentEnergy = 0f;
             StopTransferParticles();
-            UpdateIndicatorLight(); // Update light to fully off
+            UpdateIndicatorLight();
+            return;
+        }
+
+        var manager = FindFirstObjectByType<LightEnergyManager>();
+        if (manager != null && manager.CurrentEnergy >= 1f)
+        {
+            StopTransferParticles();
             return;
         }
 
         float drainAmount = transferRate * deltaTime;
         currentEnergy -= drainAmount;
-
         if (currentEnergy < 0f) currentEnergy = 0f;
 
-        var manager = FindObjectOfType<LightEnergyManager>();
         if (manager != null && drainAmount > 0f)
         {
             manager.RestoreEnergy(drainAmount);
@@ -110,13 +134,11 @@ public class TombstoneController : MonoBehaviour, ILitObject
     {
         if (energyIndicatorLight == null) return;
 
-        // Always show light proportional to energy — even at low values
-        float intensity = Mathf.Lerp(0f, 0.1f, currentEnergy);
-        float range = Mathf.Lerp(0f, 2f, currentEnergy);
+        float intensity = Mathf.Lerp(0f, 0.08f, currentEnergy / maxEnergy); // Normalize by max
+        float range = Mathf.Lerp(0f, 2f, currentEnergy / maxEnergy);
 
         energyIndicatorLight.intensity = intensity;
         energyIndicatorLight.range = range;
-        // ✅ NEVER disable the light — just let intensity/range go to 0
-        energyIndicatorLight.enabled = true; // Always on (visually fades out)
+        energyIndicatorLight.enabled = true;
     }
 }

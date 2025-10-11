@@ -239,14 +239,14 @@ public class WispMapLightController : MonoBehaviour
 
         if (activeLight.type == LightType.Point)
         {
-            return Physics.OverlapSphere(activeLight.transform.position, currentRange-10, detectionLayer);
+            return Physics.OverlapSphere(activeLight.transform.position, currentRange*0.7f, detectionLayer);
         }
         else if (activeLight.type == LightType.Spot)
         {
             return OverlapSpot(
                 activeLight.transform.position,
                 activeLight.transform.forward,
-                currentRange,
+                currentRange*0.5f,
                 activeLight.spotAngle,
                 detectionLayer
             );

@@ -6,8 +6,8 @@ public class LightEnergyManager : MonoBehaviour
     public static LightEnergyManager Instance { get; private set; }
 
     [Header("Global Light Energy")]
-    public float startingEnergy = 0.5f;      // 0 = dead, 1 = full
-    public float maxDuration = 20f;          // Time to drain from full to zero
+    public float startingEnergy = 0.5f;
+    public float maxDuration = 20f;
     public bool useSmoothDimming = true;
 
     private float currentEnergy;
@@ -36,15 +36,18 @@ public class LightEnergyManager : MonoBehaviour
 
     void Update()
     {
-        // Drain energy every frame (even if no light is on — optional)
         currentEnergy -= energyDrainRate * Time.deltaTime;
         currentEnergy = Mathf.Clamp01(currentEnergy);
-        Debug.Log($"[Wisp Energy] Current: {currentEnergy:F2} / 1.0 ({currentEnergy * 100:F1}%)");
     }
 
-    // Call this later to restore light (e.g., near campfire)
     public void RestoreEnergy(float amount)
     {
+        if (currentEnergy >= 1f)
+        {
+            // Optional: log or trigger "full" event
+            return;
+        }
+
         currentEnergy = Mathf.Clamp01(currentEnergy + amount);
     }
 
