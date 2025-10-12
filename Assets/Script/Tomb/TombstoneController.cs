@@ -90,7 +90,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
         if (manager != null && manager.CurrentEnergy >= 1f)
         {
             StopTransferParticles();
-            return;
         }
 
         float drainAmount = transferRate * deltaTime;

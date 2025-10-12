@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1285451370637791244}
   - component: {fileID: 8069334904401304695}
   - component: {fileID: 128353649155999539}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Tombstone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -156,7 +156,7 @@ GameObject:
   - component: {fileID: 6332970831298729658}
   - component: {fileID: 1161283004597510785}
   - component: {fileID: 2471908948402267042}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: Point Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -283,7 +283,7 @@ GameObject:
   - component: {fileID: 259921578880902126}
   - component: {fileID: 5884447155509154794}
   - component: {fileID: 1983756327750524819}
-  m_Layer: 7
+  m_Layer: 9
   m_Name: WispEnergy Particle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4072,7 +4072,7 @@ ParticleSystem:
     collidesWithDynamic: 1
     interiorCollisions: 0
   TriggerModule:
-    enabled: 1
+    enabled: 0
     serializedVersion: 2
     inside: 1
     outside: 0
