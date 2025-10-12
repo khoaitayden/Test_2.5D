@@ -36,11 +36,9 @@ public class TombstoneController : MonoBehaviour, ILitObject
             Sprite randomSprite = tombstoneSprites[Random.Range(0, tombstoneSprites.Length)];
             spriteRenderer.sprite = randomSprite;
         }
-
         // Initialize visuals
         if (wispSoul != null) wispSoul.Stop();
         UpdateIndicatorLight();
-
     }
 
     void Update()

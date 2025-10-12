@@ -76,9 +76,9 @@ public class TombstoneSpawner : MonoBehaviour
         return null;
     }
 
-    void OnDrawGizmos()
-    {
-        Gizmos.color = new Color(0, 1, 0, 0.2f);
-        Gizmos.DrawCube(areaCenter, new Vector3(areaSize.x, 0.1f, areaSize.y));
-    }
+    // void OnDrawGizmos()
+    // {
+    //     Gizmos.color = new Color(0, 1, 0, 0.2f);
+    //     Gizmos.DrawCube(areaCenter, new Vector3(areaSize.x, 0.1f, areaSize.y));
+    // }
 }
