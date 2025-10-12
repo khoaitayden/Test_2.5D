@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee62532c6245fa74e8c34ee8d636f1ab, type: 3}
+  m_Name: GroundSpawnProfile
+  m_EditorClassIdentifier: Assembly-CSharp::SpawnProfile
+  spawnablePrefabs:
+  - {fileID: 8760904344017879953, guid: a573f69e064fb4d439c6cc9c280564ba, type: 3}
+  - {fileID: 4287359060195298161, guid: e017dc7949fa28546b3a51e5399d3a69, type: 3}
+  - {fileID: 7395701641545990028, guid: 98f5f65501a9c18448a50e50bf7767ee, type: 3}
+  - {fileID: 8321876057161695673, guid: 3c1a83fddc70ac74db9330d47d52a75d, type: 3}
+  - {fileID: 4491424982946032173, guid: a60409b8edc76bc4db8912232934eb95, type: 3}
+  - {fileID: 4483552572403468602, guid: dd0a06e64dfa94d4a901d4f9e2d4c2fb, type: 3}
+  - {fileID: 1018082567466602487, guid: 176ba255fca0610458361daa27a633d9, type: 3}
+  minDistance: 6
+  maxSpawnCount: 50
+  spawnableLayers:
+    serializedVersion: 2
+    m_Bits: 8
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 128
+  clearanceRadius: 2
+  scaleRange: {x: 1, y: 1.1}
+  alignToGroundNormal: 1
