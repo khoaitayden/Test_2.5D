@@ -246,7 +246,7 @@ public class WispMapLightController : MonoBehaviour
             return OverlapSpot(
                 activeLight.transform.position,
                 activeLight.transform.forward,
-                currentRange*0.5f,
+                currentRange*0.7f,
                 activeLight.spotAngle,
                 detectionLayer
             );
