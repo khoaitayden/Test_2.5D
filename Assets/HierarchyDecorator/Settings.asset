@@ -51,7 +51,7 @@ MonoBehaviour:
       - fontColour: {r: 0.1764706, g: 0.1764706, b: 0.1764706, a: 1}
         backgroundColour: {r: 0.6666667, g: 0.6666667, b: 0.6666667, a: 1}
       - fontColour: {r: 1, g: 1, b: 1, a: 1}
-        backgroundColour: {r: 0.1176471, g: 0.5647059, b: 1, a: 1}
+        backgroundColour: {r: 0.1, g: 0.1, b: 0.1, a: 1}
       style:
         m_Name: Header (Centered)
         m_Normal:
@@ -211,7 +211,7 @@ MonoBehaviour:
       - fontColour: {r: 1, g: 1, b: 1, a: 1}
         backgroundColour: {r: 0.38568, g: 0.6335747, b: 0.764151, a: 1}
       - fontColour: {r: 1, g: 1, b: 1, a: 1}
-        backgroundColour: {r: 0, g: 0.7490196, b: 1, a: 1}
+        backgroundColour: {r: 0.4, g: 0.4, b: 0.4, a: 1}
       style:
         m_Name: Mini Header (Centered)
         m_Normal:

@@ -65,14 +65,12 @@ public class MonsterMovementAI : MonoBehaviour, ILitObject
 
     public void OnLit()
     {
-        Debug.Log(gameObject.name + " is stunned by light!");
         currentState = AIState.Stunned;
         agent.isStopped = true; 
     }
 
     public void OnUnlit()
     {
-        Debug.Log(gameObject.name + " is no longer stunned.");
         agent.isStopped = false; 
         currentState = AIState.Chasing; 
 

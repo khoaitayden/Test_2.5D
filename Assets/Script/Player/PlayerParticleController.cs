@@ -37,9 +37,11 @@ public class PlayerParticleController : MonoBehaviour
     }
 
     // --- THIS IS THE NEW, ROBUST TOGGLE LOGIC ---
-    public void ToggleTrail(bool isOn)
+    public void ToggleTrail(bool isGrounded, bool isSlowWalking)
     {
-        if (isOn)
+        bool shouldPlay = isGrounded && !isSlowWalking;
+        
+        if (shouldPlay)
         {
             trailEffect.Play();
         }
