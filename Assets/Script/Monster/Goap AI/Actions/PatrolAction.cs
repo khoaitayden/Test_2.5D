@@ -1,49 +1,59 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
-    // [GoapId("Patrol-a07645db-9ba5-40d4-af08-b0b6651d21af")]
     public class PatrolAction : GoapActionBase<PatrolAction.Data>
     {
-        // Define how close the agent needs to be to the target to complete the action.
-        // This should be similar to or slightly greater than the NavMeshAgent's stopping distance.
-        private const float StoppingDistance = 1f;
-
         public override void Created()
         {
         }
 
         public override void Start(IMonoAgent agent, Data data)
         {
+            data.stuckTimer = 0f;
+            data.lastPosition = agent.Transform.position;
         }
 
-        // This method is called every frame while the action is running.
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // If the target is somehow null, the action must be stopped so the planner can find a new one.
-            if (data.Target == null)
+            // CORRECTED LINES: Get components from the 'agent' parameter, not the 'context'.
+            var config = agent.GetComponent<PatrolConfig>();
+            var navMeshAgent = agent.GetComponent<NavMeshAgent>();
+
+            if (config == null || navMeshAgent == null || data.Target == null)
             {
-                // CORRECTED LINE: Use 'Stop' instead of 'Failed'
+                Debug.LogError("PatrolAction is missing a required component (PatrolConfig, NavMeshAgent) or Target is null.");
                 return ActionRunState.Stop;
             }
 
-            // Calculate the distance to the target in the XZ plane for better accuracy on uneven ground.
-            var agentPosition = agent.Transform.position;
-            var targetPosition = data.Target.Position;
-            agentPosition.y = 0;
-            targetPosition.y = 0;
-            
-            var distance = Vector3.Distance(agentPosition, targetPosition);
+            // --- Unstuck Logic ---
+            float distanceMoved = Vector3.Distance(agent.Transform.position, data.lastPosition);
+            if (distanceMoved < config.StuckDistanceThreshold)
+            {
+                data.stuckTimer += context.DeltaTime;
+            }
+            else
+            {
+                data.stuckTimer = 0f;
+                data.lastPosition = agent.Transform.position;
+            }
 
-            // If the agent is close enough, the action is complete.
-            if (distance <= StoppingDistance)
+            if (data.stuckTimer > config.MaxStuckTime)
+            {
+                Debug.LogWarning($"Agent is stuck at {agent.Transform.position}. Finding a new patrol point.");
+                return ActionRunState.Stop;
+            }
+            
+            // --- Completion Logic ---
+            float distanceToTarget = Vector3.Distance(agent.Transform.position, data.Target.Position);
+            if (distanceToTarget <= navMeshAgent.stoppingDistance)
             {
                 return ActionRunState.Completed;
             }
 
-            // If the agent is not close enough, tell the planner to continue this action next frame.
             return ActionRunState.Continue;
         }
 
@@ -54,6 +64,8 @@ namespace CrashKonijn.Goap.MonsterGen
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
+            public Vector3 lastPosition;
+            public float stuckTimer;
         }
     }
 }

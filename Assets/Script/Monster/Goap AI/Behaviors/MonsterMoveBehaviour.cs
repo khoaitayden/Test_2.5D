@@ -60,6 +60,7 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
 
         private void OnTargetChanged(ITarget target, bool inRange)
         {
+
             this.currentTarget = target;
             this.shouldMove = !inRange;
             if (this.shouldMove && target != null && this.navMeshAgent.isOnNavMesh)
@@ -86,8 +87,6 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
                 this.navMeshAgent.isStopped = true;
             }
             
-            // The incorrect warning has been removed.
-            // If you want to check for an invalid path, do it like this:
             if (this.navMeshAgent.hasPath && this.navMeshAgent.pathStatus == NavMeshPathStatus.PathInvalid)
             {
                 Debug.LogWarning("Path to target is invalid!");
