@@ -27,7 +27,6 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
         {
             this.agent.Events.OnTargetInRange += this.OnTargetInRange;
             this.agent.Events.OnTargetChanged += this.OnTargetChanged;
-            this.agent.Events.OnTargetNotInRange -= this.TargetNotInRange; // ⚠️ Fix: was -= in OnEnable!
             this.agent.Events.OnTargetNotInRange += this.TargetNotInRange;
             this.agent.Events.OnTargetLost += this.TargetLost;
         }
@@ -44,20 +43,26 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
         {
             this.currentTarget = null;
             this.shouldMove = false;
-            this.navMeshAgent.isStopped = true;
+            if (this.navMeshAgent.isOnNavMesh)
+            {
+                this.navMeshAgent.isStopped = true;
+            }
         }
 
         private void OnTargetInRange(ITarget target)
         {
             this.shouldMove = false;
-            this.navMeshAgent.isStopped = true;
+            if (this.navMeshAgent.isOnNavMesh)
+            {
+                this.navMeshAgent.isStopped = true;
+            }
         }
 
         private void OnTargetChanged(ITarget target, bool inRange)
         {
             this.currentTarget = target;
             this.shouldMove = !inRange;
-            if (this.shouldMove && target != null)
+            if (this.shouldMove && target != null && this.navMeshAgent.isOnNavMesh)
             {
                 this.navMeshAgent.SetDestination(target.Position);
                 this.navMeshAgent.isStopped = false;
@@ -67,28 +72,26 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
         private void TargetNotInRange(ITarget target)
         {
             this.shouldMove = true;
-            if (target != null)
+            if (target != null && this.navMeshAgent.isOnNavMesh)
             {
                 this.navMeshAgent.SetDestination(target.Position);
                 this.navMeshAgent.isStopped = false;
             }
         }
 
-        // No Update needed for movement! NavMeshAgent handles it.
-        // But you can keep it for debugging or pausing logic.
         private void Update()
         {
-            if (this.agent.IsPaused)
+            if (this.agent.IsPaused && this.navMeshAgent.isOnNavMesh)
             {
                 this.navMeshAgent.isStopped = true;
             }
-            else if (this.shouldMove && this.currentTarget != null)
+            
+            // The incorrect warning has been removed.
+            // If you want to check for an invalid path, do it like this:
+            if (this.navMeshAgent.hasPath && this.navMeshAgent.pathStatus == NavMeshPathStatus.PathInvalid)
             {
-                // Optional: refresh destination if it drifts (usually not needed)
-                // this.navMeshAgent.SetDestination(this.currentTarget.Position);
+                Debug.LogWarning("Path to target is invalid!");
             }
-
-            Debug.LogWarning("Path to target is invalid!");
         }
 
         private void OnDrawGizmos()

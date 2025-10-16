@@ -19,7 +19,7 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
             
             // This only applies sto the code demo
             if (this.provider.AgentTypeBehaviour == null)
-                this.provider.AgentType = this.goap.GetAgentType("ScriptDemoAgent");
+                this.provider.AgentType = this.goap.GetAgentType("ScriptMonsterAgent");
         }
 
         private void Start()
