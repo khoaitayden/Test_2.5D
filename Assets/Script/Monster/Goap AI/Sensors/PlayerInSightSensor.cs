@@ -5,38 +5,20 @@ using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
-    // Back to LocalWorldSensorBase - simpler and works
     public class PlayerInSightSensor : LocalWorldSensorBase
     {
         private MonsterConfig config;
 
-        public override void Created() 
-        {
-            Debug.Log("[PlayerInSightSensor] Sensor CREATED!");
-        }
-        
-        public override void Update() 
-        {
-            // Empty
-        }
+        public override void Created() { }
+        public override void Update() { }
 
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            // Cache the config on the first run
             if (config == null)
                 config = references.GetCachedComponent<MonsterConfig>();
 
             if (config == null)
-            {
-                Debug.LogError("[PlayerInSightSensor] MonsterConfig is NULL!");
                 return false;
-            }
-
-            // Debug info every 2 seconds
-            if (Time.frameCount % 120 == 0)
-            {
-                Debug.Log($"[PlayerInSightSensor] Checking... ViewRadius: {config.ViewRadius}, LayerMask: {config.PlayerLayerMask.value}");
-            }
 
             var colliders = new Collider[10];
             var count = Physics.OverlapSphereNonAlloc(
@@ -46,20 +28,28 @@ namespace CrashKonijn.Goap.MonsterGen
                 config.PlayerLayerMask
             );
 
-            // Debug logging
-            if (count > 0)
+            if (count == 0)
+                return false;
+
+            // CHANGED: Iterate through found colliders and check the angle.
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < count; i++)
+                var playerCollider = colliders[i];
+                if (playerCollider == null) continue;
+
+                Vector3 directionToPlayer = (playerCollider.transform.position - agent.Transform.position).normalized;
+
+                // Check if the player is within the view cone.
+                if (Vector3.Angle(agent.Transform.forward, directionToPlayer) < config.ViewAngle / 2)
                 {
-                    if (colliders[i] != null)
-                    {
-                        Debug.Log($"[PlayerInSightSensor] PLAYER DETECTED! Name: {colliders[i].name}, Distance: {Vector3.Distance(agent.Transform.position, colliders[i].transform.position):F2}");
-                    }
+                    // Player is in sight and within the cone!
+                    Debug.Log($"[PlayerInSightSensor] PLAYER DETECTED IN CONE!");
+                    return true;
                 }
             }
 
-            // Return true if player is in sight, false otherwise
-            return count > 0;
+            // No player was found within the cone.
+            return false;
         }
     }
 }

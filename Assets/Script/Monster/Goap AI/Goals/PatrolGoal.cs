@@ -1,4 +1,3 @@
-// In Assets/Monster/Goap AI/Goals/PatrolGoal.cs
 using CrashKonijn.Goap.Runtime;
 
 namespace CrashKonijn.Goap.MonsterGen

@@ -8,7 +8,8 @@ public class MonsterBrain : MonoBehaviour
     private AgentBehaviour agent;
     private GoapActionProvider provider;
     private GoapBehaviour goap;
-    
+    public bool IsTouchingPlayer { get; private set; }
+
     private void Awake()
     {
         this.goap = FindFirstObjectByType<GoapBehaviour>();
@@ -55,38 +56,38 @@ public class MonsterBrain : MonoBehaviour
         {
             var colliders = new Collider[1];
             var count = Physics.OverlapSphereNonAlloc(
-                transform.position, 
-                config.ViewRadius, 
-                colliders, 
+                transform.position,
+                config.ViewRadius,
+                colliders,
                 config.PlayerLayerMask
             );
-            
+
             bool playerInSight = count > 0;
-            
+
             // Update world state manually
             this.provider.WorldData.SetState(new PlayerInSight(), playerInSight ? 1 : 0);
-            
+
             // Debug
             if (playerInSight && Time.frameCount % 60 == 0)
             {
                 Debug.Log($"[MonsterBrain] Player detected at distance: {Vector3.Distance(transform.position, colliders[0].transform.position):F2}");
             }
         }
-        
+
         // Check world state and switch goals dynamically
         var worldData = this.provider.WorldData;
-        
+
         // Check if player is in sight
         var playerInSightState = worldData.GetWorldState(typeof(PlayerInSight));
         bool playerNearby = playerInSightState?.Value >= 1;
-        
+
         // Get current goal from CurrentPlan
         var currentGoal = this.provider.CurrentPlan?.Goal;
-        
+
         // Don't do anything if we don't have a goal yet
         if (currentGoal == null)
             return;
-        
+
         // Switch to KillPlayerGoal if player is in sight and not already chasing
         if (playerNearby && currentGoal is not KillPlayerGoal)
         {
@@ -98,6 +99,26 @@ public class MonsterBrain : MonoBehaviour
         {
             Debug.Log("[MonsterBrain] Player lost! Switching to PatrolGoal");
             this.provider.RequestGoal<PatrolGoal>();
+        }
+    }
+    
+    public void ResetTouchState()
+    {
+        IsTouchingPlayer = false;
+    }
+
+    // ADDED: Unity's trigger detection method.
+    private void OnTriggerEnter(Collider other)
+    {
+        var config = GetComponent<MonsterConfig>();
+        if (config == null) return;
+        
+        // Check if the object we touched is on the player layer.
+        // This is a robust way to check layer masks.
+        if ((config.PlayerLayerMask.value & (1 << other.gameObject.layer)) > 0)
+        {
+            Debug.Log("[MonsterBrain] Touched the player!");
+            IsTouchingPlayer = true;
         }
     }
 }
