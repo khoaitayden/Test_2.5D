@@ -5,7 +5,7 @@ using UnityEngine.AI;
 
 public class PatrolTargetSensor : LocalTargetSensorBase
 {
-    private PatrolConfig config;
+    private MonsterConfig config;
     
     // Increased attempts as path validation is stricter and might fail more often.
     private const int MaxAttempts = 30;
@@ -23,7 +23,7 @@ public class PatrolTargetSensor : LocalTargetSensorBase
         // Cache the config on the first run
         if (config == null)
         {
-            config = references.GetCachedComponent<PatrolConfig>();
+            config = references.GetCachedComponent<MonsterConfig>();
             if (config == null)
             {
                 Debug.LogError("PatrolTargetSensor requires a PatrolConfig component on the agent!");

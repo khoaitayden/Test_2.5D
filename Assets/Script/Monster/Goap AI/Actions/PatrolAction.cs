@@ -20,7 +20,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             // CORRECTED LINES: Get components from the 'agent' parameter, not the 'context'.
-            var config = agent.GetComponent<PatrolConfig>();
+            var config = agent.GetComponent<MonsterConfig>();
             var navMeshAgent = agent.GetComponent<NavMeshAgent>();
 
             if (config == null || navMeshAgent == null || data.Target == null)
@@ -31,7 +31,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             // --- Unstuck Logic ---
             float distanceMoved = Vector3.Distance(agent.Transform.position, data.lastPosition);
-            if (distanceMoved < config.StuckDistanceThreshold)
+            if (distanceMoved < config.StuckVelocityThreshold)
             {
                 data.stuckTimer += context.DeltaTime;
             }
