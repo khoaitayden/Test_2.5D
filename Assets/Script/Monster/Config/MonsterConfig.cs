@@ -8,7 +8,6 @@ public float MaxPatrolDistance = 50f;
 [Header("Attack")]
 public float ViewRadius = 20f;
 public LayerMask PlayerLayerMask;
-public float AttackDistance = 2f;
 
 [Header("Unstuck Logic")]
 public float MaxStuckTime = 5f;

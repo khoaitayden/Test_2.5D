@@ -37,7 +37,7 @@ var builder = new CapabilityBuilder("MonsterCapability");
             .SetKey<PlayerInSight>();
         
         // This sensor provides the PlayerTarget (player position)
-        builder.AddTargetSensor<PlayerSensor>()
+        builder.AddTargetSensor<PlayerCurrentPosSensor>()
             .SetTarget<PlayerTarget>();
         
         return builder.Build();
