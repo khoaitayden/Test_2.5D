@@ -1,103 +1,118 @@
+// FILE TO EDIT: MonsterMoveBehaviour.cs
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Agent.Runtime;
 using UnityEngine;
 using UnityEngine.AI;
-namespace CrashKonijn.Docs.GettingStarted.Behaviours
+
+// This namespace was different in your provided file, ensure it's correct for your project
+namespace CrashKonijn.Docs.GettingStarted.Behaviours 
 {
-public class MonsterMoveBehaviour : MonoBehaviour
-{
-private AgentBehaviour agent;
-private NavMeshAgent navMeshAgent;
-private ITarget currentTarget;
-private bool shouldMove;
-private void Awake()
+    public class MonsterMoveBehaviour : MonoBehaviour
     {
-        this.agent = this.GetComponent<AgentBehaviour>();
-        this.navMeshAgent = this.GetComponent<NavMeshAgent>();
+        private AgentBehaviour agent;
+        private NavMeshAgent navMeshAgent;
+        private ITarget currentTarget;
+        private bool shouldMove;
+        
+        // You can add a small delay to avoid setting the destination every single frame
+        private float pathUpdateDelay = 0.2f; 
+        private float pathUpdateTimer;
 
-        if (navMeshAgent == null)
+        private void Awake()
         {
-            Debug.LogError("MonsterMoveBehaviour requires a NavMeshAgent component!");
+            this.agent = this.GetComponent<AgentBehaviour>();
+            this.navMeshAgent = this.GetComponent<NavMeshAgent>();
+
+            if (navMeshAgent == null)
+                Debug.LogError("MonsterMoveBehaviour requires a NavMeshAgent component!");
         }
-    }
 
-    private void OnEnable()
-    {
-        this.agent.Events.OnTargetInRange += this.OnTargetInRange;
-        this.agent.Events.OnTargetChanged += this.OnTargetChanged;
-        this.agent.Events.OnTargetNotInRange += this.TargetNotInRange;
-        this.agent.Events.OnTargetLost += this.TargetLost;
-    }
-
-    private void OnDisable()
-    {
-        this.agent.Events.OnTargetInRange -= this.OnTargetInRange;
-        this.agent.Events.OnTargetChanged -= this.OnTargetChanged;
-        this.agent.Events.OnTargetNotInRange -= this.TargetNotInRange;
-        this.agent.Events.OnTargetLost -= this.TargetLost;
-    }
-
-    private void TargetLost()
-    {
-        this.currentTarget = null;
-        this.shouldMove = false;
-        if (this.navMeshAgent.isOnNavMesh)
+        // OnEnable and OnDisable remain unchanged...
+        private void OnEnable()
         {
-            this.navMeshAgent.isStopped = true;
+            this.agent.Events.OnTargetInRange += this.OnTargetInRange;
+            this.agent.Events.OnTargetChanged += this.OnTargetChanged;
+            this.agent.Events.OnTargetNotInRange += this.TargetNotInRange;
+            this.agent.Events.OnTargetLost += this.TargetLost;
         }
-    }
 
-    private void OnTargetInRange(ITarget target)
-    {
-        this.shouldMove = false;
-        if (this.navMeshAgent.isOnNavMesh)
+        private void OnDisable()
         {
-            this.navMeshAgent.isStopped = true;
+            this.agent.Events.OnTargetInRange -= this.OnTargetInRange;
+            this.agent.Events.OnTargetChanged -= this.OnTargetChanged;
+            this.agent.Events.OnTargetNotInRange -= this.TargetNotInRange;
+            this.agent.Events.OnTargetLost -= this.TargetLost;
         }
-    }
 
-    private void OnTargetChanged(ITarget target, bool inRange)
-    {
-
-        this.currentTarget = target;
-        this.shouldMove = !inRange;
-        if (this.shouldMove && target != null && this.navMeshAgent.isOnNavMesh)
+        private void TargetLost()
         {
-            this.navMeshAgent.SetDestination(target.Position);
-            this.navMeshAgent.isStopped = false;
+            this.currentTarget = null;
+            this.shouldMove = false;
+            if (this.navMeshAgent.isOnNavMesh)
+                this.navMeshAgent.isStopped = true;
         }
-    }
 
-    private void TargetNotInRange(ITarget target)
-    {
-        this.shouldMove = true;
-        if (target != null && this.navMeshAgent.isOnNavMesh)
+        private void OnTargetInRange(ITarget target)
         {
-            this.navMeshAgent.SetDestination(target.Position);
-            this.navMeshAgent.isStopped = false;
+            this.shouldMove = false;
+            if (this.navMeshAgent.isOnNavMesh)
+                this.navMeshAgent.isStopped = true;
         }
-    }
 
-    private void Update()
-    {
-        if (this.agent.IsPaused && this.navMeshAgent.isOnNavMesh)
+        private void OnTargetChanged(ITarget target, bool inRange)
         {
-            this.navMeshAgent.isStopped = true;
+            this.currentTarget = target;
+            this.shouldMove = !inRange;
+            // Set initial destination
+            this.UpdatePath();
+        }
+
+        private void TargetNotInRange(ITarget target)
+        {
+            this.shouldMove = true;
+             // Set initial destination
+            this.UpdatePath();
         }
         
-        if (this.navMeshAgent.hasPath && this.navMeshAgent.pathStatus == NavMeshPathStatus.PathInvalid)
+        // This is where the continuous chase logic lives
+        private void Update()
         {
-            Debug.LogWarning("Path to target is invalid!");
+            if (this.agent.IsPaused)
+            {
+                if(this.navMeshAgent.isOnNavMesh)
+                    this.navMeshAgent.isStopped = true;
+                return; // Don't do anything else if paused
+            }
+
+            // Timer to prevent updating path every single frame (better performance)
+            pathUpdateTimer -= Time.deltaTime;
+
+            if (this.shouldMove && this.currentTarget != null)
+            {
+                if(pathUpdateTimer <= 0f)
+                {
+                    this.UpdatePath();
+                }
+            }
+        }
+        
+        private void UpdatePath()
+        {
+            if (currentTarget == null || !this.navMeshAgent.isOnNavMesh)
+                return;
+                
+            this.navMeshAgent.SetDestination(this.currentTarget.Position);
+            this.navMeshAgent.isStopped = false;
+            
+            // Reset timer
+            pathUpdateTimer = pathUpdateDelay;
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (this.currentTarget == null) return;
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(this.transform.position, this.currentTarget.Position);
         }
     }
-
-    private void OnDrawGizmos()
-    {
-        if (this.currentTarget == null)
-            return;
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(this.transform.position, this.currentTarget.Position);
-    }
-}
 }

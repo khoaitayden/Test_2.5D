@@ -1,37 +1,38 @@
+// FILE TO EDIT: PlayerSensor.cs
 using CrashKonijn.Agent.Core;
-using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.Runtime; // Required for TransformTarget
 using UnityEngine;
+
 namespace CrashKonijn.Goap.MonsterGen
 {
-// This sensor ONLY provides the PlayerTarget (player's position)
-public class PlayerSensor : LocalTargetSensorBase
-{
-private MonsterConfig config;
-public override void Created() { }
-    public override void Update() { }
-
-    public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
+    public class PlayerSensor : LocalTargetSensorBase
     {
-        // Cache the config on the first run
-        if (config == null)
-            config = references.GetCachedComponent<MonsterConfig>();
+        private MonsterConfig config;
 
-        if (config == null) return null;
+        public override void Created() { }
+        public override void Update() { }
 
-        var colliders = new Collider[1];
-        var count = Physics.OverlapSphereNonAlloc(
-            agent.Transform.position, 
-            config.ViewRadius, 
-            colliders, 
-            config.PlayerLayerMask
-        );
+        public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
+        {
+            if (config == null)
+                config = references.GetCachedComponent<MonsterConfig>();
 
-        // If no player found, return null (no target)
-        if (count == 0)
-            return null;
-        
-        // Return the player's position as the target
-        return new PositionTarget(colliders[0].transform.position);
+            if (config == null) return null;
+
+            var colliders = new Collider[1];
+            var count = Physics.OverlapSphereNonAlloc(
+                agent.Transform.position,
+                config.ViewRadius,
+                colliders,
+                config.PlayerLayerMask
+            );
+
+            if (count == 0)
+                return null;
+
+            // THE KEY CHANGE IS HERE!
+            // We now return a TransformTarget, which tracks the player's transform dynamically.
+            return new TransformTarget(colliders[0].transform);
+        }
     }
-}
 }
