@@ -7,22 +7,20 @@ using UnityEditor; // Required for the wire arc gizmo
 public class MonsterConfig : MonoBehaviour
 {
     [Header("Patrol")]
-    public float MinPatrolDistance = 15f;
-    public float MaxPatrolDistance = 50f;
+    public float minPatrolDistance = 15f;
+    public float maxPatrolDistance = 50f;
 
     [Header("Vision")] // Changed from "Attack" for clarity
-    public float ViewRadius = 20f;
+    public int numOfRayCast = 5;
+    public float viewRadius = 20f;
     [Range(0, 360)] // Use a slider for the angle, it's more convenient
     public float ViewAngle = 90f; // <--- NEW PROPERTY
-    public LayerMask PlayerLayerMask;
-    public LayerMask ObstacleLayerMask; // <--- NEW PROPERTY for line-of-sight
-
-    [Header("Attack")]
-    public float AttackDistance = 2f; // We keep this for the future if needed
+    public LayerMask playerLayerMask;
+    public LayerMask obstacleLayerMask; // <--- NEW PROPERTY for line-of-sight
 
     [Header("Unstuck Logic")]
-    public float MaxStuckTime = 5f;
-    public float StuckVelocityThreshold = 0.1f;
+    public float maxStuckTime = 5f;
+    public float stuckVelocityThreshold = 0.1f;
     
     // This will draw the view cone gizmo in the editor when the monster is selected
     private void OnDrawGizmosSelected()
@@ -40,12 +38,12 @@ public class MonsterConfig : MonoBehaviour
         Vector3 rightEdgeDirection = Quaternion.Euler(0, ViewAngle / 2, 0) * forward;
         
         // Draw the two lines that form the edges of the cone
-        Gizmos.DrawLine(origin, origin + leftEdgeDirection * ViewRadius);
-        Gizmos.DrawLine(origin, origin + rightEdgeDirection * ViewRadius);
+        Gizmos.DrawLine(origin, origin + leftEdgeDirection * viewRadius);
+        Gizmos.DrawLine(origin, origin + rightEdgeDirection * viewRadius);
         
 #if UNITY_EDITOR
         // Draw a filled arc to make the cone easier to see
-        Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, ViewRadius);
+        Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
 #endif
     }
 }

@@ -15,7 +15,7 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
         private bool shouldMove;
         
         // You can add a small delay to avoid setting the destination every single frame
-        private float pathUpdateDelay = 0.2f; 
+        private float pathUpdateDelay = 0.1f; 
         private float pathUpdateTimer;
 
         private void Awake()

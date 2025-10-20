@@ -56,11 +56,11 @@ private Vector3? GetRandomValidReachablePosition(IActionReceiver agent)
     {
         // 1. Get a random point in a wide arc
         Vector2 randomDirection = Random.insideUnitCircle.normalized;
-        float randomDistance = Random.Range(config.MinPatrolDistance, config.MaxPatrolDistance);
+        float randomDistance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
         Vector3 randomPoint = origin + new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
 
         // 2. Find the nearest point on the NavMesh to our random point
-        if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, config.MaxPatrolDistance, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, config.maxPatrolDistance, NavMesh.AllAreas))
         {
             // 3. *** CRUCIAL VALIDATION STEP ***
             //    Check if a path can be calculated from the agent to the potential target point.

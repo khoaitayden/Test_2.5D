@@ -23,15 +23,14 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) return false;
 
-            // 'IActionReceiver' also has a .Transform property, so the rest of the logic is unchanged.
             Vector3 eyesPosition = agent.Transform.position + Vector3.up * 0.5f;
 
             var colliders = new Collider[10];
-            var count = Physics.OverlapSphereNonAlloc(
+            int count = Physics.OverlapSphereNonAlloc(
                 eyesPosition,
-                config.ViewRadius,
+                config.viewRadius,
                 colliders,
-                config.PlayerLayerMask
+                config.playerLayerMask
             );
 
             if (count == 0) return false;
@@ -39,18 +38,52 @@ namespace CrashKonijn.Goap.MonsterGen
             for (int i = 0; i < count; i++)
             {
                 Transform target = colliders[i].transform;
-                Vector3 directionToTarget = (target.position - eyesPosition).normalized;
-                
-                if (Vector3.Angle(agent.Transform.forward, directionToTarget) < config.ViewAngle / 2)
+                Vector3 toTarget = target.position - eyesPosition;
+                float distanceToTarget = toTarget.magnitude;
+
+                if (distanceToTarget > config.viewRadius) continue;
+
+                // Check if within view cone
+                if (Vector3.Angle(agent.Transform.forward, toTarget) > config.ViewAngle / 2f)
+                    continue;
+
+                Vector3 targetDir = toTarget.normalized;
+                int rayCount = Mathf.Max(1, config.numOfRayCast);
+                float halfAngle = config.ViewAngle / 2f;
+
+                float raySpreadAngle = Mathf.Min(30f, config.ViewAngle); // Max 10° spread for accuracy
+                float rayHalfSpread = raySpreadAngle / 2f;
+
+                bool hasClearRay = false;
+
+                for (int r = 0; r < rayCount; r++)
                 {
-                    float distanceToTarget = Vector3.Distance(eyesPosition, target.position);
-                    Debug.DrawRay(eyesPosition, directionToTarget * distanceToTarget, Color.red);
-                    
-                    if (!Physics.Raycast(eyesPosition, directionToTarget, distanceToTarget, config.ObstacleLayerMask))
+                    // Distribute from -rayHalfSpread to +rayHalfSpread
+                    float t = rayCount > 1 ? r / (float)(rayCount - 1) : 0.5f;
+                    float angleOffset = Mathf.Lerp(-rayHalfSpread, rayHalfSpread, t);
+
+                    // Create a rotation around the UP axis (Y) by angleOffset
+                    Quaternion spreadRotation = Quaternion.Euler(0, angleOffset, 0);
+                    Vector3 rayDir = spreadRotation * targetDir;
+
+                    // Optional: also add vertical spread if needed (usually not for 2D-like AI)
+
+                    // Draw debug ray
+                    Debug.DrawRay(eyesPosition, rayDir * distanceToTarget, Color.cyan);
+
+                    // Cast ray
+                    if (!Physics.Raycast(eyesPosition, rayDir, distanceToTarget, config.obstacleLayerMask))
                     {
-                        // Removed the debug log from here to reduce spam. The brain's log is better.
-                        return true;
+                        // This ray reached the target without hitting an obstacle!
+                        hasClearRay = true;
+                        break;
                     }
+                }
+
+                if (hasClearRay)
+                {
+                    Debug.DrawLine(eyesPosition, target.position, Color.green);
+                    return true; // Can see this target
                 }
             }
 

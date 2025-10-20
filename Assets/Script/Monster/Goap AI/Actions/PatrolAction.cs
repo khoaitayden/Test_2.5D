@@ -29,7 +29,7 @@ public override void Start(IMonoAgent agent, Data data)
 
         // --- Unstuck Logic ---
         float distanceMoved = Vector3.Distance(agent.Transform.position, data.lastPosition);
-        if (distanceMoved < config.StuckVelocityThreshold)
+        if (distanceMoved < config.stuckVelocityThreshold)
         {
             data.stuckTimer += context.DeltaTime;
         }
@@ -39,7 +39,7 @@ public override void Start(IMonoAgent agent, Data data)
             data.lastPosition = agent.Transform.position;
         }
 
-        if (data.stuckTimer > config.MaxStuckTime)
+        if (data.stuckTimer > config.maxStuckTime)
         {
             Debug.LogWarning($"Agent is stuck at {agent.Transform.position}. Finding a new patrol point.");
             return ActionRunState.Stop;
