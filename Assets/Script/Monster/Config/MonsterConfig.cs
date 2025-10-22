@@ -21,6 +21,11 @@ public class MonsterConfig : MonoBehaviour
     [Header("Unstuck Logic")]
     public float maxStuckTime = 5f;
     public float stuckVelocityThreshold = 0.1f;
+
+    [Header("Investigate")] // <--- NEW SECTION
+    public float investigateRadius = 7f;
+    public int minInvestigatePoints = 3; // number of look-around points
+    public int maxInvestigatePoints = 6;
     
     // This will draw the view cone gizmo in the editor when the monster is selected
     private void OnDrawGizmosSelected()

@@ -1,4 +1,3 @@
-// FILE TO EDIT: AttackPlayerAction.cs
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
@@ -26,7 +25,7 @@ namespace CrashKonijn.Goap.MonsterGen
             // NEW LOGIC: Check the boolean from our sensor script
             if (touchSensor.IsTouchingPlayer)
             {
-                Debug.Log("PLAYER KILLED BY TOUCH!");
+                Debug.Log("PLAYER KILLED");
                 return ActionRunState.Completed;
             }
 
