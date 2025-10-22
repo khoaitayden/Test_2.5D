@@ -1,4 +1,4 @@
-// FILE TO EDIT: MonsterBrain.cs (FIXED)
+// FILE TO EDIT: MonsterBrain.cs (Corrected)
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
 using CrashKonijn.Goap.Runtime;
@@ -6,11 +6,15 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
+    // Make this property public so the sensor can read it.
+    public Vector3 LastKnownPlayerPosition { get; private set; }
+
     private AgentBehaviour agent;
     private GoapActionProvider provider;
     private MonsterConfig config;
     private bool wasPlayerVisibleLastFrame = false;
 
+    // ... (Awake and Start methods are unchanged) ...
     private void Awake()
     {
         this.agent = this.GetComponent<AgentBehaviour>();
@@ -20,12 +24,12 @@ public class MonsterBrain : MonoBehaviour
         if (this.provider.AgentTypeBehaviour == null && goap != null)
             this.provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
     }
-
     private void Start()
     {
         this.provider.WorldData.SetState(new IsPlayerInSight(), 0);
         this.provider.RequestGoal<PatrolGoal>();
     }
+
 
     private void Update()
     {
@@ -35,30 +39,25 @@ public class MonsterBrain : MonoBehaviour
         var currentGoal = this.provider.CurrentPlan?.Goal;
         if (currentGoal == null) return;
         
-        // --- Decision 1: Player spotted! ---
         if (isPlayerVisible && !wasPlayerVisibleLastFrame)
         {
             this.provider.RequestGoal<KillPlayerGoal>();
         }
         
-        // --- Decision 2: Player lost! ---
         if (!isPlayerVisible && wasPlayerVisibleLastFrame)
         {
-            // FIX #1: Use our new, simpler method to get the player's position.
-            // This avoids the 'ComponentReference' error.
-            var lastSeenPosition = this.agent.GetComponent<PlayerCurrentPosSensor>().GetPlayerTarget();
+            // CORRECTED LOGIC: We get the player's position and STORE IT LOCALLY.
+            var lastSeenTarget = this.agent.GetComponent<PlayerCurrentPosSensor>().GetPlayerTarget();
             
-            if (lastSeenPosition != null)
+            if (lastSeenTarget != null)
             {
-                // FIX #2: The correct API call is provider.SetTarget, not provider.Memory.Set.
-                this.provider.SetTarget(new PlayerLastSeenTarget(), lastSeenPosition);
+                this.LastKnownPlayerPosition = lastSeenTarget.Position; // Set the public variable.
                 
                 Debug.Log($"[MonsterBrain] PLAYER LOST! Stored last seen position. Switching to InvestigateGoal.");
-                this.provider.RequestGoal<InvestigateGoal>();
+                this.provider.RequestGoal<InvestigateGoal>(); // Request the goal.
             }
         }
         
-        // --- Decision 3: Investigation over ---
         if (currentGoal is InvestigateGoal && this.provider.CurrentPlan == null && !isPlayerVisible)
         {
             this.provider.RequestGoal<PatrolGoal>();
