@@ -38,7 +38,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddGoal<InvestigateGoal>()
                 .SetBaseCost(3f)
                 .AddCondition<HasInvestigated>(Comparison.GreaterThanOrEqual, 1);
-            
+
             builder.AddAction<InvestigateLocationAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<HasInvestigated>(EffectType.Increase);
