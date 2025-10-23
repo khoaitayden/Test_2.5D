@@ -22,30 +22,13 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
-            if (moveBehaviour == null) moveBehaviour = agent.GetComponent<MonsterMoveBehaviour>();
-
-            // CRITICAL: Disable MonsterMoveBehaviour so it doesn't fight for control
-            if (moveBehaviour != null)
-            {
-                moveBehaviour.enabled = false;
-                Debug.Log("[InvestigateLocationAction] Disabled MonsterMoveBehaviour");
-            }
 
             data.state = InvestigateState.GoToLocation;
             data.stuckTimer = 0f;
             data.lastPosition = agent.Transform.position;
-            data.gracePeriod = 0.5f;
-            data.hasSetInitialDestination = false;
 
             if (data.Target != null)
-            {
-                initialTargetPosition = data.Target.Position;
-                Debug.Log($"[InvestigateLocationAction] Target position stored: {initialTargetPosition}");
-            }
-            else
-            {
-                Debug.LogError("[InvestigateLocationAction] No target provided!");
-            }
+                navMeshAgent.SetDestination(data.Target.Position);
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
