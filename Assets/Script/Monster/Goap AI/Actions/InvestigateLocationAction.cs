@@ -206,12 +206,14 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
-            {
                 navMeshAgent.ResetPath();
-                navMeshAgent.isStopped = true;
+                
+            // Find the brain and tell it we are done.
+            var brain = agent.GetComponent<MonsterBrain>();
+            if (brain != null)
+            {
+                brain.OnInvestigationComplete();
             }
-            
-            Debug.Log("[Investigate] Action ended. Investigation complete.");
         }
 
         public class Data : IActionData

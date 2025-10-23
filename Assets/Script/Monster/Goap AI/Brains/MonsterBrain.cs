@@ -12,7 +12,8 @@ public class MonsterBrain : MonoBehaviour
     private MonsterConfig config;
     private Transform playerTransform;
     private bool wasPlayerVisibleLastFrame = false;
-    private bool isInvestigating = false;
+    private bool isActivelyInvestigating = false;
+
 
     private void Awake()
     {
@@ -32,39 +33,21 @@ public class MonsterBrain : MonoBehaviour
         this.provider.RequestGoal<PatrolGoal>();
     }
 
+  public void OnInvestigationComplete()
+    {
+        Debug.Log("[MonsterBrain] Received 'OnInvestigationComplete' signal from action.");
+        this.isActivelyInvestigating = false;
+    }
+
     private void Update()
     {
         bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(this.agent, this.config);
         this.provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
-        
-        // CHECK 1: Is investigation complete?
-        var hasInvestigatedState = this.provider.WorldData.GetWorldState(typeof(HasInvestigated));
-        if (hasInvestigatedState?.Value >= 1)
-        {
-            Debug.Log("[MonsterBrain] Investigation complete! Returning to patrol.");
-            
-            // Reset everything
-            this.LastKnownPlayerPosition = Vector3.zero;
-            this.provider.WorldData.SetState(new HasInvestigated(), 0);
-            this.isInvestigating = false;
-            this.provider.RequestGoal<PatrolGoal>();
-            
-            wasPlayerVisibleLastFrame = isPlayerVisible;
-            return;
-        }
 
-        // CHECK 2: Detect if we're currently investigating
-        var currentGoal = this.provider.CurrentPlan?.Goal;
-        if (currentGoal is InvestigateGoal)
-        {
-            isInvestigating = true;
-        }
-
-        // CHECK 3: Handle vision state changes
+        // CHECK 1: HANDLE VISION CHANGES (Highest Priority)
         if (isPlayerVisible && !wasPlayerVisibleLastFrame)
         {
-            Debug.Log("[MonsterBrain] Player spotted! Engaging chase.");
-            this.isInvestigating = false;
+            this.isActivelyInvestigating = false; // Seeing the player always cancels investigation.
             this.provider.RequestGoal<KillPlayerGoal>();
             wasPlayerVisibleLastFrame = isPlayerVisible;
             return;
@@ -72,32 +55,26 @@ public class MonsterBrain : MonoBehaviour
         
         if (!isPlayerVisible && wasPlayerVisibleLastFrame)
         {
-            Debug.Log("[MonsterBrain] Lost sight of player. Starting investigation.");
-            
             if (playerTransform == null)
             {
                 var player = GameObject.FindWithTag("Player");
                 if (player != null) playerTransform = player.transform;
             }
-            
             if (playerTransform != null)
             {
                 this.LastKnownPlayerPosition = playerTransform.position;
-                this.provider.WorldData.SetState(new HasInvestigated(), 0);
-                this.isInvestigating = true;
+                this.isActivelyInvestigating = true; // We are now investigating.
                 this.provider.RequestGoal<InvestigateGoal>();
-                Debug.Log($"[MonsterBrain] Saved last known position: {this.LastKnownPlayerPosition}");
             }
-            
             wasPlayerVisibleLastFrame = isPlayerVisible;
             return;
         }
 
-        // CHECK 4: Handle idle state (no goal)
-        if (currentGoal == null && !isInvestigating)
+        // CHECK 2: HANDLE IDLE STATE
+        // If no plan is active AND we are not supposed to be investigating, then patrol.
+        if (this.provider.CurrentPlan == null && !this.isActivelyInvestigating)
         {
-            Debug.Log("[MonsterBrain] No active goal. Defaulting to patrol.");
-            this.provider.RequestGoal<PatrolGoal>();
+             this.provider.RequestGoal<PatrolGoal>();
         }
 
         wasPlayerVisibleLastFrame = isPlayerVisible;
