@@ -9,7 +9,13 @@ namespace CrashKonijn.Goap.MonsterGen
 {
     public class InvestigateLocationAction : GoapActionBase<InvestigateLocationAction.Data>
     {
-        public enum InvestigateState { GoingToLastSeenPosition, LookingAround, WaitingAtPoint }
+        public enum InvestigateState
+        {
+            GoingToLastSeenPosition,
+            LookingAround,
+            RotatingAtPoint // ← New state for scanning rotation
+        }
+
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
         private MonsterMoveBehaviour moveBehaviour;
@@ -27,10 +33,9 @@ namespace CrashKonijn.Goap.MonsterGen
                 moveBehaviour.enabled = false;
 
             data.state = InvestigateState.GoingToLastSeenPosition;
-            data.waitTimer = 0f;
             data.stuckTimer = 0f;
             data.lastPosition = agent.Transform.position;
-            data.minMoveTime = 0.5f; // Give it a moment to start moving
+            data.minMoveTime = 0.5f;
 
             if (data.Target != null)
             {
@@ -39,20 +44,17 @@ namespace CrashKonijn.Goap.MonsterGen
             }
         }
 
-
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Update minimum move time (prevents premature arrival detection)
+            // Prevent early arrival check
             if (data.minMoveTime > 0f)
-            {
                 data.minMoveTime -= context.DeltaTime;
-            }
 
             bool hasArrived = data.minMoveTime <= 0f &&
-                             !navMeshAgent.pathPending && 
-                             navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
+                              !navMeshAgent.pathPending &&
+                              navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
 
-            // STATE 1: Going to the last seen position
+            // STATE 1: Go to the last seen position
             if (data.state == InvestigateState.GoingToLastSeenPosition)
             {
                 if (hasArrived)
@@ -60,153 +62,151 @@ namespace CrashKonijn.Goap.MonsterGen
                     Debug.Log("[Investigate] Arrived at last seen position. Generating look points.");
                     data.state = InvestigateState.LookingAround;
                     data.lookPoints = GenerateReachableLookPoints(agent, config);
-                    
-                    // Move to first point
+
                     if (!MoveToNextLookPoint(agent, data))
                     {
-                        // No valid points, complete immediately
                         Debug.Log("[Investigate] No valid look points. Completing investigation.");
                         return ActionRunState.Completed;
                     }
                 }
-                else
+                else if (CheckIfStuck(agent, data, context))
                 {
-                    // Check for stuck while moving to last seen position
-                    if (CheckIfStuck(agent, data, context))
-                    {
-                        Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting.");
-                        return ActionRunState.Stop;
-                    }
+                    Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting.");
+                    return ActionRunState.Stop;
                 }
             }
-            // STATE 2: Looking around at various points
+
+            // STATE 2: Moving between look points
             else if (data.state == InvestigateState.LookingAround)
             {
                 if (hasArrived)
                 {
-                    // We've reached a look point, now wait a moment
-                    data.state = InvestigateState.WaitingAtPoint;
-                    data.waitTimer = Random.Range(0.1f, 0.5f);
-                    navMeshAgent.isStopped = true; // Stop moving while waiting
-                    Debug.Log($"[Investigate] Arrived at look point. Waiting {data.waitTimer:F2}s. ({data.lookPoints.Count} remaining)");
+                    // Stop and start rotating instead of waiting
+                    data.state = InvestigateState.RotatingAtPoint;
+                    data.rotationSpeed = Random.Range(90f, 120f);
+                    data.rotationAngle = Random.Range(90f, 200f);
+                    data.rotationDirection = 1;
+                    data.rotatedAmount = 0f;
+                    data.startRotation = agent.Transform.rotation;
+                    navMeshAgent.isStopped = true;
+
+                    Debug.Log($"[Investigate] Arrived at look point. Scanning area for {data.rotationAngle:F0}°");
                 }
-                else
+                else if (CheckIfStuck(agent, data, context))
                 {
-                    // Check for stuck while moving between look points
-                    if (CheckIfStuck(agent, data, context))
+                    Debug.LogWarning("[Investigate] STUCK while moving to look point. Trying next point.");
+                    if (!MoveToNextLookPoint(agent, data))
                     {
-                        Debug.LogWarning("[Investigate] STUCK while moving to look point. Trying next point.");
-                        // Instead of stopping, try the next point
-                        if (!MoveToNextLookPoint(agent, data))
-                        {
-                            Debug.Log("[Investigate] No more look points after getting stuck. Completing.");
-                            return ActionRunState.Completed;
-                        }
+                        Debug.Log("[Investigate] No more look points after getting stuck. Completing.");
+                        return ActionRunState.Completed;
                     }
                 }
             }
-            // STATE 3: Waiting at a look point before moving to the next
-            else if (data.state == InvestigateState.WaitingAtPoint)
+
+            // STATE 3: Rotating (scanning) at point
+            else if (data.state == InvestigateState.RotatingAtPoint)
             {
-                data.waitTimer -= context.DeltaTime;
-                
-                if (data.waitTimer <= 0f)
+                float rotateStep = data.rotationSpeed * context.DeltaTime * data.rotationDirection;
+                agent.Transform.Rotate(0f, rotateStep, 0f);
+                data.rotatedAmount += Mathf.Abs(rotateStep);
+
+                // Once full angle rotated → reverse direction once
+                if (data.rotatedAmount >= data.rotationAngle)
                 {
-                    // Done waiting, move to next point or finish
-                    if (!MoveToNextLookPoint(agent, data))
+                    if (data.rotationDirection == 1)
                     {
-                        Debug.Log("[Investigate] ========== FINISHED ALL LOOK POINTS ==========");
-                        Debug.Log("[Investigate] Returning ActionRunState.Completed - This should trigger HasInvestigated effect!");
-                        return ActionRunState.Completed;
+                        // Reverse once
+                        data.rotationDirection = -1;
+                        data.rotatedAmount = 0f;
+                        Debug.Log("[Investigate] Scanning in reverse direction.");
+                    }
+                    else
+                    {
+                        // Done scanning both ways, move to next look point
+                        if (!MoveToNextLookPoint(agent, data))
+                        {
+                            Debug.Log("[Investigate] ========== FINISHED ALL LOOK POINTS ==========");
+                            return ActionRunState.Completed;
+                        }
                     }
                 }
             }
 
             return ActionRunState.Continue;
         }
-        
+
+        // ==== Helper Functions ====
+
         private Queue<Vector3> GenerateReachableLookPoints(IMonoAgent agent, MonsterConfig config)
         {
             var points = new Queue<Vector3>();
             Vector3 searchCenter = agent.Transform.position;
             int pointsToGenerate = Random.Range(config.minInvestigatePoints, config.maxInvestigatePoints + 1);
-            int maxAttempts = pointsToGenerate * 5; // Try harder to find valid points
+            int maxAttempts = pointsToGenerate * 5;
             int attemptsUsed = 0;
-            
+
             while (points.Count < pointsToGenerate && attemptsUsed < maxAttempts)
             {
                 attemptsUsed++;
                 Vector3 randomPoint = searchCenter + Random.insideUnitSphere * config.investigateRadius;
-                randomPoint.y = searchCenter.y; // Keep on same Y level
-                
-                // Find nearest point on NavMesh
+                randomPoint.y = searchCenter.y;
+
                 if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, config.investigateRadius * 2f, NavMesh.AllAreas))
                 {
-                    // Skip if too close to current position
                     if (Vector3.Distance(hit.position, searchCenter) < 2f)
                         continue;
-                        
-                    // CRITICAL: Verify the point is actually reachable
+
                     NavMeshPath path = new NavMeshPath();
-                    if (NavMesh.CalculatePath(agent.Transform.position, hit.position, NavMesh.AllAreas, path))
+                    if (NavMesh.CalculatePath(agent.Transform.position, hit.position, NavMesh.AllAreas, path) &&
+                        path.status == NavMeshPathStatus.PathComplete)
                     {
-                        if (path.status == NavMeshPathStatus.PathComplete)
-                        {
-                            points.Enqueue(hit.position);
-                            Debug.Log($"[Investigate] Generated valid look point #{points.Count} at distance {Vector3.Distance(searchCenter, hit.position):F1}m");
-                        }
+                        points.Enqueue(hit.position);
+                        Debug.Log($"[Investigate] Generated valid look point #{points.Count}");
                     }
                 }
             }
-            
-            Debug.Log($"[Investigate] Generated {points.Count} reachable look points (wanted {pointsToGenerate}, tried {attemptsUsed} times)");
+
+            Debug.Log($"[Investigate] Generated {points.Count} look points.");
             return points;
         }
-        
+
         private bool MoveToNextLookPoint(IMonoAgent agent, Data data)
         {
             if (data.lookPoints.Count == 0)
-            {
                 return false;
-            }
-            
+
             Vector3 nextPoint = data.lookPoints.Dequeue();
-            
-            // Reset movement tracking
             data.state = InvestigateState.LookingAround;
             data.stuckTimer = 0f;
             data.lastPosition = agent.Transform.position;
-            data.minMoveTime = 0.5f; // Give agent 0.5s to start moving before checking arrival
-            
-            // Actually command the NavMeshAgent to move
+            data.minMoveTime = 0.5f;
+
             navMeshAgent.isStopped = false;
             navMeshAgent.SetDestination(nextPoint);
-            
-            Debug.Log($"[Investigate] Moving to look point at {nextPoint}. ({data.lookPoints.Count} remaining). Distance: {Vector3.Distance(agent.Transform.position, nextPoint):F1}m");
+
+            Debug.Log($"[Investigate] Moving to next look point. ({data.lookPoints.Count} left)");
             return true;
         }
-        
+
         private bool CheckIfStuck(IMonoAgent agent, Data data, IActionContext context)
         {
             float distanceMoved = Vector3.Distance(agent.Transform.position, data.lastPosition);
             float movementThreshold = config.stuckVelocityThreshold * context.DeltaTime;
-            
+
             if (distanceMoved < movementThreshold)
-            {
                 data.stuckTimer += context.DeltaTime;
-            }
             else
             {
                 data.lastPosition = agent.Transform.position;
                 data.stuckTimer = 0f;
             }
-            
+
             if (data.stuckTimer > config.maxStuckTime)
             {
-                Debug.LogWarning($"[Investigate] Stuck detection triggered! Stuck for {data.stuckTimer:F2}s, moved only {distanceMoved:F3}m");
+                Debug.LogWarning("[Investigate] Stuck detection triggered!");
                 return true;
             }
-            
+
             return false;
         }
 
@@ -215,25 +215,30 @@ namespace CrashKonijn.Goap.MonsterGen
             if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
                 navMeshAgent.ResetPath();
 
-            // #### GIVE BACK CONTROL ####
             if (moveBehaviour != null)
                 moveBehaviour.enabled = true;
-                
-            // The call to the brain is still correct
+
             var brain = agent.GetComponent<MonsterBrain>();
             if (brain != null)
                 brain.OnInvestigationComplete();
         }
 
+        // ==== Data Class ====
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
             public Vector3 lastPosition;
             public float stuckTimer;
-            public float waitTimer;
             public float minMoveTime;
             public InvestigateState state;
             public Queue<Vector3> lookPoints;
+
+            // Rotation data
+            public float rotationAngle;
+            public float rotationSpeed;
+            public float rotatedAmount;
+            public int rotationDirection;
+            public Quaternion startRotation;
         }
     }
 }
