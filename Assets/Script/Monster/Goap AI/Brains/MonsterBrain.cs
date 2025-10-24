@@ -52,7 +52,7 @@ public class MonsterBrain : MonoBehaviour
             wasPlayerVisibleLastFrame = isPlayerVisible;
             return;
         }
-        
+
         if (!isPlayerVisible && wasPlayerVisibleLastFrame)
         {
             if (playerTransform == null)
@@ -69,10 +69,11 @@ public class MonsterBrain : MonoBehaviour
             wasPlayerVisibleLastFrame = isPlayerVisible;
             return;
         }
-
         // CHECK 2: HANDLE IDLE STATE
         // If no plan is active AND we are not supposed to be investigating, then patrol.
-        if (this.provider.CurrentPlan == null && !this.isActivelyInvestigating)
+        Debug.Log(this.provider.CurrentPlan.Goal);
+        
+        if (!isPlayerVisible && !this.isActivelyInvestigating)
         {
              this.provider.RequestGoal<PatrolGoal>();
         }

@@ -79,7 +79,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 {
                     // We've reached a look point, now wait a moment
                     data.state = InvestigateState.WaitingAtPoint;
-                    data.waitTimer = Random.Range(0.8f, 1.5f);
+                    data.waitTimer = Random.Range(0.2f, 0.8f);
                     navMeshAgent.isStopped = true; // Stop moving while waiting
                     Debug.Log($"[Investigate] Arrived at look point. Waiting {data.waitTimer:F2}s. ({data.lookPoints.Count} remaining)");
                 }
