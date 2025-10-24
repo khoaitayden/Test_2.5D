@@ -1,4 +1,4 @@
-// FILE TO EDIT: PatrolAction.cs (UPGRADED)
+// FILE TO REPLACE: PatrolAction.cs (The Final, Correct Version)
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
@@ -11,21 +11,20 @@ namespace CrashKonijn.Goap.MonsterGen
         private NavMeshAgent navMeshAgent;
 
         public override void Created() { }
-
-        public override void Start(IMonoAgent agent, Data data)
-        {
-            if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
-
-            if (data.Target != null)
-            {
-                navMeshAgent.SetDestination(data.Target.Position);
-            }
-        }
+        public override void Start(IMonoAgent agent, Data data) { } // Start is empty!
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            if (data.Target == null) return ActionRunState.Stop;
+            if (data.Target == null)
+            {
+                // This can happen if the sensor fails to find a target.
+                return ActionRunState.Stop;
+            }
+            
+            if (navMeshAgent == null)
+                navMeshAgent = agent.GetComponent<NavMeshAgent>();
 
+            // The only job is to check if we've arrived. MonsterMoveBehaviour is doing the moving.
             if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
                 return ActionRunState.Completed;
@@ -34,11 +33,7 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
 
-        public override void End(IMonoAgent agent, Data data)
-        {
-            if (navMeshAgent.isOnNavMesh)
-                navMeshAgent.ResetPath();
-        }
+        public override void End(IMonoAgent agent, Data data) { }
 
         public class Data : IActionData
         {

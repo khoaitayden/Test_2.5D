@@ -1,4 +1,5 @@
 using CrashKonijn.Agent.Core;
+using CrashKonijn.Docs.GettingStarted.Behaviours;
 using CrashKonijn.Goap.Runtime;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public enum InvestigateState { GoingToLastSeenPosition, LookingAround, WaitingAtPoint }
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
+        private MonsterMoveBehaviour moveBehaviour;
 
         public override void Created() { }
 
@@ -18,20 +20,25 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
+            if (moveBehaviour == null) moveBehaviour = agent.GetComponent<MonsterMoveBehaviour>();
+
+            // #### TAKE CONTROL ####
+            if (moveBehaviour != null)
+                moveBehaviour.enabled = false;
 
             data.state = InvestigateState.GoingToLastSeenPosition;
             data.waitTimer = 0f;
             data.stuckTimer = 0f;
             data.lastPosition = agent.Transform.position;
-            data.minMoveTime = 0f;
+            data.minMoveTime = 0.5f; // Give it a moment to start moving
 
             if (data.Target != null)
             {
                 navMeshAgent.isStopped = false;
                 navMeshAgent.SetDestination(data.Target.Position);
-                Debug.Log("[Investigate] Starting investigation, heading to last seen position.");
             }
         }
+
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
@@ -207,13 +214,15 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
                 navMeshAgent.ResetPath();
+
+            // #### GIVE BACK CONTROL ####
+            if (moveBehaviour != null)
+                moveBehaviour.enabled = true;
                 
-            // Find the brain and tell it we are done.
+            // The call to the brain is still correct
             var brain = agent.GetComponent<MonsterBrain>();
             if (brain != null)
-            {
                 brain.OnInvestigationComplete();
-            }
         }
 
         public class Data : IActionData
