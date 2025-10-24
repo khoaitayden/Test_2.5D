@@ -46,6 +46,12 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
+            if (PlayerInSightSensor.IsPlayerInSight(agent, config))
+            {
+                Debug.LogWarning("[Investigate] Player spotted during investigation! Aborting to engage.");
+                return ActionRunState.Stop;
+            }
+
             // Prevent early arrival check
             if (data.minMoveTime > 0f)
                 data.minMoveTime -= context.DeltaTime;
@@ -84,7 +90,7 @@ namespace CrashKonijn.Goap.MonsterGen
                     // Stop and start rotating instead of waiting
                     data.state = InvestigateState.RotatingAtPoint;
                     data.rotationSpeed = Random.Range(90f, 120f);
-                    data.rotationAngle = Random.Range(90f, 200f);
+                    data.rotationAngle = Random.Range(90f, 180f);
                     data.rotationDirection = 1;
                     data.rotatedAmount = 0f;
                     data.startRotation = agent.Transform.rotation;

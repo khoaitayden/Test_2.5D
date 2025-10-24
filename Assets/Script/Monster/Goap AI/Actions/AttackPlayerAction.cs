@@ -10,7 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterTouchSensor touchSensor;
 
         public override void Created() { }
-        public override void Start(IMonoAgent agent, Data data) { } // Start is empty!
+        public override void Start(IMonoAgent agent, Data data){} // Start is empty!
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {

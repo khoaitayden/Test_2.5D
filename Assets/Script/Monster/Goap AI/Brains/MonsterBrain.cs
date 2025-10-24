@@ -1,3 +1,4 @@
+using System;
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
 using CrashKonijn.Goap.Runtime;
@@ -13,6 +14,7 @@ public class MonsterBrain : MonoBehaviour
     private Transform playerTransform;
     private bool wasPlayerVisibleLastFrame = false;
     private bool isActivelyInvestigating = false;
+    private String previousPlan;
 
 
     private void Awake()
@@ -31,6 +33,7 @@ public class MonsterBrain : MonoBehaviour
         this.provider.WorldData.SetState(new HasInvestigated(), 0);
         this.provider.WorldData.SetState(new IsPlayerInSight(), 0);
         this.provider.RequestGoal<PatrolGoal>();
+        previousPlan = this.provider.CurrentPlan.Goal.ToString();
     }
 
   public void OnInvestigationComplete()
@@ -69,7 +72,14 @@ public class MonsterBrain : MonoBehaviour
             wasPlayerVisibleLastFrame = isPlayerVisible;
             return;
         }
-        Debug.Log(this.provider.CurrentPlan.Goal);
+        if (this.provider.CurrentPlan != null && previousPlan != this.provider.CurrentPlan.Goal.ToString())
+        {
+            Debug.Log(this.provider.CurrentPlan.Goal);
+            previousPlan = this.provider.CurrentPlan.Goal.ToString();
+            
+        }
+
+        
         // CHECK 2: HANDLE IDLE STATE
         // If no plan is active AND we are not supposed to be investigating, then patrol.
         if (!isPlayerVisible && !this.isActivelyInvestigating)
