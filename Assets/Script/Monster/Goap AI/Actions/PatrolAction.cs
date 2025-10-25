@@ -1,4 +1,3 @@
-// FILE TO REPLACE: PatrolAction.cs (The Final, Correct Version)
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
@@ -9,31 +8,51 @@ namespace CrashKonijn.Goap.MonsterGen
     public class PatrolAction : GoapActionBase<PatrolAction.Data>
     {
         private NavMeshAgent navMeshAgent;
+        private MonsterConfig config;
+        private StuckDetector stuckDetector = new StuckDetector();
 
         public override void Created() { }
-        public override void Start(IMonoAgent agent, Data data) { } // Start is empty!
+
+        public override void Start(IMonoAgent agent, Data data)
+        {
+            if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
+            if (config == null) config = agent.GetComponent<MonsterConfig>();
+
+            // Start tracking for stuck detection
+            stuckDetector.StartTracking(agent.Transform.position);
+            
+            Debug.Log($"[Patrol] Starting patrol to {data.Target?.Position}");
+        }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             if (data.Target == null)
             {
-                // This can happen if the sensor fails to find a target.
+                Debug.LogWarning("[Patrol] No target available!");
                 return ActionRunState.Stop;
             }
-            
-            if (navMeshAgent == null)
-                navMeshAgent = agent.GetComponent<NavMeshAgent>();
 
-            // The only job is to check if we've arrived. MonsterMoveBehaviour is doing the moving.
-            if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            // Check if stuck
+            if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
             {
+                Debug.LogWarning("[Patrol] Monster is STUCK! Requesting new patrol point.");
+                return ActionRunState.Stop; // This will trigger the sensor to find a new point
+            }
+
+            // Check if arrived
+            if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f)
+            {
+                Debug.Log("[Patrol] Reached patrol point!");
                 return ActionRunState.Completed;
             }
 
             return ActionRunState.Continue;
         }
 
-        public override void End(IMonoAgent agent, Data data) { }
+        public override void End(IMonoAgent agent, Data data)
+        {
+            stuckDetector.Reset();
+        }
 
         public class Data : IActionData
         {

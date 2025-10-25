@@ -1,5 +1,4 @@
 using CrashKonijn.Agent.Core;
-using CrashKonijn.Docs.GettingStarted.Behaviours;
 using CrashKonijn.Goap.Runtime;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,12 +12,12 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             GoingToLastSeenPosition,
             LookingAround,
-            RotatingAtPoint // ← New state for scanning rotation
+            RotatingAtPoint
         }
 
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
-        private MonsterMoveBehaviour moveBehaviour;
+        private StuckDetector stuckDetector = new StuckDetector();
 
         public override void Created() { }
 
@@ -26,29 +25,25 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
-            if (moveBehaviour == null) moveBehaviour = agent.GetComponent<MonsterMoveBehaviour>();
-
-            // #### TAKE CONTROL ####
-            if (moveBehaviour != null)
-                moveBehaviour.enabled = false;
 
             data.state = InvestigateState.GoingToLastSeenPosition;
-            data.stuckTimer = 0f;
-            data.lastPosition = agent.Transform.position;
             data.minMoveTime = 0.5f;
 
             if (data.Target != null)
             {
                 navMeshAgent.isStopped = false;
                 navMeshAgent.SetDestination(data.Target.Position);
+                stuckDetector.StartTracking(agent.Transform.position);
+                Debug.Log("[Investigate] Starting investigation, heading to last seen position.");
             }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
+            // Early exit if player spotted
             if (PlayerInSightSensor.IsPlayerInSight(agent, config))
             {
-                Debug.LogWarning("[Investigate] Player spotted during investigation! Aborting to engage.");
+                Debug.LogWarning("[Investigate] Player spotted during investigation! Aborting.");
                 return ActionRunState.Stop;
             }
 
@@ -57,12 +52,19 @@ namespace CrashKonijn.Goap.MonsterGen
                 data.minMoveTime -= context.DeltaTime;
 
             bool hasArrived = data.minMoveTime <= 0f &&
-                              !navMeshAgent.pathPending &&
-                              navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
+                             !navMeshAgent.pathPending &&
+                             navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
 
-            // STATE 1: Go to the last seen position
+            // STATE 1: Going to last seen position
             if (data.state == InvestigateState.GoingToLastSeenPosition)
             {
+                // Check for stuck
+                if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
+                {
+                    Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting investigation.");
+                    return ActionRunState.Stop;
+                }
+
                 if (hasArrived)
                 {
                     Debug.Log("[Investigate] Arrived at last seen position. Generating look points.");
@@ -75,30 +77,13 @@ namespace CrashKonijn.Goap.MonsterGen
                         return ActionRunState.Completed;
                     }
                 }
-                else if (CheckIfStuck(agent, data, context))
-                {
-                    Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting.");
-                    return ActionRunState.Stop;
-                }
             }
 
             // STATE 2: Moving between look points
             else if (data.state == InvestigateState.LookingAround)
             {
-                if (hasArrived)
-                {
-                    // Stop and start rotating instead of waiting
-                    data.state = InvestigateState.RotatingAtPoint;
-                    data.rotationSpeed = Random.Range(90f, 120f);
-                    data.rotationAngle = Random.Range(90f, 180f);
-                    data.rotationDirection = 1;
-                    data.rotatedAmount = 0f;
-                    data.startRotation = agent.Transform.rotation;
-                    navMeshAgent.isStopped = true;
-
-                    Debug.Log($"[Investigate] Arrived at look point. Scanning area for {data.rotationAngle:F0}°");
-                }
-                else if (CheckIfStuck(agent, data, context))
+                // Check for stuck
+                if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
                 {
                     Debug.LogWarning("[Investigate] STUCK while moving to look point. Trying next point.");
                     if (!MoveToNextLookPoint(agent, data))
@@ -107,16 +92,29 @@ namespace CrashKonijn.Goap.MonsterGen
                         return ActionRunState.Completed;
                     }
                 }
+
+                if (hasArrived)
+                {
+                    // Stop and start rotating
+                    data.state = InvestigateState.RotatingAtPoint;
+                    data.rotationSpeed = Random.Range(90f, 120f);
+                    data.rotationAngle = Random.Range(90f, 180f);
+                    data.rotationDirection = 1;
+                    data.rotatedAmount = 0f;
+                    navMeshAgent.isStopped = true;
+                    stuckDetector.Reset(); // Not moving, so don't check for stuck
+
+                    Debug.Log($"[Investigate] Arrived at look point. Scanning {data.rotationAngle:F0}°");
+                }
             }
 
-            // STATE 3: Rotating (scanning) at point
+            // STATE 3: Rotating at point
             else if (data.state == InvestigateState.RotatingAtPoint)
             {
                 float rotateStep = data.rotationSpeed * context.DeltaTime * data.rotationDirection;
                 agent.Transform.Rotate(0f, rotateStep, 0f);
                 data.rotatedAmount += Mathf.Abs(rotateStep);
 
-                // Once full angle rotated → reverse direction once
                 if (data.rotatedAmount >= data.rotationAngle)
                 {
                     if (data.rotationDirection == 1)
@@ -128,7 +126,7 @@ namespace CrashKonijn.Goap.MonsterGen
                     }
                     else
                     {
-                        // Done scanning both ways, move to next look point
+                        // Done scanning, move to next point
                         if (!MoveToNextLookPoint(agent, data))
                         {
                             Debug.Log("[Investigate] ========== FINISHED ALL LOOK POINTS ==========");
@@ -140,8 +138,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             return ActionRunState.Continue;
         }
-
-        // ==== Helper Functions ====
 
         private Queue<Vector3> GenerateReachableLookPoints(IMonoAgent agent, MonsterConfig config)
         {
@@ -167,12 +163,11 @@ namespace CrashKonijn.Goap.MonsterGen
                         path.status == NavMeshPathStatus.PathComplete)
                     {
                         points.Enqueue(hit.position);
-                        Debug.Log($"[Investigate] Generated valid look point #{points.Count}");
                     }
                 }
             }
 
-            Debug.Log($"[Investigate] Generated {points.Count} look points.");
+            Debug.Log($"[Investigate] Generated {points.Count} reachable look points.");
             return points;
         }
 
@@ -183,37 +178,16 @@ namespace CrashKonijn.Goap.MonsterGen
 
             Vector3 nextPoint = data.lookPoints.Dequeue();
             data.state = InvestigateState.LookingAround;
-            data.stuckTimer = 0f;
-            data.lastPosition = agent.Transform.position;
             data.minMoveTime = 0.5f;
 
             navMeshAgent.isStopped = false;
             navMeshAgent.SetDestination(nextPoint);
+            
+            // Restart stuck detection for this new destination
+            stuckDetector.StartTracking(agent.Transform.position);
 
             Debug.Log($"[Investigate] Moving to next look point. ({data.lookPoints.Count} left)");
             return true;
-        }
-
-        private bool CheckIfStuck(IMonoAgent agent, Data data, IActionContext context)
-        {
-            float distanceMoved = Vector3.Distance(agent.Transform.position, data.lastPosition);
-            float movementThreshold = config.stuckVelocityThreshold * context.DeltaTime;
-
-            if (distanceMoved < movementThreshold)
-                data.stuckTimer += context.DeltaTime;
-            else
-            {
-                data.lastPosition = agent.Transform.position;
-                data.stuckTimer = 0f;
-            }
-
-            if (data.stuckTimer > config.maxStuckTime)
-            {
-                Debug.LogWarning("[Investigate] Stuck detection triggered!");
-                return true;
-            }
-
-            return false;
         }
 
         public override void End(IMonoAgent agent, Data data)
@@ -221,20 +195,18 @@ namespace CrashKonijn.Goap.MonsterGen
             if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
                 navMeshAgent.ResetPath();
 
-            if (moveBehaviour != null)
-                moveBehaviour.enabled = true;
+            stuckDetector.Reset();
 
             var brain = agent.GetComponent<MonsterBrain>();
             if (brain != null)
                 brain.OnInvestigationComplete();
+
+            Debug.Log("[Investigate] Investigation action ended.");
         }
 
-        // ==== Data Class ====
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
-            public Vector3 lastPosition;
-            public float stuckTimer;
             public float minMoveTime;
             public InvestigateState state;
             public Queue<Vector3> lookPoints;
@@ -244,7 +216,6 @@ namespace CrashKonijn.Goap.MonsterGen
             public float rotationSpeed;
             public float rotatedAmount;
             public int rotationDirection;
-            public Quaternion startRotation;
         }
     }
 }
