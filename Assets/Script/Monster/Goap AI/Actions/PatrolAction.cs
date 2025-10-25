@@ -18,7 +18,9 @@ namespace CrashKonijn.Goap.MonsterGen
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
 
-            // Start tracking for stuck detection
+            // SET RELAXED PATROL SPEED
+            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Patrol);
+
             stuckDetector.StartTracking(agent.Transform.position);
             
             Debug.Log($"[Patrol] Starting patrol to {data.Target?.Position}");
@@ -32,14 +34,12 @@ namespace CrashKonijn.Goap.MonsterGen
                 return ActionRunState.Stop;
             }
 
-            // Check if stuck
             if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
             {
                 Debug.LogWarning("[Patrol] Monster is STUCK! Requesting new patrol point.");
-                return ActionRunState.Stop; // Sensor will find a new point (avoiding recent ones)
+                return ActionRunState.Stop;
             }
 
-            // Check if arrived
             if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f)
             {
                 Debug.Log("[Patrol] ✓ Reached patrol point!");

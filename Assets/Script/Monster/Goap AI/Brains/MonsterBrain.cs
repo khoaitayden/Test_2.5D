@@ -30,7 +30,6 @@ public class MonsterBrain : MonoBehaviour
 
     private void Start()
     {
-        // Initialize world state
         this.provider.WorldData.SetState(new IsPlayerInSight(), 0);
         this.provider.RequestGoal<PatrolGoal>();
     }
@@ -39,11 +38,8 @@ public class MonsterBrain : MonoBehaviour
     {
         Debug.Log("[MonsterBrain] Investigation complete! Returning to patrol.");
         
-        // Clear the last known position so InvestigateGoal becomes impossible
         this.LastKnownPlayerPosition = Vector3.zero;
         this.isActivelyInvestigating = false;
-        
-        // Request patrol goal
         this.provider.RequestGoal<PatrolGoal>();
     }
 
@@ -52,56 +48,67 @@ public class MonsterBrain : MonoBehaviour
         bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(this.agent, this.config);
         this.provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
 
-        // CHECK 1: HANDLE VISION CHANGES (Highest Priority)
+        // CHECK 1: PLAYER SPOTTED (Highest Priority)
         if (isPlayerVisible && !wasPlayerVisibleLastFrame)
         {
             Debug.Log("[MonsterBrain] Player spotted! Engaging chase.");
             
-            // Cancel any investigation
+            // Cancel any investigation - but DON'T call OnInvestigationComplete
+            // Just set the flag and let GOAP handle stopping the action
             this.isActivelyInvestigating = false;
             this.LastKnownPlayerPosition = Vector3.zero;
             
-            // Clear patrol history - we'll make new patterns after chase
+            // Clear patrol history
             if (patrolHistory != null)
                 patrolHistory.Clear();
             
             this.provider.RequestGoal<KillPlayerGoal>();
             wasPlayerVisibleLastFrame = isPlayerVisible;
-            return;
+            return; // Exit immediately
         }
 
+        // CHECK 2: LOST SIGHT OF PLAYER (Start Investigation)
         if (!isPlayerVisible && wasPlayerVisibleLastFrame)
         {
             Debug.Log("[MonsterBrain] Lost sight of player. Starting investigation.");
             
+            // Get player transform if needed
             if (playerTransform == null)
             {
                 var player = GameObject.FindWithTag("Player");
-                if (player != null) playerTransform = player.transform;
+                if (player != null) 
+                    playerTransform = player.transform;
             }
             
             if (playerTransform != null)
             {
+                // Save position and set flag BEFORE requesting goal
                 this.LastKnownPlayerPosition = playerTransform.position;
                 this.isActivelyInvestigating = true;
-                this.provider.RequestGoal<InvestigateGoal>();
+                
                 Debug.Log($"[MonsterBrain] Saved last known position: {this.LastKnownPlayerPosition}");
+                
+                // Request investigation goal
+                this.provider.RequestGoal<InvestigateGoal>();
+            }
+            else
+            {
+                Debug.LogWarning("[MonsterBrain] Could not find player transform!");
             }
             
             wasPlayerVisibleLastFrame = isPlayerVisible;
-            return;
+            return; // Exit immediately after handling vision change
         }
 
-        // CHECK 2: HANDLE IDLE STATE
-        // Only request patrol if we're not investigating AND current goal is null or not patrol
+        // CHECK 3: HANDLE IDLE STATE (Only if not investigating AND not chasing)
         if (!isPlayerVisible && !this.isActivelyInvestigating)
         {
             var currentGoal = this.provider.CurrentPlan?.Goal;
             
-            // Only request patrol if we don't already have it
-            if (currentGoal == null || !(currentGoal is PatrolGoal))
+            // Only request patrol if we don't already have it or KillPlayerGoal
+            if (currentGoal == null || (!(currentGoal is PatrolGoal) && !(currentGoal is KillPlayerGoal)))
             {
-                Debug.Log("[MonsterBrain] No active goal or wrong goal. Requesting patrol.");
+                Debug.Log("[MonsterBrain] No active goal. Requesting patrol.");
                 this.provider.RequestGoal<PatrolGoal>();
             }
         }

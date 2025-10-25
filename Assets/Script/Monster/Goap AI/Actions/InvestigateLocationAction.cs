@@ -11,7 +11,8 @@ namespace CrashKonijn.Goap.MonsterGen
         public enum InvestigateState
         {
             GoingToLastSeenPosition,
-            LookingAround,
+            SearchingPhase1,  // Tight search, faster
+            SearchingPhase2,  // Expanded search, slower
             RotatingAtPoint
         }
 
@@ -28,26 +29,51 @@ namespace CrashKonijn.Goap.MonsterGen
 
             data.state = InvestigateState.GoingToLastSeenPosition;
             data.minMoveTime = 0.5f;
+            data.investigationStartTime = Time.time;
+            data.currentSearchRadius = config.investigateStartRadius;
+            data.hasExpandedSearch = false;
+
+            // SET FAST RUSH SPEED - we're heading to where we lost them!
+            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateRush);
 
             if (data.Target != null)
             {
                 navMeshAgent.isStopped = false;
                 navMeshAgent.SetDestination(data.Target.Position);
                 stuckDetector.StartTracking(agent.Transform.position);
-                Debug.Log("[Investigate] Starting investigation, heading to last seen position.");
+                Debug.Log("[Investigate] RUSHING to last seen position!");
             }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Early exit if player spotted
-            if (PlayerInSightSensor.IsPlayerInSight(agent, config))
+            float investigationDuration = Time.time - data.investigationStartTime;
+
+            // Check timeout
+            if (investigationDuration > config.maxInvestigationTime)
             {
-                Debug.LogWarning("[Investigate] Player spotted during investigation! Aborting.");
-                return ActionRunState.Stop;
+                Debug.Log($"[Investigate] Giving up after {investigationDuration:F1}s. Returning to patrol speed.");
+                return ActionRunState.Completed;
             }
 
-            // Prevent early arrival check
+            // DO NOT abort if player spotted - let the brain handle the goal change
+            // The action will be stopped by GOAP when KillPlayerGoal is requested
+            // Just stop checking for player here to avoid conflicts
+
+            // Handle progressive search expansion
+            if (!data.hasExpandedSearch && investigationDuration > config.expandSearchAfter)
+            {
+                data.hasExpandedSearch = true;
+                data.currentSearchRadius = config.investigateMaxRadius;
+                Debug.Log($"[Investigate] ⚠️ EXPANDING SEARCH! New radius: {data.currentSearchRadius}m");
+            }
+
+            // Gradually slow down during search phases
+            if (data.state == InvestigateState.SearchingPhase1 || data.state == InvestigateState.SearchingPhase2)
+            {
+                MonsterSpeedController.UpdateInvestigationSpeed(navMeshAgent, config, investigationDuration);
+            }
+
             if (data.minMoveTime > 0f)
                 data.minMoveTime -= context.DeltaTime;
 
@@ -55,60 +81,85 @@ namespace CrashKonijn.Goap.MonsterGen
                              !navMeshAgent.pathPending &&
                              navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
 
-            // STATE 1: Going to last seen position
+            // STATE 1: RUSHING to last seen position (FAST)
             if (data.state == InvestigateState.GoingToLastSeenPosition)
             {
-                // Check for stuck
                 if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
                 {
-                    Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting investigation.");
+                    Debug.LogWarning("[Investigate] STUCK going to last seen position. Aborting.");
                     return ActionRunState.Stop;
                 }
 
                 if (hasArrived)
                 {
-                    Debug.Log("[Investigate] Arrived at last seen position. Generating look points.");
-                    data.state = InvestigateState.LookingAround;
-                    data.lookPoints = GenerateReachableLookPoints(agent, config);
+                    Debug.Log("[Investigate] Arrived! Starting PHASE 1 search (tight, fast)...");
+                    
+                    // Switch to search speed
+                    MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateSearch);
+                    
+                    data.state = InvestigateState.SearchingPhase1;
+                    data.lookPoints = GenerateSearchPoints(agent, config.investigateStartRadius, config.phase1Points);
 
                     if (!MoveToNextLookPoint(agent, data))
                     {
-                        Debug.Log("[Investigate] No valid look points. Completing investigation.");
+                        Debug.Log("[Investigate] No valid look points in Phase 1. Completing.");
                         return ActionRunState.Completed;
                     }
                 }
             }
 
-            // STATE 2: Moving between look points
-            else if (data.state == InvestigateState.LookingAround)
+            // STATE 2: PHASE 1 SEARCH (tight radius, still relatively fast)
+            else if (data.state == InvestigateState.SearchingPhase1)
             {
-                // Check for stuck
                 if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
                 {
-                    Debug.LogWarning("[Investigate] STUCK while moving to look point. Trying next point.");
+                    Debug.LogWarning("[Investigate] STUCK in Phase 1. Trying next point.");
                     if (!MoveToNextLookPoint(agent, data))
                     {
-                        Debug.Log("[Investigate] No more look points after getting stuck. Completing.");
+                        // Phase 1 exhausted, move to Phase 2 if expanded
+                        if (data.hasExpandedSearch)
+                        {
+                            TransitionToPhase2(agent, data);
+                        }
+                        else
+                        {
+                            return ActionRunState.Completed;
+                        }
+                    }
+                }
+
+                if (hasArrived)
+                {
+                    StartRotating(agent, data);
+                }
+
+                // Check if we should transition to Phase 2
+                if (data.hasExpandedSearch && data.lookPoints.Count == 0)
+                {
+                    TransitionToPhase2(agent, data);
+                }
+            }
+
+            // STATE 3: PHASE 2 SEARCH (expanded radius, slower, more cautious)
+            else if (data.state == InvestigateState.SearchingPhase2)
+            {
+                if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
+                {
+                    Debug.LogWarning("[Investigate] STUCK in Phase 2. Trying next point.");
+                    if (!MoveToNextLookPoint(agent, data))
+                    {
+                        Debug.Log("[Investigate] Phase 2 exhausted. Giving up.");
                         return ActionRunState.Completed;
                     }
                 }
 
                 if (hasArrived)
                 {
-                    // Stop and start rotating
-                    data.state = InvestigateState.RotatingAtPoint;
-                    data.rotationSpeed = Random.Range(90f, 120f);
-                    data.rotationAngle = Random.Range(90f, 180f);
-                    data.rotationDirection = 1;
-                    data.rotatedAmount = 0f;
-                    navMeshAgent.isStopped = true;
-                    stuckDetector.Reset(); // Not moving, so don't check for stuck
-
-                    Debug.Log($"[Investigate] Arrived at look point. Scanning {data.rotationAngle:F0}°");
+                    StartRotating(agent, data);
                 }
             }
 
-            // STATE 3: Rotating at point
+            // STATE 4: ROTATING at point (stationary)
             else if (data.state == InvestigateState.RotatingAtPoint)
             {
                 float rotateStep = data.rotationSpeed * context.DeltaTime * data.rotationDirection;
@@ -119,18 +170,24 @@ namespace CrashKonijn.Goap.MonsterGen
                 {
                     if (data.rotationDirection == 1)
                     {
-                        // Reverse once
                         data.rotationDirection = -1;
                         data.rotatedAmount = 0f;
-                        Debug.Log("[Investigate] Scanning in reverse direction.");
                     }
                     else
                     {
-                        // Done scanning, move to next point
+                        // Done rotating, move to next point
                         if (!MoveToNextLookPoint(agent, data))
                         {
-                            Debug.Log("[Investigate] ========== FINISHED ALL LOOK POINTS ==========");
-                            return ActionRunState.Completed;
+                            // Check if we need to transition phases
+                            if (data.state == InvestigateState.SearchingPhase1 && data.hasExpandedSearch)
+                            {
+                                TransitionToPhase2(agent, data);
+                            }
+                            else
+                            {
+                                Debug.Log("[Investigate] ========== INVESTIGATION COMPLETE ==========");
+                                return ActionRunState.Completed;
+                            }
                         }
                     }
                 }
@@ -139,21 +196,46 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
 
-        private Queue<Vector3> GenerateReachableLookPoints(IMonoAgent agent, MonsterConfig config)
+        private void TransitionToPhase2(IMonoAgent agent, Data data)
+        {
+            Debug.Log("[Investigate] === PHASE 2: EXPANDED SEARCH (slower, wider area) ===");
+            data.state = InvestigateState.SearchingPhase2;
+            data.lookPoints = GenerateSearchPoints(agent, data.currentSearchRadius, config.phase2Points);
+
+            if (!MoveToNextLookPoint(agent, data))
+            {
+                Debug.Log("[Investigate] No valid points in Phase 2. Completing.");
+                // Will be completed on next cycle
+            }
+        }
+
+        private void StartRotating(IMonoAgent agent, Data data)
+        {
+            data.state = InvestigateState.RotatingAtPoint;
+            data.rotationSpeed = Random.Range(90f, 120f);
+            data.rotationAngle = Random.Range(90f, 180f);
+            data.rotationDirection = 1;
+            data.rotatedAmount = 0f;
+            navMeshAgent.isStopped = true;
+            stuckDetector.Reset();
+
+            Debug.Log($"[Investigate] Scanning area ({data.rotationAngle:F0}°)");
+        }
+
+        private Queue<Vector3> GenerateSearchPoints(IMonoAgent agent, float radius, int pointCount)
         {
             var points = new Queue<Vector3>();
             Vector3 searchCenter = agent.Transform.position;
-            int pointsToGenerate = Random.Range(config.minInvestigatePoints, config.maxInvestigatePoints + 1);
-            int maxAttempts = pointsToGenerate * 5;
+            int maxAttempts = pointCount * 5;
             int attemptsUsed = 0;
 
-            while (points.Count < pointsToGenerate && attemptsUsed < maxAttempts)
+            while (points.Count < pointCount && attemptsUsed < maxAttempts)
             {
                 attemptsUsed++;
-                Vector3 randomPoint = searchCenter + Random.insideUnitSphere * config.investigateRadius;
+                Vector3 randomPoint = searchCenter + Random.insideUnitSphere * radius;
                 randomPoint.y = searchCenter.y;
 
-                if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, config.investigateRadius * 2f, NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, radius * 2f, NavMesh.AllAreas))
                 {
                     if (Vector3.Distance(hit.position, searchCenter) < 2f)
                         continue;
@@ -167,7 +249,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
             }
 
-            Debug.Log($"[Investigate] Generated {points.Count} reachable look points.");
+            Debug.Log($"[Investigate] Generated {points.Count}/{pointCount} points (radius: {radius}m)");
             return points;
         }
 
@@ -177,16 +259,28 @@ namespace CrashKonijn.Goap.MonsterGen
                 return false;
 
             Vector3 nextPoint = data.lookPoints.Dequeue();
-            data.state = InvestigateState.LookingAround;
+            
+            // Return to appropriate search state
+            if (data.state == InvestigateState.RotatingAtPoint)
+            {
+                // Determine which phase we're in based on what we were doing before rotation
+                if (data.hasExpandedSearch && data.currentSearchRadius >= config.investigateMaxRadius * 0.9f)
+                {
+                    data.state = InvestigateState.SearchingPhase2;
+                }
+                else
+                {
+                    data.state = InvestigateState.SearchingPhase1;
+                }
+            }
+            
             data.minMoveTime = 0.5f;
 
             navMeshAgent.isStopped = false;
             navMeshAgent.SetDestination(nextPoint);
-            
-            // Restart stuck detection for this new destination
             stuckDetector.StartTracking(agent.Transform.position);
 
-            Debug.Log($"[Investigate] Moving to next look point. ({data.lookPoints.Count} left)");
+            Debug.Log($"[Investigate] Moving to next point ({data.lookPoints.Count} left)");
             return true;
         }
 
@@ -195,19 +289,28 @@ namespace CrashKonijn.Goap.MonsterGen
             if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
                 navMeshAgent.ResetPath();
 
+            // Return to patrol speed
+            if (config != null)
+            {
+                MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Patrol);
+            }
+
             stuckDetector.Reset();
 
             var brain = agent.GetComponent<MonsterBrain>();
             if (brain != null)
                 brain.OnInvestigationComplete();
 
-            Debug.Log("[Investigate] Investigation action ended.");
+            Debug.Log("[Investigate] Investigation ended. Returning to patrol speed.");
         }
 
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
             public float minMoveTime;
+            public float investigationStartTime;
+            public float currentSearchRadius;
+            public bool hasExpandedSearch;
             public InvestigateState state;
             public Queue<Vector3> lookPoints;
 

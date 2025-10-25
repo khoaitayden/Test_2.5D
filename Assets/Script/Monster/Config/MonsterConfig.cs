@@ -10,16 +10,40 @@ public class MonsterConfig : MonoBehaviour
     public float maxPatrolDistance = 50f;
     
     [Header("Patrol Intelligence")]
-    [Tooltip("Number of previous patrol points to remember")]
     [Range(3, 10)]
     public int patrolHistorySize = 5;
-    
-    [Tooltip("Minimum distance from any recent patrol point")]
     public float minDistanceFromRecentPoints = 15f;
-    
-    [Tooltip("Prefer forward direction? (0 = random, 1 = always forward)")]
     [Range(0f, 1f)]
     public float forwardBias = 0.6f;
+
+    [Header("Movement Speeds")]
+    [Tooltip("Normal patrol speed")]
+    public float patrolSpeed = 3.5f;
+    
+    [Tooltip("Speed when chasing visible player")]
+    public float chaseSpeed = 7f;
+    
+    [Tooltip("Speed when rushing to last seen position")]
+    public float investigateRushSpeed = 6f;
+    
+    [Tooltip("Speed when searching look points (starts here, decreases over time)")]
+    public float investigateSearchSpeed = 4f;
+    
+    [Tooltip("Minimum search speed (won't go below this)")]
+    public float investigateMinSpeed = 2.5f;
+
+    [Header("Movement Acceleration")]
+    [Tooltip("Acceleration for patrol (smooth, relaxed)")]
+    public float patrolAcceleration = 4f;
+    
+    [Tooltip("Acceleration for chase (fast response, aggressive)")]
+    public float chaseAcceleration = 12f;
+    
+    [Tooltip("Acceleration for investigate rush (quick but controlled)")]
+    public float investigateRushAcceleration = 10f;
+    
+    [Tooltip("Acceleration for search (smooth, cautious)")]
+    public float investigateSearchAcceleration = 6f;
 
     [Header("Vision")]
     public int numOfRayCast = 5;
@@ -30,15 +54,27 @@ public class MonsterConfig : MonoBehaviour
     public LayerMask obstacleLayerMask;
 
     [Header("Stuck Detection")]
-    [Tooltip("If monster stays within this radius for maxStuckTime, it's considered stuck")]
     public float stuckDistanceThreshold = 1.5f;
-    [Tooltip("How long to wait before declaring the monster stuck (seconds)")]
     public float maxStuckTime = 3f;
 
-    [Header("Investigate")]
-    public float investigateRadius = 7f;
-    public int minInvestigatePoints = 3;
-    public int maxInvestigatePoints = 6;
+    [Header("Progressive Investigation")]
+    [Tooltip("Starting search radius (tight)")]
+    public float investigateStartRadius = 5f;
+    
+    [Tooltip("Maximum search radius (expanded)")]
+    public float investigateMaxRadius = 12f;
+    
+    [Tooltip("How long before starting to expand search (seconds)")]
+    public float expandSearchAfter = 6f;
+    
+    [Tooltip("How long total before giving up (seconds)")]
+    public float maxInvestigationTime = 20f;
+    
+    [Tooltip("Points generated in first phase (tight search)")]
+    public int phase1Points = 3;
+    
+    [Tooltip("Points generated in second phase (expanded search)")]
+    public int phase2Points = 4;
     
     private void OnDrawGizmosSelected()
     {
