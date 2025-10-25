@@ -6,6 +6,10 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
+    [Header("Behavior Tuning")]
+    [Tooltip("How long (in seconds) the monster will continue to 'believe' it's chasing the player after losing sight.")]
+    public float chaseGracePeriod = 2.0f; 
+
     public Vector3 LastKnownPlayerPosition { get; private set; } = Vector3.zero;
 
     private AgentBehaviour agent;
@@ -13,8 +17,11 @@ public class MonsterBrain : MonoBehaviour
     private MonsterConfig config;
     private PatrolHistory patrolHistory;
     private Transform playerTransform;
+
+    // --- NEW STATE VARIABLES ---
     private bool wasPlayerVisibleLastFrame = false;
     private bool isActivelyInvestigating = false;
+    private float timeSincePlayerSeen = 0f;
 
     private void Awake()
     {
@@ -30,6 +37,11 @@ public class MonsterBrain : MonoBehaviour
 
     private void Start()
     {
+        // Player transform can be found here once.
+        var player = GameObject.FindWithTag("Player");
+        if (player != null) 
+            playerTransform = player.transform;
+
         this.provider.WorldData.SetState(new IsPlayerInSight(), 0);
         this.provider.RequestGoal<PatrolGoal>();
     }
@@ -48,71 +60,43 @@ public class MonsterBrain : MonoBehaviour
         bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(this.agent, this.config);
         this.provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
 
-        // CHECK 1: PLAYER SPOTTED (Highest Priority)
+        if (isPlayerVisible)
+        {
+            timeSincePlayerSeen = 0f; // Reset the timer every time we see the player
+        }
+        else
+        {
+            timeSincePlayerSeen += Time.deltaTime; // Increment timer when we don't see them
+        }
+        
+        // --- REVISED LOGIC ---
+
+        // EVENT 1: Player is SPOTTED (and we weren't just chasing them a second ago)
         if (isPlayerVisible && !wasPlayerVisibleLastFrame)
         {
             Debug.Log("[MonsterBrain] Player spotted! Engaging chase.");
-            
-            // Cancel any investigation - but DON'T call OnInvestigationComplete
-            // Just set the flag and let GOAP handle stopping the action
             this.isActivelyInvestigating = false;
             this.LastKnownPlayerPosition = Vector3.zero;
-            
-            // Clear patrol history
-            if (patrolHistory != null)
-                patrolHistory.Clear();
-            
+            if (patrolHistory != null) patrolHistory.Clear();
             this.provider.RequestGoal<KillPlayerGoal>();
-            wasPlayerVisibleLastFrame = isPlayerVisible;
-            return; // Exit immediately
         }
-
-        // CHECK 2: LOST SIGHT OF PLAYER (Start Investigation)
-        if (!isPlayerVisible && wasPlayerVisibleLastFrame)
+        // EVENT 2: LOST SIGHT OF PLAYER (but only after the grace period expires)
+        else if (wasPlayerVisibleLastFrame && timeSincePlayerSeen > chaseGracePeriod)
         {
-            Debug.Log("[MonsterBrain] Lost sight of player. Starting investigation.");
-            
-            // Get player transform if needed
-            if (playerTransform == null)
+            // The check for 'isActivelyInvestigating' prevents starting a new investigation
+            // while one is already in progress.
+            if (!isActivelyInvestigating && playerTransform != null)
             {
-                var player = GameObject.FindWithTag("Player");
-                if (player != null) 
-                    playerTransform = player.transform;
-            }
-            
-            if (playerTransform != null)
-            {
-                // Save position and set flag BEFORE requesting goal
-                this.LastKnownPlayerPosition = playerTransform.position;
-                this.isActivelyInvestigating = true;
-                
-                Debug.Log($"[MonsterBrain] Saved last known position: {this.LastKnownPlayerPosition}");
-                
-                // Request investigation goal
-                this.provider.RequestGoal<InvestigateGoal>();
-            }
-            else
-            {
-                Debug.LogWarning("[MonsterBrain] Could not find player transform!");
-            }
-            
-            wasPlayerVisibleLastFrame = isPlayerVisible;
-            return; // Exit immediately after handling vision change
-        }
-
-        // CHECK 3: HANDLE IDLE STATE (Only if not investigating AND not chasing)
-        if (!isPlayerVisible && !this.isActivelyInvestigating)
-        {
-            var currentGoal = this.provider.CurrentPlan?.Goal;
-            
-            // Only request patrol if we don't already have it or KillPlayerGoal
-            if (currentGoal == null || (!(currentGoal is PatrolGoal) && !(currentGoal is KillPlayerGoal)))
-            {
-                Debug.Log("[MonsterBrain] No active goal. Requesting patrol.");
-                this.provider.RequestGoal<PatrolGoal>();
+                 Debug.Log($"[MonsterBrain] Lost sight for {timeSincePlayerSeen:F1}s. Grace period over. Starting investigation.");
+                 this.LastKnownPlayerPosition = playerTransform.position;
+                 this.isActivelyInvestigating = true;
+                 Debug.Log($"[MonsterBrain] Saved last known position: {this.LastKnownPlayerPosition}");
+                 this.provider.RequestGoal<InvestigateGoal>();
             }
         }
-
-        wasPlayerVisibleLastFrame = isPlayerVisible;
+        
+        // Always update the flag for the next frame
+        // Important: we now base 'was visible' on the timer, not the raw boolean.
+        wasPlayerVisibleLastFrame = (timeSincePlayerSeen <= chaseGracePeriod);
     }
 }

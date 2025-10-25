@@ -26,7 +26,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddGoal<KillPlayerGoal>()
                 .SetBaseCost(1f)
                 .AddCondition<HasKilledPlayer>(Comparison.GreaterThanOrEqual, 1);
-            
+
             builder.AddAction<AttackPlayerAction>()
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKilledPlayer>(EffectType.Increase)
@@ -41,7 +41,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             builder.AddAction<InvestigateLocationAction>()
                 .SetTarget<PlayerLastSeenTarget>()
-                .AddEffect<HasInvestigated>(EffectType.Increase);
+                .AddEffect<HasInvestigated>(EffectType.Increase)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThanOrEqual, 0);;
 
             // --- SENSORS ---
             builder.AddWorldSensor<PlayerInSightSensor>()

@@ -1,3 +1,4 @@
+// In AttackPlayerAction.cs
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
@@ -11,31 +12,45 @@ namespace CrashKonijn.Goap.MonsterGen
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
 
+        // Path update timer to prevent spamming SetDestination
+        private float pathUpdateTimer;
+        private readonly float pathUpdateDelay = 0.1f;
+
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
+            if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
 
             // SET AGGRESSIVE CHASE SPEED
             MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Chase);
+            pathUpdateTimer = 0f;
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             if (data.Target == null)
             {
+                Debug.LogWarning("[AttackPlayerAction] Target lost, stopping action.");
                 return ActionRunState.Stop;
             }
             
-            if (touchSensor == null) 
-                touchSensor = agent.GetComponent<MonsterTouchSensor>();
-
+            // Check if we killed the player by touch
             if (touchSensor != null && touchSensor.IsTouchingPlayer)
             {
                 Debug.Log("PLAYER KILLED BY TOUCH!");
+                // Here you would add game logic to actually kill/despawn the player
                 return ActionRunState.Completed;
+            }
+
+            // Performance optimization: only update the path every few frames
+            pathUpdateTimer -= context.DeltaTime;
+            if (pathUpdateTimer <= 0f)
+            {
+                navMeshAgent.SetDestination(data.Target.Position);
+                pathUpdateTimer = pathUpdateDelay;
             }
             
             return ActionRunState.Continue;
@@ -43,7 +58,7 @@ namespace CrashKonijn.Goap.MonsterGen
         
         public override void End(IMonoAgent agent, Data data)
         {
-            // Speed will be set by the next action that starts
+            // The next action's Start() will set the speed, so no need to do anything here.
         }
 
         public class Data : IActionData

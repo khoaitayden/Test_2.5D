@@ -32,7 +32,6 @@ namespace CrashKonijn.Goap.MonsterGen
                     return null;
                 }
             }
-            
             return new TransformTarget(playerTransform);
         }
 

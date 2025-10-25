@@ -284,25 +284,27 @@ namespace CrashKonijn.Goap.MonsterGen
             return true;
         }
 
-        public override void End(IMonoAgent agent, Data data)
+    public override void End(IMonoAgent agent, Data data)
+    {
+        if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+            navMeshAgent.ResetPath();
+
+        stuckDetector.Reset();
+        bool isPlayerVisibleNow = PlayerInSightSensor.IsPlayerInSight(agent, config);
+
+        if (isPlayerVisibleNow)
         {
-            if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
-                navMeshAgent.ResetPath();
-
-            // Return to patrol speed
-            if (config != null)
-            {
-                MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Patrol);
-            }
-
-            stuckDetector.Reset();
-
-            var brain = agent.GetComponent<MonsterBrain>();
-            if (brain != null)
-                brain.OnInvestigationComplete();
-
-            Debug.Log("[Investigate] Investigation ended. Returning to patrol speed.");
+            Debug.Log("[Investigate] Investigation INTERRUPTED by player sighting. Notifying brain is unnecessary.");
+            return; // Exit the method early.
         }
+
+        
+        var brain = agent.GetComponent<MonsterBrain>();
+        if (brain != null)
+            brain.OnInvestigationComplete();
+
+        Debug.Log("[Investigate] Investigation ended naturally. Signalling return to patrol.");
+    }
 
         public class Data : IActionData
         {
