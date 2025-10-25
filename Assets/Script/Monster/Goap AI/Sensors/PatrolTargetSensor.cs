@@ -2,83 +2,126 @@ using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
 using UnityEngine.AI;
-public class PatrolTargetSensor : LocalTargetSensorBase
-{
-private MonsterConfig config;
-// Increased attempts as path validation is stricter and might fail more often.
-private const int MaxAttempts = 30;
 
-public override void Created()
+namespace CrashKonijn.Goap.MonsterGen
 {
-}
-
-public override void Update()
-{
-}
-
-public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
-{
-    // Cache the config on the first run
-    if (config == null)
+    public class PatrolTargetSensor : LocalTargetSensorBase
     {
-        config = references.GetCachedComponent<MonsterConfig>();
-        if (config == null)
+        private MonsterConfig config;
+        private PatrolHistory patrolHistory;
+        private const int MaxAttempts = 50; // Increased because we have more constraints
+
+        public override void Created() { }
+        public override void Update() { }
+
+        public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
-            Debug.LogError("PatrolTargetSensor requires a PatrolConfig component on the agent!");
+            // Cache components
+            if (config == null)
+            {
+                config = references.GetCachedComponent<MonsterConfig>();
+                if (config == null)
+                {
+                    Debug.LogError("[PatrolSensor] Requires MonsterConfig component!");
+                    return null;
+                }
+            }
+
+            if (patrolHistory == null)
+            {
+                patrolHistory = references.GetCachedComponent<PatrolHistory>();
+                if (patrolHistory == null)
+                {
+                    // Add the component if it doesn't exist
+                    patrolHistory = agent.Transform.gameObject.AddComponent<PatrolHistory>();
+                    patrolHistory.SetMaxHistorySize(config.patrolHistorySize);
+                }
+            }
+
+            Vector3? validPosition = GetSmartPatrolPosition(agent);
+
+            if (!validPosition.HasValue)
+            {
+                Debug.LogWarning("[PatrolSensor] Could not find valid patrol point! Keeping existing target.");
+                return existingTarget;
+            }
+
+            Vector3 targetPosition = validPosition.Value;
+
+            // Record this point in history
+            patrolHistory.RecordPatrolPoint(targetPosition);
+
+            if (existingTarget is PositionTarget positionTarget)
+            {
+                return positionTarget.SetPosition(targetPosition);
+            }
+
+            return new PositionTarget(targetPosition);
+        }
+
+        /// <summary>
+        /// Finds a smart patrol position that:
+        /// 1. Is reachable via NavMesh
+        /// 2. Isn't too close to recent patrol points
+        /// 3. Prefers forward direction (configurable)
+        /// </summary>
+        private Vector3? GetSmartPatrolPosition(IActionReceiver agent)
+        {
+            Vector3 origin = agent.Transform.position;
+            Vector3 forward = agent.Transform.forward;
+
+            for (int i = 0; i < MaxAttempts; i++)
+            {
+                Vector3 candidatePoint;
+
+                // Use forward bias to prefer continuing in current direction
+                if (Random.value < config.forwardBias)
+                {
+                    // Forward-biased direction (within a cone ahead)
+                    float angle = Random.Range(-60f, 60f); // 120° cone ahead
+                    Vector3 direction = Quaternion.Euler(0, angle, 0) * forward;
+                    float distance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
+                    candidatePoint = origin + direction.normalized * distance;
+                }
+                else
+                {
+                    // Random direction (for variety)
+                    Vector2 randomDirection = Random.insideUnitCircle.normalized;
+                    float randomDistance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
+                    candidatePoint = origin + new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
+                }
+
+                // Find nearest point on NavMesh
+                if (!NavMesh.SamplePosition(candidatePoint, out NavMeshHit hit, config.maxPatrolDistance, NavMesh.AllAreas))
+                    continue;
+
+                // RULE 1: Check if reachable
+                NavMeshPath path = new NavMeshPath();
+                if (!NavMesh.CalculatePath(origin, hit.position, NavMesh.AllAreas, path))
+                    continue;
+                
+                if (path.status != NavMeshPathStatus.PathComplete)
+                    continue;
+
+                // RULE 2: Check if too close to recent patrol points
+                if (patrolHistory.IsTooCloseToRecentPoints(hit.position, config.minDistanceFromRecentPoints))
+                {
+                    continue; // Skip this point, try another
+                }
+
+                // RULE 3: Prefer points that are a good distance away (not too close)
+                float distanceFromOrigin = Vector3.Distance(origin, hit.position);
+                if (distanceFromOrigin < config.minPatrolDistance * 0.8f)
+                    continue;
+
+                // Found a valid point!
+                Debug.Log($"[PatrolSensor] Found valid patrol point at distance {distanceFromOrigin:F1}m " +
+                         $"(attempt {i + 1}/{MaxAttempts})");
+                return hit.position;
+            }
+
+            Debug.LogWarning($"[PatrolSensor] Could not find valid patrol point after {MaxAttempts} attempts!");
             return null;
         }
     }
-
-    Vector3? validPosition = GetRandomValidReachablePosition(agent);
-
-    // If no valid position found, don't change the target, just wait for the next sense.
-    if (!validPosition.HasValue)
-        return existingTarget;
-
-    Vector3 targetPosition = validPosition.Value;
-
-    if (existingTarget is PositionTarget positionTarget)
-    {
-        return positionTarget.SetPosition(targetPosition);
-    }
-
-    return new PositionTarget(targetPosition);
-}
-
-/// <summary>
-/// Finds a random position that is both on the NavMesh AND reachable by the agent.
-/// </summary>
-private Vector3? GetRandomValidReachablePosition(IActionReceiver agent)
-{
-    Vector3 origin = agent.Transform.position;
-
-    for (int i = 0; i < MaxAttempts; i++)
-    {
-        // 1. Get a random point in a wide arc
-        Vector2 randomDirection = Random.insideUnitCircle.normalized;
-        float randomDistance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
-        Vector3 randomPoint = origin + new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
-
-        // 2. Find the nearest point on the NavMesh to our random point
-        if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, config.maxPatrolDistance, NavMesh.AllAreas))
-        {
-            // 3. *** CRUCIAL VALIDATION STEP ***
-            //    Check if a path can be calculated from the agent to the potential target point.
-            var path = new NavMeshPath();
-            if (NavMesh.CalculatePath(origin, hit.position, NavMesh.AllAreas, path))
-            {
-                // If the path is complete, it means the destination is reachable.
-                if (path.status == NavMeshPathStatus.PathComplete)
-                {
-                    // This is a valid, reachable point!
-                    return hit.position;
-                }
-            }
-            // If the path is partial or invalid, we discard this point and try again.
-        }
-    }
-    
-    Debug.LogWarning("Could not find a valid AND reachable patrol point after several attempts.");
-    return null;
-}
 }

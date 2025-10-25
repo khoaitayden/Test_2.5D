@@ -36,13 +36,13 @@ namespace CrashKonijn.Goap.MonsterGen
             if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
             {
                 Debug.LogWarning("[Patrol] Monster is STUCK! Requesting new patrol point.");
-                return ActionRunState.Stop; // This will trigger the sensor to find a new point
+                return ActionRunState.Stop; // Sensor will find a new point (avoiding recent ones)
             }
 
             // Check if arrived
             if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f)
             {
-                Debug.Log("[Patrol] Reached patrol point!");
+                Debug.Log("[Patrol] ✓ Reached patrol point!");
                 return ActionRunState.Completed;
             }
 

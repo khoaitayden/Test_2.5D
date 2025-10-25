@@ -8,6 +8,18 @@ public class MonsterConfig : MonoBehaviour
     [Header("Patrol")]
     public float minPatrolDistance = 15f;
     public float maxPatrolDistance = 50f;
+    
+    [Header("Patrol Intelligence")]
+    [Tooltip("Number of previous patrol points to remember")]
+    [Range(3, 10)]
+    public int patrolHistorySize = 5;
+    
+    [Tooltip("Minimum distance from any recent patrol point")]
+    public float minDistanceFromRecentPoints = 15f;
+    
+    [Tooltip("Prefer forward direction? (0 = random, 1 = always forward)")]
+    [Range(0f, 1f)]
+    public float forwardBias = 0.6f;
 
     [Header("Vision")]
     public int numOfRayCast = 5;
