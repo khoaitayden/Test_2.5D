@@ -20,6 +20,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void Start(IMonoAgent agent, Data data)
         {
+            Debug.Log("Start attack");
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
             if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
@@ -31,6 +32,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
+            Debug.Log("Attack time");
             if (data.Target == null)
             {
                 Debug.LogWarning("[AttackPlayerAction] Target lost, stopping action.");
