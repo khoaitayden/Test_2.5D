@@ -17,7 +17,6 @@ public class MonsterBrain : MonoBehaviour
     private PatrolHistory patrolHistory;
     private Transform playerTransform;
 
-    // --- NEW STATE VARIABLES ---
     private bool wasPlayerVisibleLastFrame = false;
     private bool isActivelyInvestigating = false;
 
@@ -35,7 +34,6 @@ public class MonsterBrain : MonoBehaviour
 
     private void Start()
     {
-        // Player transform can be found here once.
         var player = GameObject.FindWithTag("Player");
         if (player != null) 
             playerTransform = player.transform;
