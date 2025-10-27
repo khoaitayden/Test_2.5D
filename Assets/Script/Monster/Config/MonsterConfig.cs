@@ -78,6 +78,7 @@ public class MonsterConfig : MonoBehaviour
     
     private void OnDrawGizmosSelected()
     {
+#if UNITY_EDITOR
         Gizmos.color = Color.yellow;
         Handles.color = new Color(1, 1, 0, 0.2f);
 
@@ -89,8 +90,7 @@ public class MonsterConfig : MonoBehaviour
         
         Gizmos.DrawLine(origin, origin + leftEdgeDirection * viewRadius);
         Gizmos.DrawLine(origin, origin + rightEdgeDirection * viewRadius);
-        
-#if UNITY_EDITOR
+
         Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
 #endif
     }
