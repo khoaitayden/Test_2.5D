@@ -8,7 +8,6 @@ public class MonsterBrain : MonoBehaviour
 {
     [Header("Behavior Tuning")]
     [Tooltip("How long (in seconds) the monster will continue to 'believe' it's chasing the player after losing sight.")]
-    public float chaseGracePeriod = 2.0f; 
 
     public Vector3 LastKnownPlayerPosition { get; private set; } = Vector3.zero;
 
@@ -21,7 +20,6 @@ public class MonsterBrain : MonoBehaviour
     // --- NEW STATE VARIABLES ---
     private bool wasPlayerVisibleLastFrame = false;
     private bool isActivelyInvestigating = false;
-    private float timeSincePlayerSeen = 0f;
 
     private void Awake()
     {
@@ -52,6 +50,7 @@ public class MonsterBrain : MonoBehaviour
         
         this.LastKnownPlayerPosition = Vector3.zero;
         this.isActivelyInvestigating = false;
+        wasPlayerVisibleLastFrame = false;
         this.provider.RequestGoal<PatrolGoal>();
     }
 
@@ -59,20 +58,11 @@ public class MonsterBrain : MonoBehaviour
     {
         bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(this.agent, this.config);
         this.provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
-
-        if (isPlayerVisible)
-        {
-            timeSincePlayerSeen = 0f; // Reset the timer every time we see the player
-        }
-        else
-        {
-            timeSincePlayerSeen += Time.deltaTime; // Increment timer when we don't see them
-        }
         
         // --- REVISED LOGIC ---
 
         // EVENT 1: Player is SPOTTED (and we weren't just chasing them a second ago)
-        if (isPlayerVisible && !wasPlayerVisibleLastFrame)
+        if (isPlayerVisible)
         {
             Debug.Log("[MonsterBrain] Player spotted! Engaging chase.");
             this.isActivelyInvestigating = false;
@@ -81,22 +71,19 @@ public class MonsterBrain : MonoBehaviour
             this.provider.RequestGoal<KillPlayerGoal>();
         }
         // EVENT 2: LOST SIGHT OF PLAYER (but only after the grace period expires)
-        else if (wasPlayerVisibleLastFrame && timeSincePlayerSeen > chaseGracePeriod)
+        else if (wasPlayerVisibleLastFrame && !isPlayerVisible)
         {
             // The check for 'isActivelyInvestigating' prevents starting a new investigation
             // while one is already in progress.
             if (!isActivelyInvestigating && playerTransform != null)
             {
-                 Debug.Log($"[MonsterBrain] Lost sight for {timeSincePlayerSeen:F1}s. Grace period over. Starting investigation.");
                  this.LastKnownPlayerPosition = playerTransform.position;
                  this.isActivelyInvestigating = true;
                  Debug.Log($"[MonsterBrain] Saved last known position: {this.LastKnownPlayerPosition}");
                  this.provider.RequestGoal<InvestigateGoal>();
             }
         }
-        
-        // Always update the flag for the next frame
-        // Important: we now base 'was visible' on the timer, not the raw boolean.
-        wasPlayerVisibleLastFrame = (timeSincePlayerSeen <= chaseGracePeriod);
+
+        wasPlayerVisibleLastFrame = isPlayerVisible;
     }
 }
