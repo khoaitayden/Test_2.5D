@@ -14,8 +14,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddGoal<PatrolGoal>()
                 .SetBaseCost(5f)
                 .AddCondition<IsPatrol>(Comparison.GreaterThanOrEqual, 1)
-                // CLEANUP: We only need one condition for this. If it must be <= 0,
-                // it's redundant to also check if it's >= 0.
                 .AddCondition<IsPlayerInSight>(Comparison.SmallerThanOrEqual, 0)
                 .AddCondition<HasSuspiciousLocation>(Comparison.SmallerThanOrEqual, 0);
             
@@ -24,9 +22,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<PatrolTarget>()
                 .AddCondition<IsPlayerInSight>(Comparison.SmallerThanOrEqual, 0)
                 .AddCondition<HasSuspiciousLocation>(Comparison.SmallerThanOrEqual, 0);;
-            
-            builder.AddTargetSensor<PatrolTargetSensor>()
-                .SetTarget<PatrolTarget>();
+        
 
             // --- KILL PLAYER LOGIC ---
             builder.AddGoal<KillPlayerGoal>()
@@ -61,9 +57,12 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             
             builder.AddTargetSensor<PlayerCurrentPosSensor>()
                 .SetTarget<PlayerTarget>();
-            
+
             builder.AddTargetSensor<PlayerLastSeenSensor>()
                 .SetTarget<PlayerLastSeenTarget>();
+            
+            builder.AddTargetSensor<PatrolTargetSensor>()
+                .SetTarget<PatrolTarget>();
             
             return builder.Build();
         }

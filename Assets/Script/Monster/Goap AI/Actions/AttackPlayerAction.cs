@@ -12,55 +12,48 @@ namespace CrashKonijn.Goap.MonsterGen
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
 
-        // Path update timer to prevent spamming SetDestination
-        private float pathUpdateTimer;
-        private readonly float pathUpdateDelay = 0.1f;
-
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            Debug.Log("Start attack");
+            Debug.Log("Start attack: Setting speed and handing over movement to MonsterMoveBehaviour.");
+            
+            // This setup is still required. The action is responsible for setting the correct speed mode.
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
             if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
-
+            
             // SET AGGRESSIVE CHASE SPEED
             MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Chase);
-            pathUpdateTimer = 0f;
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            Debug.Log("Attack time");
+            Debug.Log("Attack time: Checking for touch. Movement is handled by another script.");
+            
+            // Safety check: if the GOAP planner loses the target, we should stop.
             if (data.Target == null)
             {
                 Debug.LogWarning("[AttackPlayerAction] Target lost, stopping action.");
                 return ActionRunState.Stop;
             }
-            
-            // Check if we killed the player by touch
+
+            // This action's ONLY job is now to check for the success condition.
+            // MonsterMoveBehaviour is handling the navMeshAgent.SetDestination calls.
             if (touchSensor != null && touchSensor.IsTouchingPlayer)
             {
                 Debug.Log("PLAYER KILLED BY TOUCH!");
-                // Here you would add game logic to actually kill/despawn the player
                 return ActionRunState.Completed;
             }
-
-            // Performance optimization: only update the path every few frames
-            pathUpdateTimer -= context.DeltaTime;
-            if (pathUpdateTimer <= 0f)
-            {
-                navMeshAgent.SetDestination(data.Target.Position);
-                pathUpdateTimer = pathUpdateDelay;
-            }
             
+            // We return Continue to signal that this action is still active.
             return ActionRunState.Continue;
         }
         
         public override void End(IMonoAgent agent, Data data)
         {
-            // The next action's Start() will set the speed, so no need to do anything here.
+            // No cleanup needed here. The next action's Start() will set the new speed.
+            Debug.Log("Attack action ended.");
         }
 
         public class Data : IActionData

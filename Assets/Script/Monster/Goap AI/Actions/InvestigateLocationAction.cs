@@ -34,7 +34,7 @@ namespace CrashKonijn.Goap.MonsterGen
             data.hasExpandedSearch = false;
 
             MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateRush);
-
+            
             if (data.Target != null)
             {
                 navMeshAgent.isStopped = false;
@@ -60,7 +60,7 @@ namespace CrashKonijn.Goap.MonsterGen
             {
                 data.hasExpandedSearch = true;
                 data.currentSearchRadius = config.investigateMaxRadius;
-                Debug.Log($"[Investigate] ⚠️ EXPANDING SEARCH! New radius: {data.currentSearchRadius}m");
+                Debug.Log($"[Investigate] EXPANDING SEARCH! New radius: {data.currentSearchRadius}m");
             }
 
             // Update speed during search phases
