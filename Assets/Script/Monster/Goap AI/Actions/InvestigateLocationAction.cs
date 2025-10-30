@@ -75,7 +75,7 @@ namespace CrashKonijn.Goap.MonsterGen
             switch (data.state)
             {
                 case InvestigateState.GoingToLastSeenPosition:
-                    return HandleRushingToLocation(agent, data, hasArrived);
+                    return HandleRushingToLastSeenPlayerLocation(agent, data, hasArrived);
 
                 case InvestigateState.SearchingPhase1:
                 case InvestigateState.SearchingPhase2:
@@ -88,7 +88,7 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
 
-        private IActionRunState HandleRushingToLocation(IMonoAgent agent, Data data, bool hasArrived)
+        private IActionRunState HandleRushingToLastSeenPlayerLocation(IMonoAgent agent, Data data, bool hasArrived)
         {
             if (stuckDetector.CheckStuck(agent.Transform.position, Time.deltaTime, config))
             {

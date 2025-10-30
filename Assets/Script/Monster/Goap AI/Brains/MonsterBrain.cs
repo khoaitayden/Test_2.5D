@@ -15,8 +15,6 @@ public class MonsterBrain : MonoBehaviour
     private PatrolHistory patrolHistory;
     private Transform playerTransform;
     private bool stateChange = false;
-    private bool justSpottedPlayer = false;
-    private bool justLostPlayer = false;
 
     // This is still needed to detect the moment the player is lost.
     private bool wasPlayerVisibleLastFrame = false;
@@ -70,22 +68,17 @@ public class MonsterBrain : MonoBehaviour
         this.provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
 
         // --- NEW AUTONOMOUS LOGIC ---
-        if (justSpottedPlayer == isPlayerVisible && !wasPlayerVisibleLastFrame && justLostPlayer == !isPlayerVisible && wasPlayerVisibleLastFrame)
-        {
-            wasPlayerVisibleLastFrame = isPlayerVisible;
-            return;
-        }
 
-        justSpottedPlayer = isPlayerVisible && !wasPlayerVisibleLastFrame;
-        justLostPlayer = !isPlayerVisible && wasPlayerVisibleLastFrame;
-        
+        bool justSpottedPlayer = isPlayerVisible && !wasPlayerVisibleLastFrame;
+        bool justLostPlayer = !isPlayerVisible && wasPlayerVisibleLastFrame;
+
         // EVENT 1: Player is SPOTTED for the first time
         if (justSpottedPlayer)
         {
             Debug.Log("[MonsterBrain] Player is now visible.");
             if (patrolHistory != null) patrolHistory.Clear();
             this.provider.WorldData.SetState(new HasSuspiciousLocation(), 0);
-            
+
         }
         // EVENT 2: Just LOST SIGHT of the player
         else if (justLostPlayer)
