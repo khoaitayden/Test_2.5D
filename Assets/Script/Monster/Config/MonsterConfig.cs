@@ -1,3 +1,5 @@
+// FILE TO EDIT: MonsterConfig.cs
+
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -5,6 +7,7 @@ using UnityEditor;
 
 public class MonsterConfig : MonoBehaviour
 {
+    private MonsterBrain monsterBrain; 
     [Header("Patrol")]
     public float minPatrolDistance = 15f;
     public float maxPatrolDistance = 50f;
@@ -26,11 +29,10 @@ public class MonsterConfig : MonoBehaviour
     [Tooltip("Speed when rushing to last seen position")]
     public float investigateRushSpeed = 6f;
     
-    [Tooltip("Speed when searching look points (starts here, decreases over time)")]
+    [Tooltip("Speed when searching look points")]
     public float investigateSearchSpeed = 4f;
     
-    [Tooltip("Minimum search speed (won't go below this)")]
-    public float investigateMinSpeed = 2.5f;
+    // REMOVED: investigateMinSpeed is no longer needed as speed doesn't decrease over time.
 
     [Header("Movement Acceleration")]
     [Tooltip("Acceleration for patrol (smooth, relaxed)")]
@@ -57,41 +59,58 @@ public class MonsterConfig : MonoBehaviour
     public float stuckDistanceThreshold = 1.5f;
     public float maxStuckTime = 3f;
 
-    [Header("Progressive Investigation")]
-    [Tooltip("Starting search radius (tight)")]
-    public float investigateStartRadius = 5f;
+    // --- REVISED SECTION ---
+    [Header("Tactical Investigation")]
+    [Tooltip("How far around the player's last position to look for cover points.")]
+    public float investigateRadius = 20f;
     
-    [Tooltip("Maximum search radius (expanded)")]
-    public float investigateMaxRadius = 12f;
-    
-    [Tooltip("How long before starting to expand search (seconds)")]
-    public float expandSearchAfter = 6f;
-    
-    [Tooltip("How long total before giving up (seconds)")]
+    [Tooltip("The maximum number of cover points the monster will check.")]
+    public int investigationPoints = 4;
+
+    [Tooltip("How long total before giving up the search (seconds).")]
     public float maxInvestigationTime = 20f;
+
+    [Header("Investigation Area")]
+    [Tooltip("Minimum distance to overshoot past last seen position")]
+    public float overshootMinDistance = 3f;
+
+    [Tooltip("Maximum distance to overshoot past last seen position")]
+    public float overshootMaxDistance = 8f;
+
+    [Tooltip("How much the direction can vary (degrees) - adds unpredictability")]
+    [Range(0f, 45f)]
+    public float searchAreaAngleVariance = 20f;
     
-    [Tooltip("Points generated in first phase (tight search)")]
-    public int phase1Points = 3;
-    
-    [Tooltip("Points generated in second phase (expanded search)")]
-    public int phase2Points = 4;
+    // REMOVED: All phase-related variables (expandSearchAfter, phase1Points, etc.) are gone.
     
     private void OnDrawGizmosSelected()
     {
-#if UNITY_EDITOR
-        Gizmos.color = Color.yellow;
+    #if UNITY_EDITOR
+        // --- VISION GIZMO (Unchanged) ---
         Handles.color = new Color(1, 1, 0, 0.2f);
-
         Vector3 origin = transform.position;
         Vector3 forward = transform.forward;
-
         Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
-        Vector3 rightEdgeDirection = Quaternion.Euler(0, ViewAngle / 2, 0) * forward;
-        
-        Gizmos.DrawLine(origin, origin + leftEdgeDirection * viewRadius);
-        Gizmos.DrawLine(origin, origin + rightEdgeDirection * viewRadius);
-
         Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
-#endif
+            
+        if (monsterBrain == null)
+        {
+            monsterBrain = GetComponent<MonsterBrain>();
+        }
+        // --- NEW INVESTIGATION GIZMO ---
+        // Lazily get the reference to the brain component.
+        if (monsterBrain == null)
+        {
+            monsterBrain = GetComponent<MonsterBrain>();
+        }
+
+        // Only draw the search radius if the brain has a valid position to investigate.
+        if (monsterBrain != null && monsterBrain.LastKnownPlayerPosition != Vector3.zero)
+        {
+            Gizmos.color = Color.cyan;
+            // Draw a wire sphere centered on the last known position.
+            Gizmos.DrawWireSphere(monsterBrain.LastKnownPlayerPosition, investigateRadius);
+        }
+    #endif
     }
 }

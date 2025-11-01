@@ -1,3 +1,5 @@
+// FILE TO EDIT: SearchSurroundingsAction.cs
+
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using System.Collections.Generic;
@@ -8,7 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
 {
     public class SearchSurroundingsAction : GoapActionBase<SearchSurroundingsAction.Data>
     {
-        public enum SearchState { SearchingPhase1, SearchingPhase2, RotatingAtPoint }
+        public enum SearchState { MovingToPoint, ScanningAtPoint }
 
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
@@ -18,196 +20,244 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void Start(IMonoAgent agent, Data data)
         {
+            // --- Standard Setup ---
             navMeshAgent ??= agent.GetComponent<NavMeshAgent>();
             config ??= agent.GetComponent<MonsterConfig>();
+            stuckDetector.Reset();
 
+            // --- Initialize Action ---
             data.investigationStartTime = Time.time;
-            data.currentSearchRadius = config.investigateStartRadius;
-            data.hasExpandedSearch = false;
+            data.searchExhausted = false;
+            data.state = SearchState.MovingToPoint;
+            data.pointsChecked = 0; // Track how many we've actually visited
             
-            Debug.Log("[Search] Starting PHASE 1 search (tight, fast)...");
+            Debug.Log("[Search] Starting tactical search for cover points...");
             MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateSearch);
             
-            data.state = SearchState.SearchingPhase1;
-            data.lookPoints = GenerateSearchPoints(agent, config.investigateStartRadius, config.phase1Points);
+            // Generate the entire list of points to check at the beginning.
+            data.lookPoints = GenerateTacticalPoints(agent, data);
+            data.totalPoints = data.lookPoints.Count;
 
-            MoveToNextLookPoint(agent, data);
+            // Start moving to the first point.
+            if (!MoveToNextLookPoint(agent, data))
+            {
+                // Edge case: No valid points were found, so complete the action immediately.
+                Debug.LogWarning("[Search] No valid cover points found. Completing search early.");
+                CompleteAction(data);
+            }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            float duration = Time.time - data.investigationStartTime;
-
-            if (duration > config.maxInvestigationTime)
+            // If the action has already decided it's done, just wait for the framework to end it.
+            if (data.searchExhausted)
             {
-                Debug.Log($"[Search] Giving up after {duration:F1}s.");
                 return ActionRunState.Completed;
             }
 
-            if (!data.hasExpandedSearch && duration > config.expandSearchAfter)
+            // --- Global Checks ---
+            if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
-                data.hasExpandedSearch = true;
-                data.currentSearchRadius = config.investigateMaxRadius;
-                Debug.Log($"[Search] EXPANDING SEARCH! New radius: {data.currentSearchRadius}m");
+                Debug.Log($"[Search] Giving up after timeout.");
+                CompleteAction(data);
+                return ActionRunState.Completed;
             }
 
-            MonsterSpeedController.UpdateInvestigationSpeed(navMeshAgent, config, duration);
-
-            bool hasArrived = !navMeshAgent.pathPending &&
-                             navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
-
+            // Handle different states
             switch (data.state)
             {
-                case SearchState.SearchingPhase1:
-                case SearchState.SearchingPhase2:
-                    return HandleSearching(agent, data, context, hasArrived);
-                case SearchState.RotatingAtPoint:
-                    return HandleRotating(agent, data, context);
+                case SearchState.MovingToPoint:
+                    return HandleMoving(agent, data, context);
+                    
+                case SearchState.ScanningAtPoint:
+                    return HandleScanning(agent, data, context);
             }
 
             return ActionRunState.Continue;
         }
-        
-        private IActionRunState HandleSearching(IMonoAgent agent, Data data, IActionContext context, bool hasArrived)
-        {
-            bool isPhase1 = data.state == SearchState.SearchingPhase1;
 
+        private IActionRunState HandleMoving(IMonoAgent agent, Data data, IActionContext context)
+        {
+            // Check if we are stuck
             if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
             {
-                Debug.LogWarning($"[Search] STUCK in {(isPhase1 ? "Phase 1":"Phase 2")}. Trying next point.");
-                if (!MoveToNextLookPoint(agent, data)) return HandlePhaseCompletion(agent, data, isPhase1);
+                Debug.LogWarning($"[Search] STUCK while moving. Trying next point.");
+                
+                // Reset stuck detector before trying next point
+                stuckDetector.Reset();
+                
+                if (!MoveToNextLookPoint(agent, data))
+                {
+                    CompleteAction(data);
+                    return ActionRunState.Completed;
+                }
+                // Continue trying the new point
+                return ActionRunState.Continue;
             }
 
-            if (hasArrived) StartRotating(data);
-            
-            if (isPhase1 && data.hasExpandedSearch && data.lookPoints.Count == 0) TransitionToPhase2(agent, data);
+            // Check if we have arrived at our current destination
+            bool hasArrived = !navMeshAgent.pathPending && 
+                             navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f;
 
+            if (hasArrived)
+            {
+                Debug.Log($"[Search] Arrived at cover point #{data.pointsChecked + 1}/{data.totalPoints}. Beginning scan...");
+                StartScanning(agent, data);
+            }
+            
             return ActionRunState.Continue;
         }
 
-        private IActionRunState HandleRotating(IMonoAgent agent, Data data, IActionContext context)
+        private IActionRunState HandleScanning(IMonoAgent agent, Data data, IActionContext context)
         {
+            // Rotate the monster to scan the area
             float rotateStep = data.rotationSpeed * context.DeltaTime * data.rotationDirection;
             agent.Transform.Rotate(0f, rotateStep, 0f);
             data.rotatedAmount += Mathf.Abs(rotateStep);
 
+            // Check if we've completed the first sweep
             if (data.rotatedAmount >= data.rotationAngle)
             {
                 if (data.rotationDirection == 1)
                 {
+                    // We've scanned right, now scan left
                     data.rotationDirection = -1;
                     data.rotatedAmount = 0f;
+                    Debug.Log($"[Search] Scanning back...");
                 }
                 else
                 {
+                    // We've completed both sweeps at this point
+                    data.pointsChecked++;
+                    Debug.Log($"[Search] Point #{data.pointsChecked}/{data.totalPoints} scanned. Checking for more points...");
+                    
                     if (!MoveToNextLookPoint(agent, data))
                     {
-                        bool wasPhase1 = data.currentSearchRadius < config.investigateMaxRadius * 0.9f;
-                        return HandlePhaseCompletion(agent, data, wasPhase1);
+                        // No more points to check
+                        Debug.Log($"[Search] All {data.pointsChecked} cover points checked!");
+                        CompleteAction(data);
+                        return ActionRunState.Completed;
                     }
                 }
             }
+            
             return ActionRunState.Continue;
         }
 
-        private IActionRunState HandlePhaseCompletion(IMonoAgent agent, Data data, bool wasPhase1)
+        private void StartScanning(IMonoAgent agent, Data data)
         {
-            if (wasPhase1 && data.hasExpandedSearch)
-            {
-                TransitionToPhase2(agent, data);
-                return ActionRunState.Continue;
-            }
-
-            Debug.Log("[Search] ========== SEARCH COMPLETE ==========");
-            return ActionRunState.Completed;
-        }
-
-        private void TransitionToPhase2(IMonoAgent agent, Data data)
-        {
-            Debug.Log("[Search] === PHASE 2: EXPANDED SEARCH (slower, wider area) ===");
-            data.state = SearchState.SearchingPhase2;
-            data.lookPoints = GenerateSearchPoints(agent, data.currentSearchRadius, config.phase2Points);
-
-            if (!MoveToNextLookPoint(agent, data)) Debug.Log("[Search] No valid points in Phase 2. Completing.");
-        }
-
-        private void StartRotating(Data data)
-        {
-            data.state = SearchState.RotatingAtPoint;
-            data.rotationSpeed = Random.Range(90f, 120f);
-            data.rotationAngle = Random.Range(90f, 180f);
-            data.rotationDirection = 1;
-            data.rotatedAmount = 0f;
+            data.state = SearchState.ScanningAtPoint;
+            
+            // Stop moving while we scan
             navMeshAgent.isStopped = true;
+            
+            // Configure rotation behavior
+            data.rotationSpeed = Random.Range(60f, 90f);      // Degrees per second
+            data.rotationAngle = Random.Range(120f, 180f);   // Total angle to scan
+            data.rotationDirection = 1;                       // Start by rotating right
+            data.rotatedAmount = 0f;
+            
             stuckDetector.Reset();
-            Debug.Log($"[Search] Scanning area ({data.rotationAngle:F0}°)");
-        }
-
-        private Queue<Vector3> GenerateSearchPoints(IMonoAgent agent, float radius, int pointCount)
-        {
-            var points = new Queue<Vector3>();
-            Vector3 searchCenter = agent.Transform.position;
-            int maxAttempts = pointCount * 5;
-
-            for (int i = 0; i < maxAttempts && points.Count < pointCount; i++)
-            {
-                Vector3 randomPoint = searchCenter + Random.insideUnitSphere * radius;
-                randomPoint.y = searchCenter.y;
-                if (NavMesh.SamplePosition(randomPoint, out NavMeshHit hit, radius * 2f, NavMesh.AllAreas) && Vector3.Distance(hit.position, searchCenter) >= 2f)
-                {
-                    NavMeshPath path = new NavMeshPath();
-                    if (NavMesh.CalculatePath(agent.Transform.position, hit.position, NavMesh.AllAreas, path) && path.status == NavMeshPathStatus.PathComplete)
-                        points.Enqueue(hit.position);
-                }
-            }
-            Debug.Log($"[Search] Generated {points.Count}/{pointCount} points (radius: {radius}m)");
-            return points;
-        }
-
-        private bool MoveToNextLookPoint(IMonoAgent agent, Data data)
-        {
-            if (data.lookPoints.Count == 0) return false;
             
-            Vector3 nextPoint = data.lookPoints.Dequeue();
-            
-            if (data.state == SearchState.RotatingAtPoint)
-            {
-                data.state = (data.hasExpandedSearch && data.currentSearchRadius >= config.investigateMaxRadius * 0.9f) ? SearchState.SearchingPhase2 : SearchState.SearchingPhase1;
-            }
-            
-            navMeshAgent.isStopped = false;
-            navMeshAgent.SetDestination(nextPoint);
-            stuckDetector.StartTracking(agent.Transform.position);
-            Debug.Log($"[Search] Moving to next point ({data.lookPoints.Count} left)");
-            return true;
+            Debug.Log($"[Search] Scanning {data.rotationAngle:F0}° at {data.rotationSpeed:F0}°/s");
         }
 
         public override void End(IMonoAgent agent, Data data)
         {
-            if (navMeshAgent != null && navMeshAgent.isOnNavMesh) navMeshAgent.ResetPath();
+            Debug.Log($"[Search] End() called. Checked {data.pointsChecked}/{data.totalPoints} points. Exhausted: {data.searchExhausted}");
+            
+            if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+            {
+                navMeshAgent.isStopped = false;
+                navMeshAgent.ResetPath();
+            }
             stuckDetector.Reset();
 
-            // This is important: clear the intermediate state when we're done.
             var provider = agent.GetComponent<GoapActionProvider>();
-            if (provider != null)
-                provider.WorldData.SetState(new IsAtSuspiciousLocation(), 0);
+            provider?.WorldData.SetState(new IsAtSuspiciousLocation(), 0);
 
             var brain = agent.GetComponent<MonsterBrain>();
             brain?.OnInvestigationComplete();
         }
 
+        private void CompleteAction(Data data)
+        {
+            Debug.Log("[Search] ========== SEARCH COMPLETE ==========");
+            data.searchExhausted = true;
+        }
+
+        private bool MoveToNextLookPoint(IMonoAgent agent, Data data)
+        {
+            if (data.lookPoints.Count == 0)
+            {
+                Debug.Log("[Search] No more points in queue.");
+                return false;
+            }
+            
+            Vector3 nextPoint = data.lookPoints.Dequeue();
+            
+            // Switch back to moving state BEFORE setting destination
+            data.state = SearchState.MovingToPoint;
+            
+            // Ensure agent is ready to move
+            navMeshAgent.isStopped = false;
+            bool destinationSet = navMeshAgent.SetDestination(nextPoint);
+            
+            if (!destinationSet)
+            {
+                Debug.LogWarning($"[Search] Failed to set destination to {nextPoint}!");
+                return false;
+            }
+            
+            stuckDetector.StartTracking(agent.Transform.position);
+            
+            Debug.Log($"[Search] Moving to point #{data.pointsChecked + 1}/{data.totalPoints} ({data.lookPoints.Count} remaining in queue)");
+            return true;
+        }
+
+        private Queue<Vector3> GenerateTacticalPoints(IMonoAgent agent, Data data)
+        {
+            // Use our CoverFinder utility to find points relative to the player's last known location.
+            Vector3 searchCenter = data.Target.Position; 
+            
+            // Find a list of potential cover points using the new simplified config values.
+            List<Vector3> foundPoints = CoverFinder.FindCoverPoints(searchCenter, config.investigateRadius, agent.Transform.position, config);
+
+            // Prioritize the points by checking the closest ones first.
+            foundPoints.Sort((a, b) => 
+                Vector3.Distance(agent.Transform.position, a).CompareTo(Vector3.Distance(agent.Transform.position, b))
+            );
+
+            // Take only the best 'investigationPoints' to keep the search focused.
+            List<Vector3> finalPoints = new List<Vector3>();
+            for(int i = 0; i < Mathf.Min(config.investigationPoints, foundPoints.Count); i++)
+            {
+                finalPoints.Add(foundPoints[i]);
+            }
+
+            Debug.Log($"[Search] Generated {finalPoints.Count}/{config.investigationPoints} tactical points to check.");
+            
+            // Convert the final list into the Queue the rest of the action expects.
+            return new Queue<Vector3>(finalPoints);
+        }
+        
         public class Data : IActionData
         {
-            // #### THIS IS THE FIX ####
-            // Adding this property back in, even though we don't use it,
-            // allows the GOAP planner to correctly validate the action.
             public ITarget Target { get; set; }
-
-            public float investigationStartTime, currentSearchRadius, rotationAngle, rotationSpeed, rotatedAmount;
-            public bool hasExpandedSearch;
-            public SearchState state;
+            public float investigationStartTime;
             public Queue<Vector3> lookPoints;
-            public int rotationDirection;
+            public bool searchExhausted;
+            public int pointsChecked;  // How many points we've actually scanned
+            public int totalPoints;    // Total points to check
+            
+            // State machine
+            public SearchState state;
+            
+            // Rotation/scanning data
+            public float rotationSpeed;
+            public float rotationAngle;
+            public float rotatedAmount;
+            public int rotationDirection;  // 1 for right, -1 for left
         }
     }
 }

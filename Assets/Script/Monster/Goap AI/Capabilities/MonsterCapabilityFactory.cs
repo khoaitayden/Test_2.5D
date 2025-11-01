@@ -17,47 +17,40 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // --- THE ACTION TREE ---
 
             // LEVEL 1: KILL THE PLAYER
-            // This is the final action in any successful plan.
             builder.AddAction<AttackPlayerAction>()
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKilledPlayer>(EffectType.Increase)
-                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1); // Requires player to be visible.
+                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1);
 
-            // LEVEL 2: FIND THE PLAYER (SEARCHING)
-            // This is the action taken when we have a clue. It leads to finding the player.
+            // LEVEL 2: SEARCH THE AREA
+            // This action searches cover points. It should have NO CONDITIONS.
+            // It runs as long as there are suspicious locations to investigate.
             builder.AddAction<SearchSurroundingsAction>()
                 .SetTarget<PlayerLastSeenTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase)
-                .AddEffect<CanPatrol>(EffectType.Increase) // When search is over, we can patrol again.
-                // Note: The "effect" isn't killing the player directly, but by searching,
-                // we might re-acquire them, which satisfies the IsPlayerInSight condition for the Attack action.
-                // The planner understands this indirect connection.
-                .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1);
+                .AddEffect<IsPlayerInSight>(EffectType.Increase)  // Might find player
+                .AddEffect<HasSuspiciousLocation>(EffectType.Decrease) // Clear the clue when done
+                .AddEffect<CanPatrol>(EffectType.Increase)  // Can patrol after search
+                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1); // Only condition: need a clue
 
             // LEVEL 3: GO TO THE CLUE
-            // This action gets us to the search area.
-            builder.AddAction<GoToLastSeenPositionAction>()
+            // This action gets us to the search area FIRST.
+            builder.AddAction<GoToLastSeenPlayerAreaAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
-                .AddEffect<IsPlayerInSight>(EffectType.Increase)
-                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1);
+                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1); // NOT there yet
 
             // LEVEL 4: PATROL (THE DEFAULT ACTION)
-            // This is the root action. The monster patrols to put itself in a state where it *might* see the player.
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
                 .AddEffect<CanPatrol>(EffectType.Increase) 
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
-                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1); // Requires the AI to be in its idle state.
+                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1);
 
             // --- SENSORS ---
             builder.AddWorldSensor<PlayerInSightSensor>().SetKey<IsPlayerInSight>();
             builder.AddWorldSensor<HasSuspiciousLocationSensor>().SetKey<HasSuspiciousLocation>();
             builder.AddWorldSensor<IsAtSuspiciousLocationSensor>().SetKey<IsAtSuspiciousLocation>();
-
-            // We need a sensor for our new default state.
-            // For now, we will just have it return true so patrolling can start.
-            // A more advanced AI might have this be false during a stun, for example.
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
