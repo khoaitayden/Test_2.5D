@@ -88,7 +88,6 @@ public class MonsterBrain : MonoBehaviour
                 provider.WorldData.SetState(new CanPatrol(), 0);
             }
         }
-        Debug.Log($"[Brain] current player last known position: {LastKnownPlayerPosition}");
 
         wasPlayerVisibleLastFrame = isPlayerVisible;
     }

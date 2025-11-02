@@ -35,10 +35,8 @@ namespace CrashKonijn.Goap.MonsterGen
             // We can only patrol if both of these are false.
             if (isPlayerVisible || isInvestigating)
             {
-                Debug.Log("no patrol pls");
                 return 0;
             }
-            Debug.Log("yes patrol pls");
             return 1;
         }
     }
