@@ -44,7 +44,7 @@ namespace CrashKonijn.Goap.MonsterGen
             Debug.Log("Go to last seen area end");
             // The action's job is to report its completion to the brain.
             // The brain will decide what this means for the world state.
-            brain?.OnArrivedAtSuspiciousLocation();
+            // brain?.OnArrivedAtSuspiciousLocation();
         }
         
         public class Data : IActionData

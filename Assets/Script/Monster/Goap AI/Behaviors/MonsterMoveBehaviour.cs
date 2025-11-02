@@ -95,17 +95,27 @@ namespace CrashKonijn.Docs.GettingStarted.Behaviours
                 }
             }
         }
-        
+
         private void UpdatePath()
         {
             if (currentTarget == null || !this.navMeshAgent.isOnNavMesh)
                 return;
-                
+
             this.navMeshAgent.SetDestination(this.currentTarget.Position);
             this.navMeshAgent.isStopped = false;
-            
+
             // Reset timer
             pathUpdateTimer = pathUpdateDelay;
+        }
+        public void Stop()
+        {
+            if (this.navMeshAgent != null && this.navMeshAgent.isOnNavMesh)
+            {
+                this.navMeshAgent.isStopped = true;
+                this.navMeshAgent.ResetPath();
+            }
+            this.currentTarget = null;
+            this.shouldMove = false;
         }
 
         private void OnDrawGizmos()

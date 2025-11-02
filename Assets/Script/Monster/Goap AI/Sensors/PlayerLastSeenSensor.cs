@@ -19,14 +19,11 @@ namespace CrashKonijn.Goap.MonsterGen
             {
                 monsterBrain = agent.Transform.GetComponent<MonsterBrain>();
             }
-                
+
             if (monsterBrain == null)
                 return null;
-
-            // --- THIS IS THE FIX ---
-            // Instead of using the old LastKnownPlayerPosition, we now use the same
-            // public property that the MonsterBrain updates after its delay.
-            // This ensures both GoTo and Search actions use the same, intelligent target.
+                
+                
             Vector3 targetPosition = monsterBrain.LastKnownPlayerPosition;
 
             // Only return a target if the brain has actually set a valid position.

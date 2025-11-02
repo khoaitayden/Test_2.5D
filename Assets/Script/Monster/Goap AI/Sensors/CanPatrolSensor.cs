@@ -17,7 +17,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            // Cache components for efficiency.
             if (brain == null)
                 brain = references.GetCachedComponent<MonsterBrain>();
             
@@ -25,21 +24,21 @@ namespace CrashKonijn.Goap.MonsterGen
                 config = references.GetCachedComponent<MonsterConfig>();
 
             if (brain == null || config == null)
-            {
                 return 0;
-            }
 
+            // Fact 1: Is the player visible?
             bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(agent, config);
-            bool hasSuspiciousLocation = brain.LastKnownPlayerPosition != UnityEngine.Vector3.zero;
 
-            if (isPlayerVisible || hasSuspiciousLocation)
+            // Fact 2: Are we in the middle of an investigation?
+            bool isInvestigating = brain.IsInvestigating;
+
+            // We can only patrol if both of these are false.
+            if (isPlayerVisible || isInvestigating)
             {
-                // There is something more important to do. Do NOT patrol.
-                Debug.Log("Patrol false");
+                Debug.Log("no patrol pls");
                 return 0;
             }
-            Debug.Log("Patrol true");
-            // There are no threats or clues. The monster is free to patrol.
+            Debug.Log("yes patrol pls");
             return 1;
         }
     }

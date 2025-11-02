@@ -9,6 +9,7 @@ public class MonsterBrain : MonoBehaviour
 {
     public Vector3 LastKnownPlayerPosition { get; private set; } = Vector3.zero;
 
+    public bool IsInvestigating { get; private set; }
     private AgentBehaviour agent;
     private GoapActionProvider provider;
     private MonsterConfig config;
@@ -29,27 +30,28 @@ public class MonsterBrain : MonoBehaviour
     private void Start()
     {
         var player = GameObject.FindWithTag("Player");
-        if (player != null) 
+        if (player != null)
             playerTransform = player.transform;
-        
+        IsInvestigating = false;
         provider.WorldData.SetState(new CanPatrol(), 1);
+        provider.WorldData.SetState(new IsInvestigating(), 0);
         provider.RequestGoal<KillPlayerGoal>();
-    }
-
-    public void OnArrivedAtSuspiciousLocation()
-    {
-        provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
     }
 
     public void OnInvestigationFinished()
     {
         Debug.Log("[Brain] Investigation finished. Clearing all investigation states.");
         LastKnownPlayerPosition = Vector3.zero;
-        provider.WorldData.SetState(new IsAtSuspiciousLocation(), 0);
-        provider.WorldData.SetState(new HasSuspiciousLocation(), 0);
+        IsInvestigating = false; 
+        provider.WorldData.SetState(new IsInvestigating(), 0);
         provider.WorldData.SetState(new CanPatrol(), 1);
     }
-    
+    public void OnInvestigationFailed()
+    {
+        Debug.LogWarning("[Brain] Investigation FAILED. Resetting all investigation states and returning to patrol.");
+        // This is the same cleanup as a successful investigation.
+        OnInvestigationFinished();
+    }
     
     private void Update()
     {
@@ -62,24 +64,25 @@ public class MonsterBrain : MonoBehaviour
         if (justSpottedPlayer)
         {
             Debug.Log("[Brain] Player is now visible. Preparing to attack.");
+            IsInvestigating = false;
             provider.WorldData.SetState(new CanPatrol(), 0);
             provider.WorldData.SetState(new HasSuspiciousLocation(), 0);
             provider.WorldData.SetState(new IsAtSuspiciousLocation(), 0);
+            provider.WorldData.SetState(new IsInvestigating(), 0);
         }
         else if (justLostPlayer)
         {
-            // --- SIMPLIFIED LOGIC ---
-            // No delay. If the player is lost, immediately set the clue.
             if (playerTransform != null)
             {
                 LastKnownPlayerPosition = playerTransform.position;
                 Debug.Log($"[Brain] Player lost. Setting last known position instantly: {LastKnownPlayerPosition}");
-                
-                // Set the clue and stop patrolling. The planner will take over.
+                IsInvestigating = true;
+                provider.WorldData.SetState(new IsInvestigating(), 1);
                 provider.WorldData.SetState(new HasSuspiciousLocation(), 1);
                 provider.WorldData.SetState(new CanPatrol(), 0);
             }
         }
+        Debug.Log($"[Brain] current player last known position: {LastKnownPlayerPosition}");
 
         wasPlayerVisibleLastFrame = isPlayerVisible;
     }

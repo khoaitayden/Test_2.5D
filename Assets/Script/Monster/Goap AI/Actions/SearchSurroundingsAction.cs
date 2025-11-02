@@ -6,6 +6,7 @@ using CrashKonijn.Docs.GettingStarted.Behaviours; // Make sure this namespace is
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using CrashKonijn.Agent.Runtime;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -18,19 +19,24 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterBrain brain;
         private StuckDetector stuckDetector = new StuckDetector();
         private MonsterMoveBehaviour moveBehaviour;
-
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            navMeshAgent ??= agent.GetComponent<NavMeshAgent>();
+            navMeshAgent = agent.GetComponent<NavMeshAgent>();
+            if (navMeshAgent == null)
+            {
+                Debug.LogError("[Search] NavMeshAgent is NULL. Cannot start action.");
+                CompleteAction(data);
+                return; // Abort the start method.
+            }
             config ??= agent.GetComponent<MonsterConfig>();
             stuckDetector.Reset();
             brain ??= agent.GetComponent<MonsterBrain>();
             moveBehaviour ??= agent.GetComponent<MonsterMoveBehaviour>();
-
             if (moveBehaviour != null)
             {
+                moveBehaviour.Stop(); 
                 moveBehaviour.enabled = false;
                 Debug.Log("[Search] Disabled MonsterMoveBehaviour for manual control.");
             }
@@ -52,7 +58,6 @@ namespace CrashKonijn.Goap.MonsterGen
             }
             else
             {
-                // If GenerateTacticalPoints returned an empty list, complete the action immediately.
                 Debug.LogWarning("[Search] No tactical points found. Completing search action.");
                 CompleteAction(data);
             }
@@ -61,12 +66,19 @@ namespace CrashKonijn.Goap.MonsterGen
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             Debug.Log("Run perform 0");
+            if (navMeshAgent == null)
+            {
+                Debug.LogError("[Search] NavMeshAgent became NULL during Perform. Aborting.");
+                CompleteAction(data);
+                return ActionRunState.Completed;
+            }
             if (data.searchExhausted) return ActionRunState.Completed;
             Debug.Log("Run perform 1");
 
 
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
+                Debug.Log("[Search] Investigation time out");
                 CompleteAction(data);
                 return ActionRunState.Completed;
             }
@@ -88,7 +100,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 stuckDetector.Reset();
                 if (!MoveToNextLookPoint(agent, data))
                 {
-                    
+                    Debug.Log("[Search] Monster got stuck at last point abort mission");
                     CompleteAction(data);
                     return ActionRunState.Completed;
                 }
@@ -96,7 +108,6 @@ namespace CrashKonijn.Goap.MonsterGen
             }
             Debug.Log("Run handle movement 1");
             bool hasArrived = !navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance;
-            Debug.Log(hasArrived.ToString());
             if (hasArrived)
             {
                 Debug.Log("Arrived");
@@ -109,24 +120,15 @@ namespace CrashKonijn.Goap.MonsterGen
 
        private IActionRunState HandleScanning(IMonoAgent agent, Data data, IActionContext context)
         {
-            Debug.Log("Run scanning 0");
-            float rotateStep = data.rotationSpeed * context.DeltaTime * data.rotationDirection;
+            float rotateStep = data.rotationSpeed * context.DeltaTime * 1;
             agent.Transform.Rotate(0f, rotateStep, 0f);
             data.rotatedAmount += Mathf.Abs(rotateStep);
 
             if (data.rotatedAmount >= data.rotationAngle)
             {
-                if (data.rotationDirection == 1)
-                {
-                    data.rotationDirection = -1;
-                    data.rotatedAmount = 0f;
-                    Debug.Log("[Search] Scanning back...");
-                }
-                else
-                {
                     data.pointsChecked++;
                     Debug.Log($"[Search] Point #{data.pointsChecked}/{data.totalPoints} scanned.");
-                    
+
                     // After scanning, try to move to the NEXT point.
                     if (!MoveToNextLookPoint(agent, data))
                     {
@@ -135,7 +137,6 @@ namespace CrashKonijn.Goap.MonsterGen
                         CompleteAction(data);
                         return ActionRunState.Completed;
                     }
-                }
             }
             return ActionRunState.Continue;
         }
@@ -145,9 +146,8 @@ namespace CrashKonijn.Goap.MonsterGen
             Debug.Log("Init scanning");
             data.state = SearchState.ScanningAtPoint;
             navMeshAgent.isStopped = true;
-            data.rotationSpeed = Random.Range(60f, 90f);
-            data.rotationAngle = Random.Range(120f, 180f);
-            data.rotationDirection = 1;
+            data.rotationSpeed = Random.Range(90f, 120f);
+            data.rotationAngle = Random.Range(90f, 120f);
             data.rotatedAmount = 0f;
             stuckDetector.Reset();
         }
@@ -222,7 +222,6 @@ namespace CrashKonijn.Goap.MonsterGen
             public float rotationSpeed;
             public float rotationAngle;
             public float rotatedAmount;
-            public int rotationDirection;
         }
     }
 }

@@ -9,7 +9,7 @@ public static class CoverFinder
         var coverPoints = new List<Vector3>();
         int numberOfCasts = 16; // Number of rays to cast in a circle
         float behindCoverDistance = 5f; // How far behind the obstacle to place the point
-        float minPointDistance = 10f; // Minimum distance between cover points
+        float minPointDistance = 20f; // Minimum distance between cover points
         float debugDuration = 100f;
 
         for (int i = 0; i < numberOfCasts; i++)
