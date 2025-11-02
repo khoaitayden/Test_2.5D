@@ -51,6 +51,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
+            Debug.Log("patrol action end");
             stuckDetector.Reset();
         }
 

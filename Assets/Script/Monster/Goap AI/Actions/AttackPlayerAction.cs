@@ -11,6 +11,7 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterTouchSensor touchSensor;
         private NavMeshAgent navMeshAgent;
         private MonsterConfig config;
+        private MonsterBrain brain;
 
         public override void Created() { }
 
@@ -22,7 +23,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
             if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
-            
+            brain ??= agent.GetComponent<MonsterBrain>();
             // SET AGGRESSIVE CHASE SPEED
             MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Chase);
         }
@@ -52,8 +53,8 @@ namespace CrashKonijn.Goap.MonsterGen
         
         public override void End(IMonoAgent agent, Data data)
         {
-            // No cleanup needed here. The next action's Start() will set the new speed.
             Debug.Log("Attack action ended.");
+            // Report to the brain that the attack is over.
         }
 
         public class Data : IActionData

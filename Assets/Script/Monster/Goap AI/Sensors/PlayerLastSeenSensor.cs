@@ -1,4 +1,5 @@
-// FILE TO EDIT: PlayerLastSeenSensor.cs (Corrected)
+// FILE TO EDIT: PlayerLastSeenSensor.cs
+
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
@@ -16,18 +17,22 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (monsterBrain == null)
             {
-                // #### THIS IS THE FIX ####
-                // We get the Transform from the interface, and then GetComponent from the Transform.
                 monsterBrain = agent.Transform.GetComponent<MonsterBrain>();
             }
                 
             if (monsterBrain == null)
                 return null;
 
-            // This logic remains correct.
-            if (monsterBrain.LastKnownPlayerPosition != Vector3.zero)
+            // --- THIS IS THE FIX ---
+            // Instead of using the old LastKnownPlayerPosition, we now use the same
+            // public property that the MonsterBrain updates after its delay.
+            // This ensures both GoTo and Search actions use the same, intelligent target.
+            Vector3 targetPosition = monsterBrain.LastKnownPlayerPosition;
+
+            // Only return a target if the brain has actually set a valid position.
+            if (targetPosition != Vector3.zero)
             {
-                return new PositionTarget(monsterBrain.LastKnownPlayerPosition);
+                return new PositionTarget(targetPosition);
             }
             
             return null;

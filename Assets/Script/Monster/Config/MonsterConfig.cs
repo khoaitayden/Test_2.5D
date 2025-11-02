@@ -68,18 +68,7 @@ public class MonsterConfig : MonoBehaviour
     public int investigationPoints = 4;
 
     [Tooltip("How long total before giving up the search (seconds).")]
-    public float maxInvestigationTime = 20f;
-
-    [Header("Investigation Area")]
-    [Tooltip("Minimum distance to overshoot past last seen position")]
-    public float overshootMinDistance = 3f;
-
-    [Tooltip("Maximum distance to overshoot past last seen position")]
-    public float overshootMaxDistance = 8f;
-
-    [Tooltip("How much the direction can vary (degrees) - adds unpredictability")]
-    [Range(0f, 45f)]
-    public float searchAreaAngleVariance = 20f;
+    public float maxInvestigationTime = 100f;
     
     // REMOVED: All phase-related variables (expandSearchAfter, phase1Points, etc.) are gone.
     

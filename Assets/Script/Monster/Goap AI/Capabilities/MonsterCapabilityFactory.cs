@@ -20,32 +20,35 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddAction<AttackPlayerAction>()
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKilledPlayer>(EffectType.Increase)
-                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1);
+                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+                .SetBaseCost(1);
 
             // LEVEL 2: SEARCH THE AREA
-            // This action searches cover points. It should have NO CONDITIONS.
-            // It runs as long as there are suspicious locations to investigate.
             builder.AddAction<SearchSurroundingsAction>()
                 .SetTarget<PlayerLastSeenTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase)  // Might find player
-                .AddEffect<HasSuspiciousLocation>(EffectType.Decrease) // Clear the clue when done
-                .AddEffect<CanPatrol>(EffectType.Increase)  // Can patrol after search
-                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1); // Only condition: need a clue
+                .AddEffect<IsPlayerInSight>(EffectType.Increase)
+                .AddEffect<CanPatrol>(EffectType.Increase)
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1) // MUST be at the location
+                .SetBaseCost(3);
 
             // LEVEL 3: GO TO THE CLUE
-            // This action gets us to the search area FIRST.
             builder.AddAction<GoToLastSeenPlayerAreaAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
-                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
-                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1); // NOT there yet
+                .AddEffect<IsPlayerInSight>(EffectType.Increase)
+                .AddCondition<HasSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1) // MUST have a clue
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
+                .SetBaseCost(2);
 
             // LEVEL 4: PATROL (THE DEFAULT ACTION)
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
-                .AddEffect<CanPatrol>(EffectType.Increase) 
+                .AddEffect<CanPatrol>(EffectType.Increase)
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
-                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1);
+                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<HasSuspiciousLocation>(Comparison.SmallerThan, 1)
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
+                .SetBaseCost(10);
 
             // --- SENSORS ---
             builder.AddWorldSensor<PlayerInSightSensor>().SetKey<IsPlayerInSight>();
