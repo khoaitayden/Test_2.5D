@@ -9,6 +9,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: Forest_Pack_Atlas_1
     second: {fileID: 2100000, guid: 4a0acc1ce05a4af4a9269a81065b7d75, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Forest_Pack_BaseColor
+    second: {fileID: 2100000, guid: 125d35407e7c89fe99ca9fe8dd69b0de, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

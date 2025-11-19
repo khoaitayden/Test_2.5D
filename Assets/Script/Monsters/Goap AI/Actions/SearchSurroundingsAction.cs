@@ -65,7 +65,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            Debug.Log("Run perform 0");
             if (navMeshAgent == null)
             {
                 Debug.LogError("[Search] NavMeshAgent became NULL during Perform. Aborting.");
@@ -73,7 +72,6 @@ namespace CrashKonijn.Goap.MonsterGen
                 return ActionRunState.Completed;
             }
             if (data.searchExhausted) return ActionRunState.Completed;
-            Debug.Log("Run perform 1");
 
 
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
@@ -82,19 +80,16 @@ namespace CrashKonijn.Goap.MonsterGen
                 CompleteAction(data);
                 return ActionRunState.Completed;
             }
-            Debug.Log("Run perform 2");
             switch (data.state)
             {
                 case SearchState.MovingToPoint: return HandleMoving(agent, data, context);
                 case SearchState.ScanningAtPoint: return HandleScanning(agent, data, context);
             }
-            Debug.Log("Run perform 3");
             return ActionRunState.Continue;
         }
 
         private IActionRunState HandleMoving(IMonoAgent agent, Data data, IActionContext context)
         {
-            Debug.Log("Run handle movement 0");
             if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
             {
                 stuckDetector.Reset();
@@ -106,14 +101,12 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
                 return ActionRunState.Continue;
             }
-            Debug.Log("Run handle movement 1");
             bool hasArrived = !navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance;
             if (hasArrived)
             {
                 Debug.Log("Arrived");
                 StartScanning(agent, data);
             }
-            Debug.Log("Run handle movement 2");
             return ActionRunState.Continue;
             
         }
