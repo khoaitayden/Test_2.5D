@@ -1,6 +1,6 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
-using CrashKonijn.Docs.GettingStarted.Behaviours; 
+using CrashKonijn.Goap.MonsterGen.Capabilities; 
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -11,37 +11,28 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         public enum SearchState { MovingToPoint, ScanningAtPoint }
 
-        private NavMeshAgent navMeshAgent;
+        private MonsterMovement movement; 
         private MonsterConfig config;
         private MonsterBrain brain;
-        private StuckDetector stuckDetector = new StuckDetector();
-        private MonsterMoveBehaviour moveBehaviour;
+        private NavMeshAgent agentRaw; 
 
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            navMeshAgent = agent.GetComponent<NavMeshAgent>();
-            config ??= agent.GetComponent<MonsterConfig>();
-            stuckDetector.Reset();
-            brain ??= agent.GetComponent<MonsterBrain>();
-            
-            moveBehaviour ??= agent.GetComponent<MonsterMoveBehaviour>();
-            if (moveBehaviour != null)
-            {
-                moveBehaviour.Stop(); 
-                moveBehaviour.enabled = false;
-            }
+            // Cache components
+            if (movement == null) movement = agent.GetComponent<MonsterMovement>();
+            if (config == null) config = agent.GetComponent<MonsterConfig>();
+            if (brain == null) brain = agent.GetComponent<MonsterBrain>();
+            if (agentRaw == null) agentRaw = agent.GetComponent<NavMeshAgent>();
 
             data.investigationStartTime = Time.time;
             data.searchExhausted = false;
             data.pointsChecked = 0;
             
-            // This is now much faster because FindCoverPoints doesn't pathfind
+            // Generate points
             data.lookPoints = GenerateTacticalPoints(agent, data);
             data.totalPoints = data.lookPoints.Count;
-            
-            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateSearch);
             
             if (data.totalPoints > 0)
             {
@@ -57,6 +48,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.searchExhausted) return ActionRunState.Completed;
 
+            // Timeout check
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
                 CompleteAction(data);
@@ -65,37 +57,38 @@ namespace CrashKonijn.Goap.MonsterGen
 
             switch (data.state)
             {
+                // ERROR WAS HERE: Now we correctly pass 'agent' to HandleMoving
                 case SearchState.MovingToPoint: return HandleMoving(agent, data, context);
                 case SearchState.ScanningAtPoint: return HandleScanning(agent, data, context);
             }
+
             return ActionRunState.Continue;
         }
 
+        // ERROR FIXED: Added IMonoAgent agent parameter
         private IActionRunState HandleMoving(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Optimization: Perform squared distance check manually before accessing navMeshAgent
-            // accessing native navMesh properties repeatedly is slightly more expensive than math
-            if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
+            if (movement.IsStuck)
             {
-                stuckDetector.Reset();
-                // If stuck, force skip to next
-                if (!TryMoveToNextPoint(agent, data)) 
+                Debug.Log("[Search] Stuck moving to point. Skipping.");
+                // ERROR FIXED: Used 'agent' parameter instead of 'context.Agent'
+                if (!TryMoveToNextPoint(agent, data))
                 {
                     CompleteAction(data);
                     return ActionRunState.Completed;
                 }
             }
 
-            if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            if (movement.HasArrived)
             {
+                // ERROR FIXED: Used 'agent' parameter instead of 'context.Agent'
                 StartScanning(agent, data);
             }
             return ActionRunState.Continue;
         }
 
-        private IActionRunState HandleScanning(IMonoAgent agent, Data data, IActionContext context)
+       private IActionRunState HandleScanning(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Optimization: Rotate check logic is fine, light on math
             float rotateStep = data.rotationSpeed * context.DeltaTime;
             agent.Transform.Rotate(0f, rotateStep, 0f);
             data.rotatedAmount += Mathf.Abs(rotateStep);
@@ -115,25 +108,16 @@ namespace CrashKonijn.Goap.MonsterGen
         private void StartScanning(IMonoAgent agent, Data data)
         {
             data.state = SearchState.ScanningAtPoint;
-            // Check navmesh before stopping to avoid errors
-            if(navMeshAgent.isOnNavMesh) navMeshAgent.isStopped = true;
+            movement.Stop();
             
-            data.rotationSpeed = Random.Range(30f, 90f);
-            data.rotationAngle = Random.Range(30f, 90f);
+            data.rotationSpeed = Random.Range(90f, 120f);
+            data.rotationAngle = Random.Range(90f, 120f);
             data.rotatedAmount = 0f;
-            stuckDetector.Reset();
         }
 
         public override void End(IMonoAgent agent, Data data)
         {
-            if (navMeshAgent != null && navMeshAgent.isOnNavMesh) 
-            {
-                navMeshAgent.isStopped = true; 
-                navMeshAgent.ResetPath();
-            }
-            stuckDetector.Reset();
-            
-            if (moveBehaviour != null) moveBehaviour.enabled = true;
+            movement.Stop();
             brain?.OnInvestigationFinished();
         }
 
@@ -145,51 +129,36 @@ namespace CrashKonijn.Goap.MonsterGen
             }
         }
 
-        // RECURSIVE VALIDATION to skip unreachable points instantly
         private bool TryMoveToNextPoint(IMonoAgent agent, Data data)
         {
             while (data.lookPoints.Count > 0)
             {
                 Vector3 nextPoint = data.lookPoints.Dequeue();
                 
-                // Use NavMeshPath to verify connectivity asynchronously logic 
-                // Or rely on SetDestination returning false.
-                
                 data.state = SearchState.MovingToPoint;
-                if(navMeshAgent.isOnNavMesh) navMeshAgent.isStopped = false;
-
-                // SetDestination is the 'CalculatePath' check here.
-                // It's generally faster than a full separate calculation, 
-                // but if it fails (returns false), we immediately try the next point loop.
-                if (navMeshAgent.SetDestination(nextPoint))
-                {
-                    stuckDetector.StartTracking(agent.Transform.position);
-                    
-                    // Optional: Visual debugging
-                    Debug.DrawLine(agent.Transform.position, nextPoint, Color.cyan, 2f);
-                    return true; // Success, we are moving
-                }
                 
-                // If we get here, SetDestination failed (point unreachable).
-                // loop continues to next point immediately without waiting for next frame.
+                // Using Unified System
+                if (movement.GoTo(nextPoint, MonsterMovement.SpeedState.Investigate))
+                {
+                    return true;
+                }
             }
             
-            return false; // No valid points left
+            return false;
         }
 
         private Queue<Vector3> GenerateTacticalPoints(IMonoAgent agent, Data data)
         {
-            // CoverFinder is now lightweight
-            List<Vector3> foundPoints = CoverFinder.FindCoverPoints(data.Target.Position, config.investigateRadius, agent.Transform.position, config);
+            // Use the Optimized CoverFinder
+            Vector3 searchCenter = data.Target.Position; 
+            List<Vector3> foundPoints = CoverFinder.FindCoverPoints(searchCenter, config.investigateRadius, agent.Transform.position, config);
             
-            // Simple distance sort is fine
             foundPoints.Sort((a, b) => Vector3.SqrMagnitude(agent.Transform.position - a).CompareTo(Vector3.SqrMagnitude(agent.Transform.position - b)));
             
             int count = Mathf.Min(config.investigationPoints, foundPoints.Count);
-            var q = new Queue<Vector3>(count);
-            for(int i=0; i<count; i++) q.Enqueue(foundPoints[i]);
-            
-            return q;
+            Queue<Vector3> queue = new Queue<Vector3>();
+            for(int i = 0; i < count; i++) queue.Enqueue(foundPoints[i]);
+            return queue;
         }
         
         public class Data : IActionData

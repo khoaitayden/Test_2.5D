@@ -1,83 +1,53 @@
-// FILE TO EDIT: GoToLastSeenPlayerAreaAction.cs
-
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities; // Important for MonsterMovement
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
     public class GoToLastSeenPlayerAreaAction : GoapActionBase<GoToLastSeenPlayerAreaAction.Data>
     {
-        private NavMeshAgent navMeshAgent;
-        private MonsterConfig config;
+        private MonsterMovement movement;
         private MonsterBrain brain;
-        private StuckDetector stuckDetector = new StuckDetector(); // We need this back
 
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            navMeshAgent ??= agent.GetComponent<NavMeshAgent>();
-            config ??= agent.GetComponent<MonsterConfig>();
-            brain ??= agent.GetComponent<MonsterBrain>();
-            stuckDetector.Reset();
+            if (movement == null) movement = agent.GetComponent<MonsterMovement>();
+            if (brain == null) brain = agent.GetComponent<MonsterBrain>();
 
             data.actionFailed = false;
 
-            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.InvestigateRush);
-            
-            if (data.Target != null)
+            if (data.Target == null)
             {
-                // --- ROBUSTNESS CHECK 1: Is the target reachable? ---
-                NavMeshPath path = new NavMeshPath();
-                if (NavMesh.CalculatePath(agent.Transform.position, data.Target.Position, NavMesh.AllAreas, path) &&
-                    path.status == NavMeshPathStatus.PathComplete)
-                {
-                    // Path is valid, proceed.
-                    navMeshAgent.SetPath(path);
-                    stuckDetector.StartTracking(agent.Transform.position);
-                    Debug.Log($"[GoTo] RUSHING to last seen position. Movement controlled by MonsterMoveBehaviour.");
-                }
-                else
-                {
-                    // The point is unreachable from our current position.
-                    Debug.LogWarning($"[GoTo] Last known player position {data.Target.Position} is UNREACHABLE. Aborting investigation.");
-                    data.actionFailed = true; // Flag the action as failed.
-                }
+                data.actionFailed = true;
+                return;
             }
-            else
+
+            // Command the Unified Movement System
+            bool success = movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
+
+            if (!success)
             {
-                Debug.LogWarning("[GoTo] Action started with no target. Aborting investigation.");
+                Debug.LogWarning($"[GoTo] Cannot find path to {data.Target.Position}. Marking failure.");
                 data.actionFailed = true;
             }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // If the action failed on start, tell the planner to stop.
-            if (data.actionFailed)
+            if (data.actionFailed) return ActionRunState.Stop;
+
+            // Simplified: The movement component handles the 'how', we just check the status
+            if (movement.IsStuck)
             {
-                return ActionRunState.Stop;
-            }
-            
-            // --- ROBUSTNESS CHECK 2: Are we stuck while moving? ---
-            if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
-            {
-                Debug.LogWarning("[GoTo] Got STUCK while moving to last known position. Aborting investigation.");
-                data.actionFailed = true; // Flag the failure.
+                data.actionFailed = true;
                 return ActionRunState.Stop;
             }
 
-            if (data.Target == null) return ActionRunState.Continue;
-
-            float distanceToTarget = Vector3.Distance(agent.Transform.position, data.Target.Position);
-            bool hasArrived = !navMeshAgent.pathPending && 
-                             distanceToTarget <= navMeshAgent.stoppingDistance;
-
-            if (hasArrived)
+            if (movement.HasArrived)
             {
-                Debug.Log("[GoTo] Arrived at last seen position.");
                 return ActionRunState.Completed;
             }
 
@@ -86,17 +56,14 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
-            Debug.Log("Go to last seen area end");
-            stuckDetector.Reset();
-
             if (data.actionFailed)
             {
-                // If the action failed, notify the brain so it can clean up and go to patrol.
+                movement.Stop();
                 brain?.OnInvestigationFailed();
             }
             else
             {
-                // Otherwise, the action succeeded. Report arrival so the Search action can start.
+                // We assume successful arrival if not failed
                 brain?.OnArrivedAtSuspiciousLocation();
             }
         }
@@ -104,7 +71,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
-            public bool actionFailed; // Flag to track failure state.
+            public bool actionFailed;
         }
     }
 }

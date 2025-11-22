@@ -1,5 +1,3 @@
-// FILE TO EDIT: MonsterBrain.cs
-
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
 using CrashKonijn.Goap.Runtime;
@@ -7,88 +5,110 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
-    public Vector3 LastKnownPlayerPosition { get; private set; } = Vector3.zero;
-
+    // --- THE MEMORY ---
+    public bool IsPlayerVisible { get; private set; }
+    public Vector3 LastKnownPlayerPosition { get; private set; } 
+    public Transform CurrentPlayerTarget { get; private set; }
+    
+    // Logic States
     public bool IsInvestigating { get; private set; }
-    private AgentBehaviour agent;
+    
+    // Components
     private GoapActionProvider provider;
-    private MonsterConfig config;
-    private Transform playerTransform;
-    private bool wasPlayerVisibleLastFrame = false;
-
+    
     private void Awake()
     {
-        agent = GetComponent<AgentBehaviour>();
         provider = GetComponent<GoapActionProvider>();
-        config = GetComponent<MonsterConfig>();
-        
-        var goap = FindFirstObjectByType<GoapBehaviour>();
-        if (provider.AgentTypeBehaviour == null && goap != null)
-            provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
     }
 
+    // FIX: Moved Goal Request to Start() so the AgentType has time to initialize
     private void Start()
     {
-        var player = GameObject.FindWithTag("Player");
-        if (player != null)
-            playerTransform = player.transform;
-        IsInvestigating = false;
-        provider.WorldData.SetState(new CanPatrol(), 1);
-        provider.WorldData.SetState(new IsInvestigating(), 0);
+        // 1. Auto-assign AgentType if missing
+        if (provider.AgentType == null)
+        {
+            // Find the main GOAP Controller in the scene
+            var goap = Object.FindFirstObjectByType<GoapBehaviour>();
+            
+            if (goap != null)
+            {
+                // Assign the 'ScriptMonsterAgent' type we defined in the factory
+                provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
+            }
+            else
+            {
+                Debug.LogError("[MonsterBrain] Critical: No GoapBehaviour found in scene!");
+                return;
+            }
+        }
+
+        // 2. NOW it is safe to request goals
+        UpdateGOAPState(); 
         provider.RequestGoal<KillPlayerGoal>();
+    }
+
+    // --- INPUTS ---
+
+    public void OnPlayerSeen(Transform player)
+    {
+        IsPlayerVisible = true;
+        CurrentPlayerTarget = player;
+        LastKnownPlayerPosition = player.position;
+
+        if (IsInvestigating)
+        {
+            IsInvestigating = false;
+        }
+        
+        UpdateGOAPState();
+    }
+
+    public void OnPlayerLost()
+    {
+        if (IsPlayerVisible)
+        {
+            IsPlayerVisible = false;
+            IsInvestigating = true; 
+            CurrentPlayerTarget = null;
+            Debug.Log($"[Brain] Player Lost. Switched to Memory at {LastKnownPlayerPosition}");
+        }
+        
+        UpdateGOAPState();
     }
 
     public void OnInvestigationFinished()
     {
-        Debug.Log("[Brain] Investigation finished. Clearing all investigation states.");
+        IsInvestigating = false;
         LastKnownPlayerPosition = Vector3.zero;
-        IsInvestigating = false; 
-        
-        provider.WorldData.SetState(new IsInvestigating(), 0);
-        provider.WorldData.SetState(new CanPatrol(), 1);
-        provider.RequestGoal<KillPlayerGoal>();
+        UpdateGOAPState();
     }
+
     public void OnInvestigationFailed()
     {
-        Debug.LogWarning("[Brain] Investigation FAILED. Resetting all investigation states and returning to patrol.");
         OnInvestigationFinished();
     }
+
     public void OnArrivedAtSuspiciousLocation()
     {
         provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
-        provider.RequestGoal<KillPlayerGoal>();
     }
+
+    // --- INTERNAL HELPER ---
     
-    private void Update()
+    private void UpdateGOAPState()
     {
-        bool isPlayerVisible = PlayerInSightSensor.IsPlayerInSight(agent, config);
-        provider.WorldData.SetState(new IsPlayerInSight(), isPlayerVisible ? 1 : 0);
+        if (provider == null) return;
 
-        bool justSpottedPlayer = isPlayerVisible && !wasPlayerVisibleLastFrame;
-        bool justLostPlayer = !isPlayerVisible && wasPlayerVisibleLastFrame;
-
-        if (justSpottedPlayer)
-        {
-            Debug.Log("[Brain] Player is now visible. Preparing to attack.");
-            IsInvestigating = false;
-            provider.WorldData.SetState(new CanPatrol(), 0);
-            provider.WorldData.SetState(new HasSuspiciousLocation(), 0);
-            provider.WorldData.SetState(new IsAtSuspiciousLocation(), 0);
-            provider.WorldData.SetState(new IsInvestigating(), 0);
-        }
-        else if (justLostPlayer)
-        {
-            if (playerTransform != null)
-            {
-                LastKnownPlayerPosition = playerTransform.position;
-                Debug.Log($"[Brain] Player lost. Setting last known position instantly: {LastKnownPlayerPosition}");
-                IsInvestigating = true;
-                provider.WorldData.SetState(new IsInvestigating(), 1);
-                provider.WorldData.SetState(new HasSuspiciousLocation(), 1);
-                provider.WorldData.SetState(new CanPatrol(), 0);
-            }
-        }
-
-        wasPlayerVisibleLastFrame = isPlayerVisible;
+        // Sync public bools to GOAP WorldData
+        provider.WorldData.SetState(new IsPlayerInSight(), IsPlayerVisible ? 1 : 0);
+        provider.WorldData.SetState(new IsInvestigating(), IsInvestigating ? 1 : 0);
+        
+        // Logic for "Can Patrol"
+        bool busy = IsPlayerVisible || IsInvestigating;
+        provider.WorldData.SetState(new CanPatrol(), busy ? 0 : 1);
+        
+        // Logic for "Has Suspicious Location"
+        bool hasLoc = LastKnownPlayerPosition != Vector3.zero;
+        provider.WorldData.SetState(new HasSuspiciousLocation(), hasLoc ? 1 : 0);
     }
 }

@@ -1,48 +1,41 @@
 using CrashKonijn.Agent.Core;
+using CrashKonijn.Goap.MonsterGen.Capabilities; // Note new namespace
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
     public class PatrolAction : GoapActionBase<PatrolAction.Data>
     {
-        private NavMeshAgent navMeshAgent;
-        private MonsterConfig config;
-        private StuckDetector stuckDetector = new StuckDetector();
+        private MonsterMovement movement;
 
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
-            if (config == null) config = agent.GetComponent<MonsterConfig>();
-
-            // SET RELAXED PATROL SPEED
-            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Patrol);
-
-            stuckDetector.StartTracking(agent.Transform.position);
+            // Cache the movement component once
+            if (movement == null) movement = agent.GetComponent<MonsterMovement>();
             
-            Debug.Log($"[Patrol] Starting patrol to {data.Target?.Position}");
+            if (data.Target != null)
+            {
+                // ONE LINE COMMAND: "Go to this target, gently."
+                movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Patrol);
+            }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            if (data.Target == null)
+            if (data.Target == null) return ActionRunState.Stop;
+
+            // SIMPLE CHECKS
+            if (movement.IsStuck)
             {
-                Debug.LogWarning("[Patrol] No target available!");
-                return ActionRunState.Stop;
+                // Optional: You could ask Brain to blacklist this location here
+                return ActionRunState.Stop; 
             }
 
-            if (stuckDetector.CheckStuck(agent.Transform.position, context.DeltaTime, config))
+            if (movement.HasArrived)
             {
-                Debug.LogWarning("[Patrol] Monster is STUCK! Requesting new patrol point.");
-                return ActionRunState.Stop;
-            }
-
-            if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.5f)
-            {
-                Debug.Log("[Patrol] ✓ Reached patrol point!");
                 return ActionRunState.Completed;
             }
 
@@ -51,8 +44,10 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
-            Debug.Log("patrol action end");
-            stuckDetector.Reset();
+            // Good practice to stop movement when switching tasks, 
+            // unless you want fluidity between move actions.
+            // For now, let's stop for safety.
+            movement.Stop();
         }
 
         public class Data : IActionData

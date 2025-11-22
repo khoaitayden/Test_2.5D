@@ -1,31 +1,40 @@
-// FILE TO EDIT: PlayerInSightSensor.cs (Corrected Version)
 using CrashKonijn.Agent.Core;
-using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.Core;
+using CrashKonijn.Goap.Runtime;
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
     public class PlayerInSightSensor : LocalWorldSensorBase
     {
-        private MonsterConfig config;
-        
-        // This is the default Sense method for the GOAP runner.
+        private MonsterBrain brain;
+
+        public override void Created() { }
+        public override void Update() { }
+
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            // Now this call is valid because the types match perfectly.
-            return IsPlayerInSight(agent, references.GetCachedComponent<MonsterConfig>());
+            if (brain == null)
+                brain = references.GetCachedComponent<MonsterBrain>();
+
+            if (brain == null) return 0;
+            
+            // NO RAYCASTS. Just read memory.
+            return brain.IsPlayerVisible ? 1 : 0;
         }
 
-        // #### THE ONLY CHANGE IS ON THIS LINE ####
-        // We now accept the more general 'IActionReceiver', which works for both calls.
+        // Keep this static logic for the Vision System to use, 
+        // OR move the logic into MonsterVision.cs entirely. 
+        // For now, keeping it here so you don't break existing calls, 
+        // but remember: GOAP doesn't call this anymore. MonsterVision calls this.
         public static bool IsPlayerInSight(IActionReceiver agent, MonsterConfig config)
         {
-            if (config == null) return false;
+             if (config == null) return false;
 
             Vector3 eyesPosition = agent.Transform.position + Vector3.up * 0.5f;
 
-            var colliders = new Collider[10];
+            // Reuse array in real implementation to avoid GC alloc
+            var colliders = new Collider[10]; 
             int count = Physics.OverlapSphereNonAlloc(
                 eyesPosition,
                 config.viewRadius,
@@ -43,54 +52,17 @@ namespace CrashKonijn.Goap.MonsterGen
 
                 if (distanceToTarget > config.viewRadius) continue;
 
-                // Check if within view cone
                 if (Vector3.Angle(agent.Transform.forward, toTarget) > config.ViewAngle / 2f)
                     continue;
 
-                Vector3 targetDir = toTarget.normalized;
-                int rayCount = Mathf.Max(1, config.numOfRayCast);
-                float halfAngle = config.ViewAngle / 2f;
-
-                float raySpreadAngle = Mathf.Min(30f, config.ViewAngle); // Max 10° spread for accuracy
-                float rayHalfSpread = raySpreadAngle / 2f;
-
-                bool hasClearRay = false;
-
-                for (int r = 0; r < rayCount; r++)
+                // Simple single Check for robust vision
+                if (!Physics.Raycast(eyesPosition, toTarget.normalized, distanceToTarget, config.obstacleLayerMask))
                 {
-                    // Distribute from -rayHalfSpread to +rayHalfSpread
-                    float t = rayCount > 1 ? r / (float)(rayCount - 1) : 0.5f;
-                    float angleOffset = Mathf.Lerp(-rayHalfSpread, rayHalfSpread, t);
-
-                    // Create a rotation around the UP axis (Y) by angleOffset
-                    Quaternion spreadRotation = Quaternion.Euler(0, angleOffset, 0);
-                    Vector3 rayDir = spreadRotation * targetDir;
-
-                    // Optional: also add vertical spread if needed (usually not for 2D-like AI)
-
-                    // Draw debug ray
-                    Debug.DrawRay(eyesPosition, rayDir * distanceToTarget, Color.cyan);
-
-                    // Cast ray
-                    if (!Physics.Raycast(eyesPosition, rayDir, distanceToTarget, config.obstacleLayerMask))
-                    {
-                        // This ray reached the target without hitting an obstacle!
-                        hasClearRay = true;
-                        break;
-                    }
-                }
-
-                if (hasClearRay)
-                {
-                    Debug.DrawLine(eyesPosition, target.position, Color.green);
-                    return true; // Can see this target
+                    return true;
                 }
             }
 
             return false;
         }
-
-        public override void Created() { }
-        public override void Update() { }
     }
 }

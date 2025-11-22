@@ -1,60 +1,64 @@
-// In AttackPlayerAction.cs
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
     public class AttackPlayerAction : GoapActionBase<AttackPlayerAction.Data>
     {
         private MonsterTouchSensor touchSensor;
-        private NavMeshAgent navMeshAgent;
-        private MonsterConfig config;
-        private MonsterBrain brain;
-
+        private MonsterMovement movement;
+        
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            Debug.Log("Start attack: Setting speed and handing over movement to MonsterMoveBehaviour.");
-            
-            // This setup is still required. The action is responsible for setting the correct speed mode.
-            if (navMeshAgent == null) navMeshAgent = agent.GetComponent<NavMeshAgent>();
-            if (config == null) config = agent.GetComponent<MonsterConfig>();
+            // Cache
+            if (movement == null) movement = agent.GetComponent<MonsterMovement>();
             if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
-            brain ??= agent.GetComponent<MonsterBrain>();
-            // SET AGGRESSIVE CHASE SPEED
-            MonsterSpeedController.SetSpeedMode(navMeshAgent, config, MonsterSpeedController.SpeedMode.Chase);
+
+            // DETERMINE TARGET TRANSFORM
+            Transform chaseTarget = null;
+
+            if (data.Target is TransformTarget dynamicTarget)
+            {
+                chaseTarget = dynamicTarget.Transform;
+            }
+            else
+            {
+                // Fallback: Find by tag if data is broken/static
+                var playerObj = GameObject.FindWithTag("Player");
+                if (playerObj != null) chaseTarget = playerObj.transform;
+            }
+
+            // ACTIVATE MOVEMENT MODE
+            if (chaseTarget != null)
+            {
+                movement.Chase(chaseTarget);
+            }
+            else
+            {
+                Debug.LogWarning("[Attack] No live target found to chase!");
+            }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            Debug.Log("Attack time: Checking for touch. Movement is handled by another script.");
+            // This logic runs every frame, but we don't need to handle movement updates anymore.
+            // The MonsterMovement.Update() loop is doing that natively now.
             
-            // Safety check: if the GOAP planner loses the target, we should stop.
-            if (data.Target == null)
-            {
-                Debug.LogWarning("[AttackPlayerAction] Target lost, stopping action.");
-                return ActionRunState.Stop;
-            }
-
-            // This action's ONLY job is now to check for the success condition.
-            // MonsterMoveBehaviour is handling the navMeshAgent.SetDestination calls.
             if (touchSensor != null && touchSensor.IsTouchingPlayer)
             {
-                Debug.Log("PLAYER KILLED BY TOUCH!");
                 return ActionRunState.Completed;
             }
             
-            // We return Continue to signal that this action is still active.
             return ActionRunState.Continue;
         }
         
         public override void End(IMonoAgent agent, Data data)
         {
-            Debug.Log("Attack action ended.");
-            // Report to the brain that the attack is over.
+            movement.Stop();
         }
 
         public class Data : IActionData
