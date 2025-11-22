@@ -6,13 +6,11 @@ public class MonsterTouchSensor : MonoBehaviour
 {
     // Public property that other scripts (like our action) can read.
     public bool IsTouchingPlayer { get; private set; }
-    [SerializeField] private UIManager uiManager;
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
             IsTouchingPlayer = true;
-            uiManager.ToggleDeathScreen();
             Debug.Log("Monster started touching Player!");
         }
     }

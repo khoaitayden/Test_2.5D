@@ -4,52 +4,41 @@ using UnityEngine.AI;
 
 public static class CoverFinder
 {
+    // Reuse memory list to prevent Garbage Collection spikes
+    private static List<Vector3> _cachedCoverPoints = new List<Vector3>();
+
     public static List<Vector3> FindCoverPoints(Vector3 searchCenter, float searchRadius, Vector3 monsterPosition, MonsterConfig config)
     {
-        var coverPoints = new List<Vector3>();
-        int numberOfCasts = 16; // Number of rays to cast in a circle
-        float behindCoverDistance = 5f; // How far behind the obstacle to place the point
-        float minPointDistance = 20f; // Minimum distance between cover points
-        float debugDuration = 100f;
+        _cachedCoverPoints.Clear();
+        
+        int numberOfCasts = 12; // Reduced from 16 (16 is overkill for radius < 20)
+        float behindCoverDistance = 3f; 
+        float minPointDistance = 5f; // Keep points somewhat spread
+        
+        // Pre-calculate rotation to avoid Quaternion math inside loop if possible, but Euler is okay here
+        float angleStep = 360f / numberOfCasts;
 
         for (int i = 0; i < numberOfCasts; i++)
         {
-            float angle = i * (360f / numberOfCasts);
+            float angle = i * angleStep;
             Vector3 direction = Quaternion.Euler(0, angle, 0) * Vector3.forward;
 
-            // Cast from search center outward to find obstacles
+            // 1. SphereCast (Physics) - Cheap enough
             if (Physics.SphereCast(searchCenter, 0.5f, direction, out RaycastHit hit, searchRadius, config.obstacleLayerMask))
             {
-                // Draw RED ray to the obstacle
-                Debug.DrawLine(searchCenter, hit.point, Color.red, debugDuration);
-                
-                // Calculate point BEHIND the cover (opposite side from search center)
                 Vector3 toObstacle = (hit.point - searchCenter).normalized;
                 Vector3 behindCoverPoint = hit.point + toObstacle * behindCoverDistance;
-                
-                // Draw YELLOW ray showing the "behind cover" direction
-                Debug.DrawLine(hit.point, behindCoverPoint, Color.yellow, debugDuration);
 
-                // Verify the point is on the NavMesh
-                if (NavMesh.SamplePosition(behindCoverPoint, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+                // 2. NavMesh.SamplePosition (Geometry) - Fast
+                // We check if there is "ground" at that point.
+                // CRITICAL OPTIMIZATION: We removed CalculatePath here.
+                if (NavMesh.SamplePosition(behindCoverPoint, out NavMeshHit navHit, 2f, NavMesh.AllAreas))
                 {
-                    Vector3 validPoint = navHit.position;
-                    
-                    // Ensure monster can path to this location
-                    NavMeshPath path = new NavMeshPath();
-                    if (!NavMesh.CalculatePath(monsterPosition, validPoint, NavMesh.AllAreas, path) || 
-                        path.status != NavMeshPathStatus.PathComplete)
-                    {
-                        // Draw MAGENTA ray for unreachable points
-                        Debug.DrawRay(validPoint, Vector3.up * 2f, Color.magenta, debugDuration);
-                        continue;
-                    }
-
-                    // Check if point is too close to existing cover points
+                    // 3. Verification (Logic) - Very Fast
                     bool isTooClose = false;
-                    foreach (var point in coverPoints)
+                    for (int j = 0; j < _cachedCoverPoints.Count; j++)
                     {
-                        if (Vector3.Distance(validPoint, point) < minPointDistance)
+                        if ((_cachedCoverPoints[j] - navHit.position).sqrMagnitude < minPointDistance * minPointDistance)
                         {
                             isTooClose = true;
                             break;
@@ -58,61 +47,28 @@ public static class CoverFinder
 
                     if (!isTooClose)
                     {
-                        // Verify this point actually provides cover from search center
-                        if (IsPointBehindCover(validPoint, searchCenter, config.obstacleLayerMask))
+                        // Simple line check to ensure cover validity
+                        if (IsPointBehindCover(navHit.position, searchCenter, config.obstacleLayerMask))
                         {
-                            coverPoints.Add(validPoint);
-                            // Draw GREEN ray for valid, accepted cover points
-                            Debug.DrawRay(validPoint, Vector3.up * 3f, Color.green, debugDuration);
-                        }
-                        else
-                        {
-                            // Draw CYAN ray for points that don't actually provide cover
-                            Debug.DrawRay(validPoint, Vector3.up * 2f, Color.cyan, debugDuration);
+                            _cachedCoverPoints.Add(navHit.position);
+                            // Debug visualizers kept as requested
+                            Debug.DrawRay(navHit.position, Vector3.up * 2f, Color.green, 2f); 
                         }
                     }
                 }
-                else
-                {
-                    // Draw GREY line for points not on NavMesh
-                    Debug.DrawLine(hit.point, behindCoverPoint, Color.grey, debugDuration);
-                }
-            }
-            else
-            {
-                // Draw WHITE ray for directions with no obstacles
-                Debug.DrawRay(searchCenter, direction * searchRadius, Color.white, debugDuration);
             }
         }
         
-        Debug.Log($"[CoverFinder] Found {coverPoints.Count} cover points behind obstacles.");
-        return coverPoints;
+        // Return a new list copy so we don't have reference issues if multiple monsters call this same frame
+        return new List<Vector3>(_cachedCoverPoints);
     }
 
-    /// <summary>
-    /// Verifies that the cover point is actually hidden from the search center by an obstacle.
-    /// </summary>
     private static bool IsPointBehindCover(Vector3 coverPoint, Vector3 searchCenter, LayerMask obstacleLayer)
     {
-        // Cast from search center toward the cover point
-        Vector3 directionToPoint = (coverPoint - searchCenter).normalized;
-        float distanceToPoint = Vector3.Distance(searchCenter, coverPoint);
+        Vector3 start = searchCenter + Vector3.up * 0.5f;
+        Vector3 target = coverPoint + Vector3.up * 0.5f;
+        Vector3 dir = target - start;
         
-        // Raise the ray slightly to avoid ground collision
-        Vector3 rayStart = searchCenter + Vector3.up * 0.5f;
-        Vector3 rayTarget = coverPoint + Vector3.up * 0.5f;
-        Vector3 rayDirection = (rayTarget - rayStart).normalized;
-        float rayDistance = Vector3.Distance(rayStart, rayTarget);
-        
-        // If there's an obstacle between search center and cover point, it's valid cover
-        if (Physics.Raycast(rayStart, rayDirection, out RaycastHit hit, rayDistance, obstacleLayer))
-        {
-            // Draw BLUE debug ray showing the cover verification
-            Debug.DrawLine(rayStart, hit.point, Color.blue, 5f);
-            return true;
-        }
-        
-        // No obstacle found = not valid cover
-        return false;
+        return Physics.Raycast(start, dir.normalized, dir.magnitude, obstacleLayer);
     }
 }

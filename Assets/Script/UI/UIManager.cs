@@ -10,12 +10,6 @@ public class UIManager : MonoBehaviour
         restartButton.onClick.AddListener(OnRestartButtonPressed);
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-
     public void ToggleDeathScreen()
     {
         Cursor.visible = true;

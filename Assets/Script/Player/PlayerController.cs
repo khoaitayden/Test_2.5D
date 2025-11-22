@@ -28,12 +28,14 @@ public class PlayerController : MonoBehaviour
     [Header("Reference")]
     [SerializeField] private PlayerParticleController particleController;
     [SerializeField] private PlayerAnimation playerAnimation;
+    [SerializeField] private UIManager uIManager;
     
     private CharacterController controller;
     private Vector3 velocity;
     private Vector3 horizontalVelocity = Vector3.zero;
     private bool isGrounded;
     private Transform mainCameraTransform;
+    private bool isDead;
     public Vector3 WorldSpaceMoveDirection { get; private set; }
     public bool IsSlowWalking { get; private set; }
     private bool wasGrounded;
@@ -76,6 +78,7 @@ public class PlayerController : MonoBehaviour
         mainCameraTransform = Camera.main.transform;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        isDead=false;
 
         IsSlowWalking = false;
         isGrounded = groundCheck();
@@ -152,5 +155,15 @@ public class PlayerController : MonoBehaviour
     {
         Vector3 sphereCheckPosition = transform.position + controller.center - Vector3.up * (controller.height / 2);
         return Physics.CheckSphere(sphereCheckPosition, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (isDead == false && other.CompareTag("Monster"))
+        {
+            Debug.Log("Killed");
+            isDead = true;
+            uIManager.ToggleDeathScreen();
+        }
     }
 }
