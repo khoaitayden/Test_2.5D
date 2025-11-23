@@ -22,22 +22,21 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(1);
 
-            //Rushing to last seen position
-            builder.AddAction<GoToLastSeenPlayerAreaAction>()
-                .SetTarget<PlayerLastSeenTarget>()
-                .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase) 
-                .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
-                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
-                .SetBaseCost(2);
-
             //Search for player action
             builder.AddAction<SearchSurroundingsAction>()
-                .SetTarget<PlayerLastSeenTarget>() 
+                .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddEffect<CanPatrol>(EffectType.Increase)     
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
-                .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1) 
                 .SetBaseCost(3);
+            //Rushing to last seen position
+            builder.AddAction<GoToLastSeenPlayerAreaAction>()
+                .SetTarget<PlayerLastSeenTarget>()
+                .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
+                .SetBaseCost(2);
             //Patrol
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()

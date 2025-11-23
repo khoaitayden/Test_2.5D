@@ -16,27 +16,50 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            // Cache components for efficiency
-            if (this.brain == null)
-                this.brain = references.GetCachedComponent<MonsterBrain>();
-            
-            if (this.navMeshAgent == null)
-                this.navMeshAgent = references.GetCachedComponent<NavMeshAgent>();
+            // 1. Cache References
+            if (this.brain == null) brain = references.GetCachedComponent<MonsterBrain>();
+            if (this.navMeshAgent == null) navMeshAgent = references.GetCachedComponent<NavMeshAgent>();
 
-            if (this.brain == null || this.navMeshAgent == null)
-                return 0;
+            if (brain == null || navMeshAgent == null) return 0;
+            if (brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 
-            // If there's no suspicious location stored, we can't be at it.
-            if (this.brain.LastKnownPlayerPosition == Vector3.zero)
-                return 0;
+            // 2. Get Positions
+            Vector3 currentPos = agent.Transform.position;
+            Vector3 targetPos = brain.LastKnownPlayerPosition;
 
-            // The "fact" is true if our distance to the target position is less than
-            // our stopping distance. This is a reliable way to check for "arrival".
-            float distance = Vector3.Distance(agent.Transform.position, this.brain.LastKnownPlayerPosition);
-            
-            bool isAtLocation = distance <= this.navMeshAgent.stoppingDistance + 0.5f;
+            // 3. FLATTEN THE Y AXIS (Height doesn't matter for "Area" checks)
+            currentPos.y = 0;
+            targetPos.y = 0;
 
-            return isAtLocation ? 1 : 0;
+            // 4. Calculate Horizontal Distance
+            float flatDistance = Vector3.Distance(currentPos, targetPos);
+
+            // 5. Threshold Calculation
+            // We use StoppingDistance + a buffer.
+            // Since investigation is an "Area" check, not a "Touch" check, 
+            // 2.0f to 3.0f buffer is standard to prevent infinite adjusting.
+            float threshold = navMeshAgent.stoppingDistance + 3.0f;
+
+            // 6. Success Logic
+            // Return 1 (True) if we are horizontally close enough
+            if (flatDistance <= threshold)
+            {
+                return 1;
+            }
+
+            // 7. BACKUP: NavMeshAgent status check
+            // If the Agent thinks it stopped because it hit a wall/end of path, 
+            // accept that as "Arrived" so we don't loop forever.
+            if (!navMeshAgent.pathPending && 
+                navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance + 0.1f && 
+                navMeshAgent.velocity.sqrMagnitude < 0.1f)
+            {
+                 // Check if the path was actually going to the target area?
+                 // Simple logic: If we stopped moving, assume we arrived as best we could.
+                 return 1; 
+            }
+
+            return 0;
         }
     }
 }

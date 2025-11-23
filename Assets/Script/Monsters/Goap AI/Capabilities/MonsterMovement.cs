@@ -15,6 +15,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         // State
         public bool HasArrived { get; private set; }
         public bool IsStuck { get; private set; }
+        public bool IsMoving => agent.hasPath && !agent.isStopped;
         
         // Tracking Logic
         private Transform targetToFollow;
@@ -37,7 +38,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             return MoveInternal(position, speedMode);
         }
 
-        // NEW: Native Chase Mode
         public void Chase(Transform target)
         {
             if (target == null) return;
@@ -64,18 +64,25 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // 1. Continuous Following
             if (isFollowing && targetToFollow != null && agent.isOnNavMesh)
             {
-                // Only update destination if the target has moved significantly (Optimization)
-                if (Vector3.SqrMagnitude(agent.destination - targetToFollow.position) > 0.25f)
+                if (Vector3.SqrMagnitude(agent.destination - targetToFollow.position) > 0.5f)
                 {
                     agent.SetDestination(targetToFollow.position);
                 }
             }
 
             // 2. Arrival / Stuck Logic
-            if (!agent.pathPending && !agent.isStopped)
+            if (agent.hasPath && !agent.pathPending)
             {
-                // Standard arrival check
-                if (agent.remainingDistance <= agent.stoppingDistance + 0.1f)
+                float dist = agent.remainingDistance;
+                float stopDist = agent.stoppingDistance;
+
+                // --- ROBUST ARRIVAL CHECK ---
+                // Condition A: Mathematically within distance (+ buffer)
+                // Condition B: Almost there AND effectively stopped moving (hit a wall/collider)
+                bool distanceMet = dist <= stopDist + 0.2f;
+                bool stuckAtArrival = (dist <= stopDist + 2.0f) && (agent.velocity.sqrMagnitude < 0.1f);
+
+                if (distanceMet || stuckAtArrival)
                 {
                     HasArrived = true;
                 }
@@ -93,6 +100,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             stuckTimer = 0f;
             lastStuckPos = transform.position;
 
+            if (!agent.isOnNavMesh) return false;
+
             agent.isStopped = false;
             ApplySpeed(mode);
             
@@ -101,22 +110,23 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
         private void ApplySpeed(SpeedState mode)
         {
+            // NEW: Reading Stopping Distance from Config
             switch (mode)
             {
                 case SpeedState.Patrol:
                     agent.speed = config.patrolSpeed;
                     agent.acceleration = config.patrolAcceleration;
-                    agent.stoppingDistance = 0.5f;
+                    agent.stoppingDistance = config.patrolStoppingDistance;
                     break;
                 case SpeedState.Chase:
                     agent.speed = config.chaseSpeed;
                     agent.acceleration = config.chaseAcceleration;
-                    agent.stoppingDistance = 0.1f; // Don't stop! Hit the player.
+                    agent.stoppingDistance = config.chaseStoppingDistance;
                     break;
                 case SpeedState.Investigate:
                     agent.speed = config.investigateRushSpeed;
                     agent.acceleration = config.investigateRushAcceleration;
-                    agent.stoppingDistance = 0.5f;
+                    agent.stoppingDistance = config.investigateStoppingDistance; 
                     break;
             }
         }
@@ -129,7 +139,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 if (stuckTimer > config.maxStuckTime)
                 {
                     IsStuck = true;
-                    // Do not auto-stop during chase; logic might recover
+                    // Do not auto-stop during chase
                     if(!isFollowing) Stop(); 
                 }
             }

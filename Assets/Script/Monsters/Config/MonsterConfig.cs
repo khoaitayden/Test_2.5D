@@ -70,7 +70,10 @@ public class MonsterConfig : MonoBehaviour
     [Tooltip("How long total before giving up the search (seconds).")]
     public float maxInvestigationTime = 100f;
     
-    // REMOVED: All phase-related variables (expandSearchAfter, phase1Points, etc.) are gone.
+    [Header("Stopping Settings")]
+    public float patrolStoppingDistance = 1.0f;
+    public float chaseStoppingDistance = 0.5f; // Keep small to force collision
+    public float investigateStoppingDistance = 2.0f; // Loose tolerance for search points
     
     private void OnDrawGizmosSelected()
     {
