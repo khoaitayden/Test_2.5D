@@ -12,28 +12,40 @@ namespace CrashKonijn.Goap.MonsterGen
         public enum SearchState { MovingToPoint, ScanningAtPoint }
 
         private MonsterMovement movement; 
+        private CoverFinder coverFinder;
         private MonsterConfig config;
         private MonsterBrain brain;
-        private NavMeshAgent agentRaw; 
 
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            // Cache components
             if (movement == null) movement = agent.GetComponent<MonsterMovement>();
+            if (coverFinder == null) coverFinder = agent.GetComponent<CoverFinder>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
             if (brain == null) brain = agent.GetComponent<MonsterBrain>();
-            if (agentRaw == null) agentRaw = agent.GetComponent<NavMeshAgent>();
 
             data.investigationStartTime = Time.time;
             data.searchExhausted = false;
-            data.pointsChecked = 0;
             
-            // Generate points
-            data.lookPoints = GenerateTacticalPoints(agent, data);
+            // USE THE COMPONENT
+            // The logic of "How to find cover" is now completely hidden from this action.
+            if (coverFinder != null && data.Target != null)
+            {
+                var pointsList = coverFinder.GetCoverPointsAround(data.Target.Position);
+                data.lookPoints = new Queue<Vector3>(pointsList);
+                
+                // Debug log
+                Debug.Log($"[Search] CoverFinder component returned {pointsList.Count} tactical spots.");
+            }
+            else
+            {
+                data.lookPoints = new Queue<Vector3>();
+            }
+
             data.totalPoints = data.lookPoints.Count;
-            
+            data.pointsChecked = 0;
+
             if (data.totalPoints > 0)
             {
                 TryMoveToNextPoint(agent, data);
@@ -48,7 +60,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.searchExhausted) return ActionRunState.Completed;
 
-            // Timeout check
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
                 CompleteAction(data);
@@ -57,21 +68,17 @@ namespace CrashKonijn.Goap.MonsterGen
 
             switch (data.state)
             {
-                // ERROR WAS HERE: Now we correctly pass 'agent' to HandleMoving
-                case SearchState.MovingToPoint: return HandleMoving(agent, data, context);
+                case SearchState.MovingToPoint: return HandleMoving(agent, data);
                 case SearchState.ScanningAtPoint: return HandleScanning(agent, data, context);
             }
 
             return ActionRunState.Continue;
         }
 
-        // ERROR FIXED: Added IMonoAgent agent parameter
-        private IActionRunState HandleMoving(IMonoAgent agent, Data data, IActionContext context)
+        private IActionRunState HandleMoving(IMonoAgent agent, Data data)
         {
             if (movement.IsStuck)
             {
-                Debug.Log("[Search] Stuck moving to point. Skipping.");
-                // ERROR FIXED: Used 'agent' parameter instead of 'context.Agent'
                 if (!TryMoveToNextPoint(agent, data))
                 {
                     CompleteAction(data);
@@ -81,7 +88,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (movement.HasArrived)
             {
-                // ERROR FIXED: Used 'agent' parameter instead of 'context.Agent'
                 StartScanning(agent, data);
             }
             return ActionRunState.Continue;
@@ -109,7 +115,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             data.state = SearchState.ScanningAtPoint;
             movement.Stop();
-            
             data.rotationSpeed = Random.Range(90f, 120f);
             data.rotationAngle = Random.Range(90f, 120f);
             data.rotatedAmount = 0f;
@@ -134,31 +139,15 @@ namespace CrashKonijn.Goap.MonsterGen
             while (data.lookPoints.Count > 0)
             {
                 Vector3 nextPoint = data.lookPoints.Dequeue();
-                
                 data.state = SearchState.MovingToPoint;
                 
-                // Using Unified System
+                // Unified Movement Call
                 if (movement.GoTo(nextPoint, MonsterMovement.SpeedState.Investigate))
                 {
                     return true;
                 }
             }
-            
             return false;
-        }
-
-        private Queue<Vector3> GenerateTacticalPoints(IMonoAgent agent, Data data)
-        {
-            // Use the Optimized CoverFinder
-            Vector3 searchCenter = data.Target.Position; 
-            List<Vector3> foundPoints = CoverFinder.FindCoverPoints(searchCenter, config.investigateRadius, agent.Transform.position, config);
-            
-            foundPoints.Sort((a, b) => Vector3.SqrMagnitude(agent.Transform.position - a).CompareTo(Vector3.SqrMagnitude(agent.Transform.position - b)));
-            
-            int count = Mathf.Min(config.investigationPoints, foundPoints.Count);
-            Queue<Vector3> queue = new Queue<Vector3>();
-            for(int i = 0; i < count; i++) queue.Enqueue(foundPoints[i]);
-            return queue;
         }
         
         public class Data : IActionData

@@ -2,73 +2,87 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public static class CoverFinder
+namespace CrashKonijn.Goap.MonsterGen.Capabilities
 {
-    // Reuse memory list to prevent Garbage Collection spikes
-    private static List<Vector3> _cachedCoverPoints = new List<Vector3>();
-
-    public static List<Vector3> FindCoverPoints(Vector3 searchCenter, float searchRadius, Vector3 monsterPosition, MonsterConfig config)
+    public class CoverFinder : MonoBehaviour
     {
-        _cachedCoverPoints.Clear();
-        
-        int numberOfCasts = 12; // Reduced from 16 (16 is overkill for radius < 20)
-        float behindCoverDistance = 3f; 
-        float minPointDistance = 5f; // Keep points somewhat spread
-        
-        // Pre-calculate rotation to avoid Quaternion math inside loop if possible, but Euler is okay here
-        float angleStep = 360f / numberOfCasts;
+        [Header("References")]
+        [SerializeField] private MonsterConfig config;
 
-        for (int i = 0; i < numberOfCasts; i++)
+        // Optimization: Recycle this list to avoid creating Garbage (GC) every search
+        private readonly List<Vector3> _foundPoints = new List<Vector3>();
+
+        private void Awake()
         {
-            float angle = i * angleStep;
-            Vector3 direction = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            if (config == null) config = GetComponent<MonsterConfig>();
+        }
 
-            // 1. SphereCast (Physics) - Cheap enough
-            if (Physics.SphereCast(searchCenter, 0.5f, direction, out RaycastHit hit, searchRadius, config.obstacleLayerMask))
+        public List<Vector3> GetCoverPointsAround(Vector3 centerOfSearch)
+        {
+            _foundPoints.Clear();
+
+            // Settings derived from Config
+            float radius = config.investigateRadius;
+            LayerMask obstacleMask = config.obstacleLayerMask;
+            int rayCount = 12;
+            float behindOffset = 2.0f; // How far behind the wall to check
+            
+            float angleStep = 360f / rayCount;
+
+            for (int i = 0; i < rayCount; i++)
             {
-                Vector3 toObstacle = (hit.point - searchCenter).normalized;
-                Vector3 behindCoverPoint = hit.point + toObstacle * behindCoverDistance;
+                // 1. Math - Direction calculation
+                float angle = i * angleStep;
+                Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
 
-                // 2. NavMesh.SamplePosition (Geometry) - Fast
-                // We check if there is "ground" at that point.
-                // CRITICAL OPTIMIZATION: We removed CalculatePath here.
-                if (NavMesh.SamplePosition(behindCoverPoint, out NavMeshHit navHit, 2f, NavMesh.AllAreas))
+                // 2. Physics - Find obstacles around the player/center
+                // SphereCast gives us some thickness so we don't hit tiny wires
+                if (Physics.SphereCast(centerOfSearch, 0.5f, dir, out RaycastHit hit, radius, obstacleMask))
                 {
-                    // 3. Verification (Logic) - Very Fast
-                    bool isTooClose = false;
-                    for (int j = 0; j < _cachedCoverPoints.Count; j++)
-                    {
-                        if ((_cachedCoverPoints[j] - navHit.position).sqrMagnitude < minPointDistance * minPointDistance)
-                        {
-                            isTooClose = true;
-                            break;
-                        }
-                    }
+                    // Calculate a spot BEHIND that obstacle
+                    Vector3 toObstacle = (hit.point - centerOfSearch).normalized;
+                    Vector3 hidingSpot = hit.point + toObstacle * behindOffset;
 
-                    if (!isTooClose)
+                    // 3. NavMesh - Verify the hiding spot is valid ground
+                    // (Fast sample check, cheap)
+                    if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))
                     {
-                        // Simple line check to ensure cover validity
-                        if (IsPointBehindCover(navHit.position, searchCenter, config.obstacleLayerMask))
+                        // 4. Line of Sight Check - Is it actually hidden from center?
+                        if (CheckVisibility(centerOfSearch, navHit.position, obstacleMask))
                         {
-                            _cachedCoverPoints.Add(navHit.position);
-                            // Debug visualizers kept as requested
-                            Debug.DrawRay(navHit.position, Vector3.up * 2f, Color.green, 2f); 
+                            _foundPoints.Add(navHit.position);
                         }
                     }
                 }
             }
+            
+            // Limit points based on config here so the Action doesn't have to logic-check
+            // Optional: Shuffle the list here if you want randomness
+
+            // Return a copy so the list doesn't get modified externally unexpectedly
+            return new List<Vector3>(_foundPoints);
+        }
+
+        private bool CheckVisibility(Vector3 eyePos, Vector3 targetPos, LayerMask layerMask)
+        {
+            // Simple Raycast: Start a bit up to avoid floor friction
+            Vector3 start = eyePos + Vector3.up * 1f;
+            Vector3 end = targetPos + Vector3.up * 1f;
+            Vector3 dir = end - start;
+            
+            // If the ray hits something, we are hidden (Success)
+            // If it hits nothing, we can be seen (Failure)
+            return Physics.Raycast(start, dir.normalized, dir.magnitude, layerMask);
         }
         
-        // Return a new list copy so we don't have reference issues if multiple monsters call this same frame
-        return new List<Vector3>(_cachedCoverPoints);
-    }
-
-    private static bool IsPointBehindCover(Vector3 coverPoint, Vector3 searchCenter, LayerMask obstacleLayer)
-    {
-        Vector3 start = searchCenter + Vector3.up * 0.5f;
-        Vector3 target = coverPoint + Vector3.up * 0.5f;
-        Vector3 dir = target - start;
-        
-        return Physics.Raycast(start, dir.normalized, dir.magnitude, obstacleLayer);
+        // Debug helper
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.blue;
+            foreach (var p in _foundPoints)
+            {
+                Gizmos.DrawSphere(p, 0.3f);
+            }
+        }
     }
 }
