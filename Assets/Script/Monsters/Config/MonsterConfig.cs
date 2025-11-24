@@ -69,11 +69,12 @@ public class MonsterConfig : MonoBehaviour
 
     [Tooltip("How long total before giving up the search (seconds).")]
     public float maxInvestigationTime = 100f;
-    
+
     [Header("Stopping Settings")]
     public float patrolStoppingDistance = 1.0f;
-    public float chaseStoppingDistance = 0.5f; // Keep small to force collision
-    public float investigateStoppingDistance = 2.0f; // Loose tolerance for search points
+    public float chaseStoppingDistance = 1.0f; // Needs to be > 0 for large monsters to prevent jitter
+    public float investigateStoppingDistance = 3.0f; // Loose check for general areas
+    public float arrivalTolerance = 0.5f;     // "Good enough" buffer. StopDist + Tolerance = Arrived.
     
     private void OnDrawGizmosSelected()
     {

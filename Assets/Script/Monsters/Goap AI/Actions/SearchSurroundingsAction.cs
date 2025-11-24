@@ -27,6 +27,7 @@ namespace CrashKonijn.Goap.MonsterGen
             data.investigationStartTime = Time.time;
             data.pointsChecked = 0;
             data.totalPoints = 0;
+            data.isDone = false;
             
             // 1. Get Points
             if (coverFinder != null && data.Target != null)
@@ -42,15 +43,11 @@ namespace CrashKonijn.Goap.MonsterGen
                 data.lookPoints = new Queue<Vector3>();
             }
 
-            // 2. LOGIC FIX: What if there are NO points?
+            // 2. No points logic
             if (data.totalPoints == 0)
             {
                 Debug.LogWarning("[Search] No tactical points found. Investigation Finished immediately.");
-                // CRITICAL: We don't just complete the action, we tell the Brain "We are done looking".
-                // This clears the 'IsInvestigating' state so Patrol can take over.
                 brain?.OnInvestigationFinished();
-                
-                // End Action
                 data.isDone = true;
                 return; 
             }
@@ -58,7 +55,6 @@ namespace CrashKonijn.Goap.MonsterGen
             // 3. Start first move
             if (!TryMoveToNextPoint(agent, data))
             {
-                // If points existed but were unreachable
                 brain?.OnInvestigationFinished();
                 data.isDone = true;
             }
@@ -66,14 +62,11 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // If marked done in Start(), exit now
             if (data.isDone) return ActionRunState.Completed;
 
-            // Timeout Check
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
-                Debug.Log("[Search] Timed out.");
-                return ActionRunState.Completed; // End will handle cleanup
+                return ActionRunState.Completed; 
             }
 
             switch (data.state)
@@ -90,9 +83,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
-            // ALWAYS tell the brain we are done when this action exits.
-            // This ensures the WorldState 'IsInvestigating' flips to 0.
-            Debug.Log("[Search] Action Ending -> Telling Brain Investigation is over.");
+            // Ensure brain knows we are done
             brain?.OnInvestigationFinished();
         }
 
@@ -107,7 +98,8 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
             }
 
-            if (movement.HasArrived)
+            // FIX IS HERE: Use HasReached() with the specific point we are going to
+            if (movement.HasReached(data.currentTargetPoint))
             {
                 StartScanning(agent, data);
             }
@@ -123,10 +115,8 @@ namespace CrashKonijn.Goap.MonsterGen
             if (data.rotatedAmount >= data.rotationAngle)
             {
                 data.pointsChecked++;
-                // Check if more points exist
                 if (!TryMoveToNextPoint(agent, data))
                 {
-                    // No more points? We are totally done.
                     return ActionRunState.Completed;
                 }
             }
@@ -138,7 +128,7 @@ namespace CrashKonijn.Goap.MonsterGen
             data.state = SearchState.ScanningAtPoint;
             movement.Stop();
             data.rotationSpeed = Random.Range(90f, 120f);
-            data.rotationAngle = Random.Range(90f, 180f); // Spin a bit more
+            data.rotationAngle = Random.Range(90f, 180f); 
             data.rotatedAmount = 0f;
         }
 
@@ -147,6 +137,9 @@ namespace CrashKonijn.Goap.MonsterGen
             while (data.lookPoints.Count > 0)
             {
                 Vector3 nextPoint = data.lookPoints.Dequeue();
+                
+                // Save current target so we can check arrival later
+                data.currentTargetPoint = nextPoint;
                 data.state = SearchState.MovingToPoint;
                 
                 if (movement.GoTo(nextPoint, MonsterMovement.SpeedState.Investigate))
@@ -154,7 +147,6 @@ namespace CrashKonijn.Goap.MonsterGen
                     return true;
                 }
             }
-            // If queue is empty or all failed:
             return false;
         }
         
@@ -163,7 +155,8 @@ namespace CrashKonijn.Goap.MonsterGen
             public ITarget Target { get; set; }
             public float investigationStartTime;
             public Queue<Vector3> lookPoints;
-            public bool isDone; // Helper flag
+            public Vector3 currentTargetPoint; // Added to track where we are going
+            public bool isDone; 
             public int pointsChecked;
             public int totalPoints;
             public SearchState state;

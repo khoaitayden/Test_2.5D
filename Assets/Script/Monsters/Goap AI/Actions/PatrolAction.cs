@@ -1,6 +1,6 @@
 using CrashKonijn.Agent.Core;
-using CrashKonijn.Goap.MonsterGen.Capabilities; // Note new namespace
 using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
@@ -13,12 +13,10 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            // Cache the movement component once
             if (movement == null) movement = agent.GetComponent<MonsterMovement>();
             
             if (data.Target != null)
             {
-                // ONE LINE COMMAND: "Go to this target, gently."
                 movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Patrol);
             }
         }
@@ -27,14 +25,14 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
 
-            // SIMPLE CHECKS
             if (movement.IsStuck)
             {
-                // Optional: You could ask Brain to blacklist this location here
-                return ActionRunState.Stop; 
+                // If stuck, just complete patrol so we pick a new point
+                return ActionRunState.Completed; 
             }
 
-            if (movement.HasArrived)
+            // USE SHARED ARRIVAL LOGIC
+            if (movement.HasReached(data.Target.Position))
             {
                 return ActionRunState.Completed;
             }
@@ -44,9 +42,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
-            // Good practice to stop movement when switching tasks, 
-            // unless you want fluidity between move actions.
-            // For now, let's stop for safety.
             movement.Stop();
         }
 

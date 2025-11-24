@@ -1,6 +1,6 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
-using CrashKonijn.Goap.MonsterGen.Capabilities; // Important for MonsterMovement
+using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
@@ -19,18 +19,12 @@ namespace CrashKonijn.Goap.MonsterGen
 
             data.actionFailed = false;
 
-            if (data.Target == null)
+            if (data.Target != null)
             {
-                data.actionFailed = true;
-                return;
+                movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
             }
-
-            // Command the Unified Movement System
-            bool success = movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
-
-            if (!success)
+            else
             {
-                Debug.LogWarning($"[GoTo] Cannot find path to {data.Target.Position}. Marking failure.");
                 data.actionFailed = true;
             }
         }
@@ -38,15 +32,10 @@ namespace CrashKonijn.Goap.MonsterGen
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             if (data.actionFailed) return ActionRunState.Stop;
+            if (movement.IsStuck) return ActionRunState.Stop; // Fail if stuck going to investigate
 
-            // Simplified: The movement component handles the 'how', we just check the status
-            if (movement.IsStuck)
-            {
-                data.actionFailed = true;
-                return ActionRunState.Stop;
-            }
-
-            if (movement.HasArrived)
+            // USE SHARED ARRIVAL LOGIC
+            if (movement.HasReached(data.Target.Position))
             {
                 return ActionRunState.Completed;
             }
@@ -56,16 +45,11 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
+            movement.Stop();
             if (data.actionFailed)
-            {
-                movement.Stop();
                 brain?.OnInvestigationFailed();
-            }
             else
-            {
-                // We assume successful arrival if not failed
                 brain?.OnArrivedAtSuspiciousLocation();
-            }
         }
         
         public class Data : IActionData
