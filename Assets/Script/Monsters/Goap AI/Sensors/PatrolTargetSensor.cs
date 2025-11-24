@@ -9,8 +9,6 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterConfig config;
         private PatrolHistory patrolHistory;
-        
-        // Reduced attempts. If we can't find a spot in 10 tries, the map is probably broken.
         private const int MaxAttempts = 10; 
 
         public override void Created() { }
@@ -20,7 +18,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
             
-            // Cache PatrolHistory, add if missing
             if (patrolHistory == null)
             {
                 patrolHistory = references.GetCachedComponent<PatrolHistory>();
@@ -31,9 +28,9 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
             }
 
-            // 1. Fast check: Is the previous target still valid?
-            // If we are close to it, we need a new one. If we are far, keep going (Optional optimization)
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > 2.0f)
+            // Keep existing target if we haven't reached it yet
+            // (Optimization to stop spamming calculations)
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.patrolStoppingDistance + 1f)
             {
                 return existingTarget;
             }
@@ -42,7 +39,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (!validPosition.HasValue)
             {
-                // If fail, return agent pos to prevent null errors, but log warning
+                // Warning: Map might be too small for config settings
                 return new PositionTarget(agent.Transform.position);
             }
 
@@ -56,25 +53,24 @@ namespace CrashKonijn.Goap.MonsterGen
 
             for (int i = 0; i < MaxAttempts; i++)
             {
-                // Simple random point in circle
                 Vector2 randomDirection = Random.insideUnitCircle.normalized;
                 float randomDistance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
                 Vector3 candidate = origin + new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
 
-                // CHEAP OPERATION: Only check if the point is ON the navmesh. 
-                // Do NOT check if a path exists yet. That is too expensive for a Sensor.
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
+                // Increase sample range to 5.0f to find mesh easier
+                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
                 {
-                    // Lightweight history check
                     if (patrolHistory.IsTooCloseToRecentPoints(hit.position, config.minDistanceFromRecentPoints))
-                    {
                         continue; 
-                    }
                     
+                    // VALIDATION: Ensure point is actually far away
+                    // Sometimes SamplePosition snaps a far point back to the agent's feet if near a wall
+                    if (Vector3.Distance(origin, hit.position) < 5.0f)
+                        continue;
+
                     return hit.position;
                 }
             }
-
             return null;
         }
     }

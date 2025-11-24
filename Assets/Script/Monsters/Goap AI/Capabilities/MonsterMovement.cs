@@ -12,15 +12,16 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         [SerializeField] private MonsterConfig config;
         [SerializeField] private NavMeshAgent agent;
 
-        // Internal State
+        // Public State
         public bool IsStuck { get; private set; }
+        
+        // Internal
+        private SpeedState currentMode;
         private Vector3 lastStuckPos;
         private float stuckTimer;
         
-        // Tracking
-        private SpeedState currentMode;
-        private Transform targetToFollow; // For Chasing
-        private bool isFollowing = false;
+        // "Stop Watch" for zero velocity
+        private float zeroVelocityTimer; 
 
         private void Awake()
         {
@@ -33,73 +34,78 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
         private void Update()
         {
-            // 1. Handle Continuous Chasing
-            if (isFollowing && targetToFollow != null && agent.isOnNavMesh)
+            // Stuck Detection Logic running in background
+            if (agent.hasPath && !agent.isStopped)
             {
-                // Update destination if target moved > 0.5m
-                if (Vector3.SqrMagnitude(agent.destination - targetToFollow.position) > 0.5f)
+                // Global "Am I moving at all?" check
+                if (Vector3.Distance(transform.position, lastStuckPos) < config.stuckDistanceThreshold)
                 {
-                    agent.SetDestination(targetToFollow.position);
+                    stuckTimer += Time.deltaTime;
+                    if (stuckTimer > config.maxStuckTime) IsStuck = true;
+                }
+                else
+                {
+                    lastStuckPos = transform.position;
+                    stuckTimer = 0f;
+                    IsStuck = false;
+                }
+
+                // Precision "Am I blocked?" check
+                if (agent.velocity.sqrMagnitude < 0.05f)
+                {
+                    zeroVelocityTimer += Time.deltaTime;
+                }
+                else
+                {
+                    zeroVelocityTimer = 0f;
                 }
             }
-
-            // 2. Handle Stuck Detection
-            if (agent.hasPath && !agent.isStopped && agent.remainingDistance > 1.0f)
-            {
-                CheckStuck();
-            }
         }
-
-        // --- COMMANDS ---
 
         public bool GoTo(Vector3 position, SpeedState speedMode)
         {
-            // Disable chasing
-            isFollowing = false;
-            targetToFollow = null;
-            
             IsStuck = false;
             stuckTimer = 0f;
-            lastStuckPos = transform.position;
+            zeroVelocityTimer = 0f;
             currentMode = speedMode;
 
-            // Sanitize
-            if (NavMesh.SamplePosition(position, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+            // 1. Sanitize Point (Ensure it's reachable)
+            NavMeshHit hit;
+            // Try finding a point on mesh
+            if (!NavMesh.SamplePosition(position, out hit, 10.0f, NavMesh.AllAreas))
             {
-                position = hit.position;
+                Debug.LogWarning($"[Movement] Target {position} is not on NavMesh.");
+                return false;
             }
 
+            position = hit.position;
+
+            // 2. Move
             agent.isStopped = false;
             ApplySpeed(speedMode);
-
-            return agent.SetDestination(position);
+            
+            bool pathSet = agent.SetDestination(position);
+            
+            if (!pathSet) Debug.LogWarning("[Movement] SetDestination failed.");
+            
+            return pathSet;
         }
 
-        // RESTORED: The Chase Method
         public void Chase(Transform target)
         {
             if (target == null) return;
+            // Reset timers
+            IsStuck = false; 
+            stuckTimer = 0f; 
             
-            // Enable chasing
-            isFollowing = true;
-            targetToFollow = target;
-            
-            IsStuck = false;
-            stuckTimer = 0f;
             currentMode = SpeedState.Chase;
-
             agent.isStopped = false;
             ApplySpeed(SpeedState.Chase);
-            
-            // Set initial move
             agent.SetDestination(target.position);
         }
 
         public void Stop()
         {
-            isFollowing = false;
-            targetToFollow = null;
-            
             if (agent.isOnNavMesh)
             {
                 agent.isStopped = true;
@@ -109,36 +115,37 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         }
 
         // --- THE SOURCE OF TRUTH ---
-
         public bool HasReached(Vector3 targetPosition)
         {
+            if (agent.pathPending) return false; // Still calculating
+
             float requiredDist = GetStoppingDistanceForMode(currentMode);
             float threshold = requiredDist + config.arrivalTolerance;
 
-            // Flatten Positions (Ignore Height)
-            Vector3 agentPos = transform.position;
-            agentPos.y = 0;
-            Vector3 targetPos = targetPosition;
-            targetPos.y = 0;
-
+            // 1. Math Check (Horizontal)
+            Vector3 agentPos = transform.position; agentPos.y = 0;
+            Vector3 targetPos = targetPosition; targetPos.y = 0;
             float dist = Vector3.Distance(agentPos, targetPos);
 
             if (dist <= threshold) return true;
 
-            // Fail-Safe: Velocity Check
-            if (agent.hasPath && !agent.pathPending)
+            // 2. Physics/Obstruction Fail-Safe
+            // If we have been trying to move for > 1.0s but Velocity is 0,
+            // AND we aren't completely stuck globally (managed by IsStuck),
+            // We assume we hit the destination's cover/wall.
+            if (zeroVelocityTimer > 1.0f)
             {
-                // If stopped moving and reasonably close
-                if (agent.remainingDistance <= threshold && agent.velocity.sqrMagnitude < 0.05f)
+                // Only count as arrived if we are somewhat close (within 3x stopping dist)
+                // Otherwise it's a "Stuck" situation handled by IsStuck
+                if (dist < threshold * 3f) 
                 {
+                    // Debug.Log("[Movement] Wall hit close to target. Assuming Arrival.");
                     return true;
                 }
             }
 
             return false;
         }
-
-        // --- HELPERS ---
 
         private void ApplySpeed(SpeedState mode)
         {
@@ -167,23 +174,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 case SpeedState.Chase: return config.chaseStoppingDistance;
                 case SpeedState.Investigate: return config.investigateStoppingDistance;
                 default: return 1.0f;
-            }
-        }
-
-        private void CheckStuck()
-        {
-            if (Vector3.Distance(transform.position, lastStuckPos) < config.stuckDistanceThreshold)
-            {
-                stuckTimer += Time.deltaTime;
-                if (stuckTimer > config.maxStuckTime)
-                {
-                    IsStuck = true;
-                }
-            }
-            else
-            {
-                lastStuckPos = transform.position;
-                stuckTimer = 0f;
             }
         }
     }

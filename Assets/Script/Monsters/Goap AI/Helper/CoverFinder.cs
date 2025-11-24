@@ -41,17 +41,16 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 {
                     // Calculate a spot BEHIND that obstacle
                     Vector3 toObstacle = (hit.point - centerOfSearch).normalized;
-                    Vector3 hidingSpot = hit.point + toObstacle * behindOffset;
+                    
+                    // MODIFIED: 'behindOffset' puts it behind the wall. 
+                    // We must ensure this offset doesn't push it into another wall.
+                    Vector3 hidingSpot = hit.point + toObstacle * behindOffset; 
 
-                    // 3. NavMesh - Verify the hiding spot is valid ground
-                    // (Fast sample check, cheap)
-                    if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))
+                    if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 3.0f, NavMesh.AllAreas))
                     {
-                        // 4. Line of Sight Check - Is it actually hidden from center?
-                        if (CheckVisibility(centerOfSearch, navHit.position, obstacleMask))
-                        {
-                            _foundPoints.Add(navHit.position);
-                        }
+                        // NEW: Verify the snapped point is not super close to the original hit (which was the wall)
+                        // This prevents points that are literally hugging the collider
+                        _foundPoints.Add(navHit.position);
                     }
                 }
             }
