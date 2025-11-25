@@ -1,7 +1,6 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Core;
 using CrashKonijn.Goap.Runtime;
-using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
@@ -9,7 +8,7 @@ namespace CrashKonijn.Goap.MonsterGen
     public class IsAtSuspiciousLocationSensor : LocalWorldSensorBase
     {
         private MonsterBrain brain;
-        private MonsterMovement movement;
+        private MonsterConfig config;
 
         public override void Created() { }
         public override void Update() { }
@@ -17,18 +16,22 @@ namespace CrashKonijn.Goap.MonsterGen
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
-            if (movement == null) movement = references.GetCachedComponent<MonsterMovement>();
-
-            if (brain == null || movement == null) return 0;
+            if (config == null) config = references.GetCachedComponent<MonsterConfig>();
             
-            Vector3 target = brain.LastKnownPlayerPosition;
-            if (target == Vector3.zero) return 0;
+            if (brain == null || brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 
-            // USE THE SHARED LOGIC
-            // Note: Sensor uses 'Investigate' mode logic implicitly
-            bool arrived = movement.HasReached(target);
+            Vector3 current = agent.Transform.position; current.y = 0;
+            Vector3 target = brain.LastKnownPlayerPosition; target.y = 0;
+            
+            float dist = Vector3.Distance(current, target);
 
-            return arrived ? 1 : 0;
+            // FIX: Use the new unified variable 'baseStoppingDistance'.
+            // We add a small buffer (+1.0f) so the Sensor is slightly "easier" 
+            // to satisfy than the physical movement, preventing the planner from 
+            // fighting the physics engine.
+            float required = config.baseStoppingDistance + 1.0f;
+
+            return (dist <= required) ? 1 : 0;
         }
     }
 }

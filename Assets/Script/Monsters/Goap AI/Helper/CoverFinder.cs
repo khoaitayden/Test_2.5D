@@ -9,7 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         [Header("References")]
         [SerializeField] private MonsterConfig config;
 
-        // Optimization: Recycle this list to avoid creating Garbage (GC) every search
+        // Cache list to avoid GC
         private readonly List<Vector3> _foundPoints = new List<Vector3>();
 
         private void Awake()
@@ -17,70 +17,74 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             if (config == null) config = GetComponent<MonsterConfig>();
         }
 
-        public List<Vector3> GetCoverPointsAround(Vector3 centerOfSearch)
+        // We keep the signature accepting monsterPos to sort by distance
+        public List<Vector3> GetCoverPointsAround(Vector3 centerOfSearch, Vector3 monsterPos)
         {
             _foundPoints.Clear();
 
-            // Settings derived from Config
             float radius = config.investigateRadius;
             LayerMask obstacleMask = config.obstacleLayerMask;
-            int rayCount = 12;
-            float behindOffset = 2.0f; // How far behind the wall to check
+            int rayCount = 12; // 12 checks in a circle
+            
+            // TWEAK: Increased for Large Monster (Scale 7).
+            // If this is too small, the monster touches the wall before reaching the point.
+            float behindOffset = 5.0f; 
             
             float angleStep = 360f / rayCount;
 
             for (int i = 0; i < rayCount; i++)
             {
-                // 1. Math - Direction calculation
                 float angle = i * angleStep;
                 Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
 
-                // 2. Physics - Find obstacles around the player/center
-                // SphereCast gives us some thickness so we don't hit tiny wires
+                // 1. SphereCast (Find Trees/Walls)
                 if (Physics.SphereCast(centerOfSearch, 0.5f, dir, out RaycastHit hit, radius, obstacleMask))
                 {
-                    // Calculate a spot BEHIND that obstacle
+                    // 2. Calculate point BEHIND the obstacle
                     Vector3 toObstacle = (hit.point - centerOfSearch).normalized;
-                    
-                    // MODIFIED: 'behindOffset' puts it behind the wall. 
-                    // We must ensure this offset doesn't push it into another wall.
-                    Vector3 hidingSpot = hit.point + toObstacle * behindOffset; 
+                    Vector3 hidingSpot = hit.point + toObstacle * behindOffset;
 
-                    if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 3.0f, NavMesh.AllAreas))
+                    // 3. Snap to NavMesh
+                    // Used 5.0f radius to ensure we catch the floor even on uneven terrain
+                    if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 5.0f, NavMesh.AllAreas))
                     {
-                        // NEW: Verify the snapped point is not super close to the original hit (which was the wall)
-                        // This prevents points that are literally hugging the collider
-                        _foundPoints.Add(navHit.position);
+                        // 4. Basic duplicate check (don't add points too close to each other)
+                        bool closeToExisting = false;
+                        foreach(var p in _foundPoints)
+                        {
+                            if(Vector3.Distance(p, navHit.position) < 2.0f) 
+                            { 
+                                closeToExisting = true; 
+                                break; 
+                            }
+                        }
+
+                        if (!closeToExisting)
+                        {
+                            _foundPoints.Add(navHit.position);
+                        }
                     }
                 }
             }
             
-            // Limit points based on config here so the Action doesn't have to logic-check
-            // Optional: Shuffle the list here if you want randomness
+            // Sort by distance (Visit closest cover first)
+            _foundPoints.Sort((a, b) => Vector3.Distance(monsterPos, a).CompareTo(Vector3.Distance(monsterPos, b)));
 
-            // Return a copy so the list doesn't get modified externally unexpectedly
+            // Limit count based on config
+            if (_foundPoints.Count > config.investigationPoints)
+            {
+                return _foundPoints.GetRange(0, config.investigationPoints);
+            }
+
             return new List<Vector3>(_foundPoints);
         }
 
-        private bool CheckVisibility(Vector3 eyePos, Vector3 targetPos, LayerMask layerMask)
-        {
-            // Simple Raycast: Start a bit up to avoid floor friction
-            Vector3 start = eyePos + Vector3.up * 1f;
-            Vector3 end = targetPos + Vector3.up * 1f;
-            Vector3 dir = end - start;
-            
-            // If the ray hits something, we are hidden (Success)
-            // If it hits nothing, we can be seen (Failure)
-            return Physics.Raycast(start, dir.normalized, dir.magnitude, layerMask);
-        }
-        
-        // Debug helper
         private void OnDrawGizmosSelected()
         {
-            Gizmos.color = Color.blue;
+            Gizmos.color = Color.cyan;
             foreach (var p in _foundPoints)
             {
-                Gizmos.DrawSphere(p, 0.3f);
+                Gizmos.DrawSphere(p, 0.5f);
             }
         }
     }

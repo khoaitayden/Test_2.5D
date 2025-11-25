@@ -8,20 +8,19 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
     {
         public enum SpeedState { Patrol, Chase, Investigate }
 
+        [Header("DEBUGGING")]
+        public bool debugMode = true; // Check this in Inspector!
+
         [Header("Components")]
         [SerializeField] private MonsterConfig config;
         [SerializeField] private NavMeshAgent agent;
 
-        // Public State
-        public bool IsStuck { get; private set; }
-        
-        // Internal
-        private SpeedState currentMode;
-        private Vector3 lastStuckPos;
-        private float stuckTimer;
-        
-        // "Stop Watch" for zero velocity
-        private float zeroVelocityTimer; 
+        // Internal Logic
+        private float standStillTimer; 
+        private Vector3 positionAtLastCheck;
+        private float nextCheckTime;
+        private float movementStartTime;
+        private float debugLogTimer;
 
         private void Awake()
         {
@@ -34,71 +33,105 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
         private void Update()
         {
-            // Stuck Detection Logic running in background
+            // --- MOVEMENT CHECK LOGIC ---
             if (agent.hasPath && !agent.isStopped)
             {
-                // Global "Am I moving at all?" check
-                if (Vector3.Distance(transform.position, lastStuckPos) < config.stuckDistanceThreshold)
+                // Check position every 0.2 seconds
+                if (Time.time > nextCheckTime)
                 {
-                    stuckTimer += Time.deltaTime;
-                    if (stuckTimer > config.maxStuckTime) IsStuck = true;
-                }
-                else
-                {
-                    lastStuckPos = transform.position;
-                    stuckTimer = 0f;
-                    IsStuck = false;
-                }
+                    float movedDist = Vector3.Distance(transform.position, positionAtLastCheck);
 
-                // Precision "Am I blocked?" check
-                if (agent.velocity.sqrMagnitude < 0.05f)
-                {
-                    zeroVelocityTimer += Time.deltaTime;
+                    // If we moved less than the threshold (e.g. 0.2m)
+                    if (movedDist < config.minEffectiveMovement)
+                    {
+                        // And we have been trying to move for at least 0.5s
+                        if (Time.time > movementStartTime + 0.5f)
+                        {
+                            standStillTimer += 0.2f; 
+                        }
+                    }
+                    else
+                    {
+                        // We moved enough! Reset.
+                        if (standStillTimer > 0 && debugMode) Debug.Log($"[RESET] Moved {movedDist:F2}m. Timer reset.");
+                        standStillTimer = 0f;
+                    }
+
+                    positionAtLastCheck = transform.position;
+                    nextCheckTime = Time.time + 0.2f;
                 }
-                else
+            }
+            else
+            {
+                standStillTimer = 0f;
+            }
+
+            // --- DETAILED DEBUGGING LOG ---
+            if (debugMode)
+            {
+                debugLogTimer += Time.deltaTime;
+                if (debugLogTimer > 0.5f)
                 {
-                    zeroVelocityTimer = 0f;
+                    debugLogTimer = 0f;
+                    PrintDebugStatus();
                 }
             }
         }
 
+        private void PrintDebugStatus()
+        {
+            string status = "";
+
+            if (!agent.hasPath) status = "NO_PATH";
+            else if (agent.isStopped) status = "STOPPED_API";
+            else if (agent.pathPending) status = "CALCULATING";
+            else status = "MOVING";
+
+            float remDist = agent.hasPath ? agent.remainingDistance : 0f;
+            float stopDist = agent.stoppingDistance;
+            
+            // This is the condition HasReached uses:
+            bool distCheck = remDist <= config.baseStoppingDistance;
+            bool timerCheck = standStillTimer > config.standStillTime;
+
+            string color = (distCheck || timerCheck) ? "<color=green>" : "<color=red>";
+            string endColor = "</color>";
+
+            Debug.Log($"[MonsterMovement] Status: {status} | " +
+                      $"Dist: {remDist:F2} / {config.baseStoppingDistance} | " +
+                      $"Timer: {standStillTimer:F1} / {config.standStillTime} | " +
+                      $"Result: {color}ARRIVED? {(distCheck || timerCheck)}{endColor}");
+        }
+
+        // --- API ---
+
         public bool GoTo(Vector3 position, SpeedState speedMode)
         {
-            IsStuck = false;
-            stuckTimer = 0f;
-            zeroVelocityTimer = 0f;
-            currentMode = speedMode;
+            ResetTrackers();
 
-            // 1. Sanitize Point (Ensure it's reachable)
             NavMeshHit hit;
-            // Try finding a point on mesh
-            if (!NavMesh.SamplePosition(position, out hit, 10.0f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(position, out hit, 10.0f, NavMesh.AllAreas))
             {
-                Debug.LogWarning($"[Movement] Target {position} is not on NavMesh.");
-                return false;
+                position = hit.position;
             }
 
-            position = hit.position;
-
-            // 2. Move
-            agent.isStopped = false;
             ApplySpeed(speedMode);
+            agent.isStopped = false;
             
-            bool pathSet = agent.SetDestination(position);
+            if (debugMode) Debug.Log($"[MonsterMovement] GoTo called: {position}");
             
-            if (!pathSet) Debug.LogWarning("[Movement] SetDestination failed.");
-            
-            return pathSet;
+            return agent.SetDestination(position);
         }
 
         public void Chase(Transform target)
         {
             if (target == null) return;
-            // Reset timers
-            IsStuck = false; 
-            stuckTimer = 0f; 
             
-            currentMode = SpeedState.Chase;
+            if (Vector3.SqrMagnitude(agent.destination - target.position) > 2.0f)
+            {
+                ResetTrackers();
+            }
+
             agent.isStopped = false;
             ApplySpeed(SpeedState.Chase);
             agent.SetDestination(target.position);
@@ -106,6 +139,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
         public void Stop()
         {
+            standStillTimer = 0f;
             if (agent.isOnNavMesh)
             {
                 agent.isStopped = true;
@@ -114,41 +148,39 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
         }
 
-        // --- THE SOURCE OF TRUTH ---
-        public bool HasReached(Vector3 targetPosition)
+        public bool HasReachedDestination()
         {
-            if (agent.pathPending) return false; // Still calculating
+            if (agent.pathPending) return false;
+            if (!agent.hasPath) return false;
 
-            float requiredDist = GetStoppingDistanceForMode(currentMode);
-            float threshold = requiredDist + config.arrivalTolerance;
-
-            // 1. Math Check (Horizontal)
-            Vector3 agentPos = transform.position; agentPos.y = 0;
-            Vector3 targetPos = targetPosition; targetPos.y = 0;
-            float dist = Vector3.Distance(agentPos, targetPos);
-
-            if (dist <= threshold) return true;
-
-            // 2. Physics/Obstruction Fail-Safe
-            // If we have been trying to move for > 1.0s but Velocity is 0,
-            // AND we aren't completely stuck globally (managed by IsStuck),
-            // We assume we hit the destination's cover/wall.
-            if (zeroVelocityTimer > 1.0f)
+            // 1. Timeout Check
+            if (standStillTimer > config.standStillTime)
             {
-                // Only count as arrived if we are somewhat close (within 3x stopping dist)
-                // Otherwise it's a "Stuck" situation handled by IsStuck
-                if (dist < threshold * 3f) 
-                {
-                    // Debug.Log("[Movement] Wall hit close to target. Assuming Arrival.");
-                    return true;
-                }
+                if(debugMode) Debug.Log($"[MonsterMovement] ARRIVAL BY TIMEOUT ({standStillTimer:F1}s)");
+                return true;
+            }
+
+            // 2. Distance Check
+            if (agent.remainingDistance <= config.baseStoppingDistance)
+            {
+                return true;
             }
 
             return false;
         }
 
+        private void ResetTrackers()
+        {
+            standStillTimer = 0f;
+            movementStartTime = Time.time;
+            positionAtLastCheck = transform.position;
+            nextCheckTime = Time.time + 0.2f;
+        }
+
         private void ApplySpeed(SpeedState mode)
         {
+            agent.stoppingDistance = config.baseStoppingDistance;
+
             switch (mode)
             {
                 case SpeedState.Patrol:
@@ -158,22 +190,12 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 case SpeedState.Chase:
                     agent.speed = config.chaseSpeed;
                     agent.acceleration = config.chaseAcceleration;
+                    agent.stoppingDistance = 0.5f; 
                     break;
                 case SpeedState.Investigate:
                     agent.speed = config.investigateRushSpeed;
                     agent.acceleration = config.investigateRushAcceleration;
                     break;
-            }
-        }
-
-        private float GetStoppingDistanceForMode(SpeedState mode)
-        {
-            switch (mode)
-            {
-                case SpeedState.Patrol: return config.patrolStoppingDistance;
-                case SpeedState.Chase: return config.chaseStoppingDistance;
-                case SpeedState.Investigate: return config.investigateStoppingDistance;
-                default: return 1.0f;
             }
         }
     }

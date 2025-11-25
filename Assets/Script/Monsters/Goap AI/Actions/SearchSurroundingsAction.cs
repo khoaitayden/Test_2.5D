@@ -8,8 +8,6 @@ namespace CrashKonijn.Goap.MonsterGen
 {
     public class SearchSurroundingsAction : GoapActionBase<SearchSurroundingsAction.Data>
     {
-        public enum SearchState { MovingToPoint, ScanningAtPoint }
-
         private MonsterMovement movement; 
         private CoverFinder coverFinder;
         private MonsterConfig config;
@@ -19,41 +17,37 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void Start(IMonoAgent agent, Data data)
         {
+            // Cache Refs
             if (movement == null) movement = agent.GetComponent<MonsterMovement>();
             if (coverFinder == null) coverFinder = agent.GetComponent<CoverFinder>();
             if (config == null) config = agent.GetComponent<MonsterConfig>();
             if (brain == null) brain = agent.GetComponent<MonsterBrain>();
 
+            // Init
             data.investigationStartTime = Time.time;
-            data.pointsChecked = 0;
-            data.totalPoints = 0;
-            data.isDone = false;
+            data.lookPoints = new Queue<Vector3>();
+            data.currentPointStartTime = 0f; // Reset
             
             // 1. Get Points
             if (coverFinder != null && data.Target != null)
             {
-                var pointsList = coverFinder.GetCoverPointsAround(data.Target.Position);
-                data.lookPoints = new Queue<Vector3>(pointsList);
-                data.totalPoints = pointsList.Count;
-                
-                Debug.Log($"[Search] Found {data.totalPoints} points.");
-            }
-            else
-            {
-                data.lookPoints = new Queue<Vector3>();
+                var list = coverFinder.GetCoverPointsAround(data.Target.Position, agent.Transform.position);
+                foreach(var p in list) data.lookPoints.Enqueue(p);
+                Debug.Log($"[SearchAction] Starting. Points found: {data.lookPoints.Count}");
             }
 
-            // 2. No points logic
-            if (data.totalPoints == 0)
+            // 2. Handle No Points
+            if (data.lookPoints.Count == 0)
             {
-                Debug.LogWarning("[Search] No tactical points found. Investigation Finished immediately.");
+                Debug.LogWarning("[SearchAction] No points. Done.");
                 brain?.OnInvestigationFinished();
                 data.isDone = true;
                 return; 
             }
 
-            // 3. Start first move
-            if (!TryMoveToNextPoint(agent, data))
+            // 3. Start Move
+            data.isDone = false;
+            if(!MoveToNext(data))
             {
                 brain?.OnInvestigationFinished();
                 data.isDone = true;
@@ -62,19 +56,34 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
+            // DEBUG LINE: Verify loop integrity
+            // Debug.Log("[SearchAction] Perform Running...");
+
             if (data.isDone) return ActionRunState.Completed;
 
+            // 1. Global Timeout
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
+                Debug.Log("[SearchAction] Global Timeout.");
                 return ActionRunState.Completed; 
             }
 
-            switch (data.state)
+            // 2. Point Timeout Check
+            // Note: 'currentPointStartTime' set in MoveToNext
+            float pointDuration = Time.time - data.currentPointStartTime;
+            
+            if (pointDuration > 5.0f)
             {
-                case SearchState.MovingToPoint: 
-                    return HandleMoving(agent, data);
-                case SearchState.ScanningAtPoint: 
-                    return HandleScanning(agent, data, context);
+                Debug.Log($"[SearchAction] Point TIMEOUT ({pointDuration:F1}s). Forcing Next.");
+                if (!MoveToNext(data)) return ActionRunState.Completed;
+                return ActionRunState.Continue; // Skip arrival check this frame
+            }
+
+            // 3. Check Arrival using Component
+            if (movement.HasReachedDestination())
+            {
+                Debug.Log("[SearchAction] HasReached = TRUE. Moving Next.");
+                if (!MoveToNext(data)) return ActionRunState.Completed;
             }
 
             return ActionRunState.Continue;
@@ -82,71 +91,32 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data)
         {
+            Debug.Log("[SearchAction] End.");
             movement.Stop();
-            // Ensure brain knows we are done
             brain?.OnInvestigationFinished();
         }
 
-        private IActionRunState HandleMoving(IMonoAgent agent, Data data)
-        {
-            if (movement.IsStuck)
-            {
-                // If stuck, give up on this point, try next
-                if (!TryMoveToNextPoint(agent, data))
-                {
-                    return ActionRunState.Completed;
-                }
-            }
-
-            // FIX IS HERE: Use HasReached() with the specific point we are going to
-            if (movement.HasReached(data.currentTargetPoint))
-            {
-                StartScanning(agent, data);
-            }
-            return ActionRunState.Continue;
-        }
-
-        private IActionRunState HandleScanning(IMonoAgent agent, Data data, IActionContext context)
-        {
-            float rotateStep = data.rotationSpeed * context.DeltaTime;
-            agent.Transform.Rotate(0f, rotateStep, 0f);
-            data.rotatedAmount += Mathf.Abs(rotateStep);
-
-            if (data.rotatedAmount >= data.rotationAngle)
-            {
-                data.pointsChecked++;
-                if (!TryMoveToNextPoint(agent, data))
-                {
-                    return ActionRunState.Completed;
-                }
-            }
-            return ActionRunState.Continue;
-        }
-
-        private void StartScanning(IMonoAgent agent, Data data)
-        {
-            data.state = SearchState.ScanningAtPoint;
-            movement.Stop();
-            data.rotationSpeed = Random.Range(90f, 120f);
-            data.rotationAngle = Random.Range(90f, 180f); 
-            data.rotatedAmount = 0f;
-        }
-
-        private bool TryMoveToNextPoint(IMonoAgent agent, Data data)
+        private bool MoveToNext(Data data)
         {
             while (data.lookPoints.Count > 0)
             {
-                Vector3 nextPoint = data.lookPoints.Dequeue();
+                Vector3 p = data.lookPoints.Dequeue();
                 
-                // Save current target so we can check arrival later
-                data.currentTargetPoint = nextPoint;
-                data.state = SearchState.MovingToPoint;
-                
-                if (movement.GoTo(nextPoint, MonsterMovement.SpeedState.Investigate))
+                // Set Timer BEFORE action
+                data.currentPointStartTime = Time.time;
+                Debug.Log($"[SearchAction] Moving to next point... (Rem: {data.lookPoints.Count})");
+
+                if (movement.GoTo(p, MonsterMovement.SpeedState.Investigate))
                 {
                     return true;
                 }
+                else
+                {
+                     Debug.LogWarning("[SearchAction] GoTo Failed (Unreachable?). trying next.");
+                }
             }
+            
+            Debug.Log("[SearchAction] No more points.");
             return false;
         }
         
@@ -154,15 +124,9 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             public ITarget Target { get; set; }
             public float investigationStartTime;
+            public float currentPointStartTime;
             public Queue<Vector3> lookPoints;
-            public Vector3 currentTargetPoint; // Added to track where we are going
             public bool isDone; 
-            public int pointsChecked;
-            public int totalPoints;
-            public SearchState state;
-            public float rotationSpeed;
-            public float rotationAngle;
-            public float rotatedAmount;
         }
     }
 }

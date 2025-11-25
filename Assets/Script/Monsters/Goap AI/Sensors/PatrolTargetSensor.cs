@@ -28,9 +28,8 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
             }
 
-            // Keep existing target if we haven't reached it yet
-            // (Optimization to stop spamming calculations)
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.patrolStoppingDistance + 1f)
+            // FIX IS HERE: Used 'baseStoppingDistance' instead of 'patrolStoppingDistance'
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.baseStoppingDistance + 1f)
             {
                 return existingTarget;
             }
@@ -57,14 +56,12 @@ namespace CrashKonijn.Goap.MonsterGen
                 float randomDistance = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
                 Vector3 candidate = origin + new Vector3(randomDirection.x, 0, randomDirection.y) * randomDistance;
 
-                // Increase sample range to 5.0f to find mesh easier
+                // Increase sample range to 5.0f to find mesh easier for big monsters
                 if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
                 {
                     if (patrolHistory.IsTooCloseToRecentPoints(hit.position, config.minDistanceFromRecentPoints))
                         continue; 
                     
-                    // VALIDATION: Ensure point is actually far away
-                    // Sometimes SamplePosition snaps a far point back to the agent's feet if near a wall
                     if (Vector3.Distance(origin, hit.position) < 5.0f)
                         continue;
 

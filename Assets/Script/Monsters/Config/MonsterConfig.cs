@@ -1,5 +1,3 @@
-// FILE TO EDIT: MonsterConfig.cs
-
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -8,6 +6,7 @@ using UnityEditor;
 public class MonsterConfig : MonoBehaviour
 {
     private MonsterBrain monsterBrain; 
+    
     [Header("Patrol")]
     public float minPatrolDistance = 15f;
     public float maxPatrolDistance = 50f;
@@ -20,31 +19,15 @@ public class MonsterConfig : MonoBehaviour
     public float forwardBias = 0.6f;
 
     [Header("Movement Speeds")]
-    [Tooltip("Normal patrol speed")]
     public float patrolSpeed = 3.5f;
-    
-    [Tooltip("Speed when chasing visible player")]
     public float chaseSpeed = 7f;
-    
-    [Tooltip("Speed when rushing to last seen position")]
     public float investigateRushSpeed = 6f;
-    
-    [Tooltip("Speed when searching look points")]
     public float investigateSearchSpeed = 4f;
-    
-    // REMOVED: investigateMinSpeed is no longer needed as speed doesn't decrease over time.
 
     [Header("Movement Acceleration")]
-    [Tooltip("Acceleration for patrol (smooth, relaxed)")]
     public float patrolAcceleration = 4f;
-    
-    [Tooltip("Acceleration for chase (fast response, aggressive)")]
     public float chaseAcceleration = 12f;
-    
-    [Tooltip("Acceleration for investigate rush (quick but controlled)")]
     public float investigateRushAcceleration = 10f;
-    
-    [Tooltip("Acceleration for search (smooth, cautious)")]
     public float investigateSearchAcceleration = 6f;
 
     [Header("Vision")]
@@ -55,53 +38,41 @@ public class MonsterConfig : MonoBehaviour
     public LayerMask playerLayerMask;
     public LayerMask obstacleLayerMask;
 
-    [Header("Stuck Detection")]
+    [Header("Stuck Detection (Global)")]
     public float stuckDistanceThreshold = 1.5f;
     public float maxStuckTime = 3f;
 
-    // --- REVISED SECTION ---
     [Header("Tactical Investigation")]
-    [Tooltip("How far around the player's last position to look for cover points.")]
     public float investigateRadius = 20f;
-    
-    [Tooltip("The maximum number of cover points the monster will check.")]
     public int investigationPoints = 4;
-
-    [Tooltip("How long total before giving up the search (seconds).")]
     public float maxInvestigationTime = 100f;
 
-    [Header("Stopping Settings")]
-    public float patrolStoppingDistance = 1.0f;
-    public float chaseStoppingDistance = 1.0f; // Needs to be > 0 for large monsters to prevent jitter
-    public float investigateStoppingDistance = 3.0f; // Loose check for general areas
-    public float arrivalTolerance = 0.5f;     // "Good enough" buffer. StopDist + Tolerance = Arrived.
+    // --- UPDATED LOGIC ---
+    [Header("Arrival & Timeout Logic")]
     
+    [Tooltip("If the monster moves less than this distance (meters) in a check interval, it counts as standing still.")]
+    public float minEffectiveMovement = 0.2f;
+
+    [Tooltip("How long (seconds) to effectively stand still before forcing 'Arrival' (skipping point).")]
+    public float standStillTime = 1.0f; 
+
+    [Tooltip("Generic NavMesh stopping distance.")]
+    public float baseStoppingDistance = 2.0f;
+
     private void OnDrawGizmosSelected()
     {
     #if UNITY_EDITOR
-        // --- VISION GIZMO (Unchanged) ---
         Handles.color = new Color(1, 1, 0, 0.2f);
         Vector3 origin = transform.position;
         Vector3 forward = transform.forward;
         Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
         Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
             
-        if (monsterBrain == null)
-        {
-            monsterBrain = GetComponent<MonsterBrain>();
-        }
-        // --- NEW INVESTIGATION GIZMO ---
-        // Lazily get the reference to the brain component.
-        if (monsterBrain == null)
-        {
-            monsterBrain = GetComponent<MonsterBrain>();
-        }
+        if (monsterBrain == null) monsterBrain = GetComponent<MonsterBrain>();
 
-        // Only draw the search radius if the brain has a valid position to investigate.
         if (monsterBrain != null && monsterBrain.LastKnownPlayerPosition != Vector3.zero)
         {
             Gizmos.color = Color.cyan;
-            // Draw a wire sphere centered on the last known position.
             Gizmos.DrawWireSphere(monsterBrain.LastKnownPlayerPosition, investigateRadius);
         }
     #endif
