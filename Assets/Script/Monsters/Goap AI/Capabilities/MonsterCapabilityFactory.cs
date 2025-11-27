@@ -46,14 +46,14 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetBaseCost(10);
 
                 // --- SENSORS ---
-                builder.AddWorldSensor<PlayerInSightSensor>().SetKey<IsPlayerInSight>();
+                builder.AddWorldSensor<IsPlayerInSightSensor>().SetKey<IsPlayerInSight>();
                 builder.AddWorldSensor<HasSuspiciousLocationSensor>().SetKey<HasSuspiciousLocation>();
                 builder.AddWorldSensor<IsAtSuspiciousLocationSensor>().SetKey<IsAtSuspiciousLocation>();
                 builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
                 builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
                 
                 builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
-                builder.AddTargetSensor<PlayerLastSeenSensor>().SetTarget<PlayerLastSeenTarget>();
+                builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
                 builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
                 
                 return builder.Build();

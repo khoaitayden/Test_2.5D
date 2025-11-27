@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
-    public class PlayerLastSeenSensor : LocalTargetSensorBase
+    public class PlayerLastSeenPosSensor : LocalTargetSensorBase
     {
         public override void Created() { }
         public override void Update() { }
