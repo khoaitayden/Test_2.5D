@@ -9,7 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void Created() { }
         public override void Update() { }
 
-        public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
+         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
             var brain = references.GetCachedComponent<MonsterBrain>();
             
