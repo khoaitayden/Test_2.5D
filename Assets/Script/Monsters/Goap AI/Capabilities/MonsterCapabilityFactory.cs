@@ -24,10 +24,11 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             //Search for player action
             builder.AddAction<SearchSurroundingsAction>()
-                .SetTarget<PlayerLastSeenTarget>()
+                .SetTarget<InvestigateTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddEffect<CanPatrol>(EffectType.Increase)     
-                .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
+                .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(3);
             //Rushing to last seen position
             builder.AddAction<GoToLastSeenPlayerAreaAction>()
@@ -55,6 +56,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
                 builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
                 builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
+                builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
                 
                 return builder.Build();
         }

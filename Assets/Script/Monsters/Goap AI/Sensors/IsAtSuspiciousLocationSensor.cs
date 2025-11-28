@@ -1,6 +1,7 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Core;
 using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities; // Needed for CoverFinder
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
@@ -9,6 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterBrain brain;
         private MonsterConfig config;
+        private CoverFinder coverFinder;
 
         public override void Created() { }
         public override void Update() { }
@@ -17,21 +19,30 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
+            if (coverFinder == null) coverFinder = references.GetCachedComponent<CoverFinder>(); // Cache CoverFinder
             
             if (brain == null || brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 
+            // --- CONDITION 1: LOGICAL OVERRIDE ---
+            // If the CoverFinder has points in the queue, we are technically "On The Job".
+            // We consider the location "reached & active". 
+            // This prevents the planner from forcing us back to the center point while moving between cover points.
+            if (coverFinder != null && coverFinder.HasPoints)
+            {
+                return 1;
+            }
+
+            // --- CONDITION 2: PHYSICAL DISTANCE ---
+            // Only fall back to distance check if queue is empty (e.g. initial arrival)
             Vector3 current = agent.Transform.position; current.y = 0;
             Vector3 target = brain.LastKnownPlayerPosition; target.y = 0;
             
             float dist = Vector3.Distance(current, target);
 
-            // FIX: Use the new unified variable 'baseStoppingDistance'.
-            // We add a small buffer (+1.0f) so the Sensor is slightly "easier" 
-            // to satisfy than the physical movement, preventing the planner from 
-            // fighting the physics engine.
-            float required = config.baseStoppingDistance + 1.0f;
+            // Using stopping distance + buffer
+            float threshold = config.baseStoppingDistance + 1.0f;
 
-            return (dist <= required) ? 1 : 0;
+            return (dist <= threshold) ? 1 : 0;
         }
     }
 }

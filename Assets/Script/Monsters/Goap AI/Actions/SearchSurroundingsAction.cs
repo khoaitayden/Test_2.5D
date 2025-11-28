@@ -23,20 +23,20 @@ namespace CrashKonijn.Goap.MonsterGen
             brain = agent.GetComponent<MonsterBrain>();
 
             data.investigationStartTime = Time.time;
-            data.lookPoints = new Queue<Vector3>();
-            data.isDone = false;
+            data.isDone = false; // Initialize the flag
             
-            if (coverFinder != null && data.Target != null)
+            // Handle 0 points case: if CoverFinder is empty, just finish.
+            if (coverFinder != null && !coverFinder.HasPoints)
             {
-                var list = coverFinder.GetCoverPointsAround(data.Target.Position, agent.Transform.position);
-                foreach(var p in list) data.lookPoints.Enqueue(p);
-            }
-
-            // Move to first point
-            if (!NextPoint(data))
-            {
+                Debug.Log("[Search] No cover points found. Finishing investigation.");
                 brain?.OnInvestigationFinished();
                 data.isDone = true;
+                return;
+            }
+
+            if (data.Target != null)
+            {
+                movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
             }
         }
 
@@ -50,14 +50,12 @@ namespace CrashKonijn.Goap.MonsterGen
                 return ActionRunState.Completed; 
             }
 
-            // FIX: Use the master check function
             if (movement.HasArrivedOrStuck())
             {
-                // Arrived or stuck -> Try next point
-                if (!NextPoint(data))
-                {
-                    return ActionRunState.Completed;
-                }
+                // Arrived at current point.
+                // The End() method calls coverFinder.AdvanceQueue() to setup the next point.
+                // We complete this action so the Planner can re-evaluate and pick Search again for the next point.
+                return ActionRunState.Completed;
             }
 
             return ActionRunState.Continue;
@@ -66,24 +64,26 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
-            brain?.OnInvestigationFinished();
-        }
 
-        private bool NextPoint(Data data)
-        {
-            if (data.lookPoints.Count == 0) return false;
+            if (coverFinder != null)
+            {
+                // Move to next point in queue
+                coverFinder.AdvanceQueue();
 
-            Vector3 dest = data.lookPoints.Dequeue();
-            movement.GoTo(dest, MonsterMovement.SpeedState.Investigate);
-            return true;
+                // If queue is empty now, we are done with the whole investigation
+                if (!coverFinder.HasPoints)
+                {
+                    Debug.Log("[Search] All points checked. Investigation Finished.");
+                    brain?.OnInvestigationFinished();
+                }
+            }
         }
         
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
             public float investigationStartTime;
-            public Queue<Vector3> lookPoints;
-            public bool isDone; 
+            public bool isDone; // FIELD ADDED
         }
     }
 }

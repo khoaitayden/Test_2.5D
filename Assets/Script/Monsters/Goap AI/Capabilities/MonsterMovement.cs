@@ -95,7 +95,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
         public void Chase(Transform target)
         {
-            Debug.Log("Chase init");
+            Debug.Log("[Movement] Chase init");
             if (target == null) {
                 return;
             };
