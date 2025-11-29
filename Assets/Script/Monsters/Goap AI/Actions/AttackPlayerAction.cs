@@ -15,10 +15,9 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            // Cache
-            if (movement == null) movement = agent.GetComponent<MonsterMovement>();
-            if (config == null) config = agent.GetComponent<MonsterConfig>();
-            if (touchSensor == null) touchSensor = agent.GetComponent<MonsterTouchSensor>();
+            movement = agent.GetComponent<MonsterMovement>();
+            config = agent.GetComponent<MonsterConfig>();
+            touchSensor = agent.GetComponent<MonsterTouchSensor>();
 
             data.startTime = Time.time;
 
@@ -31,40 +30,29 @@ namespace CrashKonijn.Goap.MonsterGen
             }
             else
             {
-                // Fallback search
                 var player = GameObject.FindWithTag("Player");
                 if (player != null) targetTransform = player.transform;
             }
 
             if (targetTransform != null)
             {
-                Debug.Log($"[AttackAction] Starting Chase: {targetTransform.name}");
-                movement.Chase(targetTransform);
-            }
-            else
-            {
-                Debug.LogWarning("[AttackAction] No target to chase!");
+                // FIX: Pass the chase speed explicitly
+                movement.Chase(targetTransform, config.chaseSpeed);
             }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Only check completion conditions here. Movement is handled by MonsterMovement.Update.
-
-            // 1. Success
             if (touchSensor.IsTouchingPlayer)
             {
                 return ActionRunState.Completed;
             }
 
-            // 2. Timeout
             if (Time.time > data.startTime + config.maxChaseTime)
             {
-                Debug.Log("[AttackAction] Timed out.");
                 return ActionRunState.Stop;
             }
 
-            // 3. Keep Running
             return ActionRunState.Continue;
         }
 

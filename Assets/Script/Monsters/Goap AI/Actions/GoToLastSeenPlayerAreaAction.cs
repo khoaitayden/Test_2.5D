@@ -8,6 +8,7 @@ namespace CrashKonijn.Goap.MonsterGen
     public class GoToLastSeenPlayerAreaAction : GoapActionBase<GoToLastSeenPlayerAreaAction.Data>
     {
         private MonsterMovement movement;
+        private MonsterConfig config;
         private MonsterBrain brain;
 
         public override void Created() { }
@@ -15,11 +16,13 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void Start(IMonoAgent agent, Data data)
         {
             movement = agent.GetComponent<MonsterMovement>();
+            config = agent.GetComponent<MonsterConfig>();
             brain = agent.GetComponent<MonsterBrain>();
             
             if (data.Target != null)
             {
-                movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
+                // Simple Move Call
+                movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
             }
         }
 
@@ -27,7 +30,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
             
-            // FIX: Use the master check function
             if (movement.HasArrivedOrStuck())
             {
                 brain?.OnArrivedAtSuspiciousLocation();
@@ -37,14 +39,7 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
         
-        public override void End(IMonoAgent agent, Data data) 
-        {
-            movement.Stop();
-        }
-        
-        public class Data : IActionData
-        {
-            public ITarget Target { get; set; }
-        }
+        public override void End(IMonoAgent agent, Data data) { movement.Stop(); }
+        public class Data : IActionData { public ITarget Target { get; set; } }
     }
 }

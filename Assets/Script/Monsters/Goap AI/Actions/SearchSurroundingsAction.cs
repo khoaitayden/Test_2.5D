@@ -23,12 +23,11 @@ namespace CrashKonijn.Goap.MonsterGen
             brain = agent.GetComponent<MonsterBrain>();
 
             data.investigationStartTime = Time.time;
-            data.isDone = false; // Initialize the flag
+            data.isDone = false; 
             
-            // Handle 0 points case: if CoverFinder is empty, just finish.
+            // Handle 0 points case
             if (coverFinder != null && !coverFinder.HasPoints)
             {
-                Debug.Log("[Search] No cover points found. Finishing investigation.");
                 brain?.OnInvestigationFinished();
                 data.isDone = true;
                 return;
@@ -36,7 +35,8 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
-                movement.GoTo(data.Target.Position, MonsterMovement.SpeedState.Investigate);
+                // FIX: Use MoveTo with explicit params (Using slower search speed)
+                movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
             }
         }
 
@@ -44,7 +44,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.isDone) return ActionRunState.Completed;
 
-            // Global Timeout
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
                 return ActionRunState.Completed; 
@@ -52,9 +51,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (movement.HasArrivedOrStuck())
             {
-                // Arrived at current point.
-                // The End() method calls coverFinder.AdvanceQueue() to setup the next point.
-                // We complete this action so the Planner can re-evaluate and pick Search again for the next point.
                 return ActionRunState.Completed;
             }
 
@@ -67,13 +63,10 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (coverFinder != null)
             {
-                // Move to next point in queue
                 coverFinder.AdvanceQueue();
 
-                // If queue is empty now, we are done with the whole investigation
                 if (!coverFinder.HasPoints)
                 {
-                    Debug.Log("[Search] All points checked. Investigation Finished.");
                     brain?.OnInvestigationFinished();
                 }
             }
@@ -83,7 +76,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             public ITarget Target { get; set; }
             public float investigationStartTime;
-            public bool isDone; // FIELD ADDED
+            public bool isDone;
         }
     }
 }
