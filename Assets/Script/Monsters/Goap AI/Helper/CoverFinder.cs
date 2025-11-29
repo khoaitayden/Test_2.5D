@@ -32,7 +32,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             List<Vector3> candidates = new List<Vector3>();
             
             float radius = config.investigateRadius;
-            int rayCount = 12;
+            int rayCount = config.numCoverFinderRayCasts;
 
             for (int i = 0; i < rayCount; i++)
             {
@@ -44,15 +44,30 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                     // 3.0f behind wall
                     Vector3 hidingSpot = hit.point + dir * 3.0f; 
 
-                    // Is it on NavMesh? Good enough.
+                    // Is it on NavMesh?
                     if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 5.0f, NavMesh.AllAreas))
                     {
-                        candidates.Add(navHit.position);
+                        // --- NEW: Check Minimum Distance ---
+                        bool isTooClose = false;
+                        foreach (Vector3 existingPoint in candidates)
+                        {
+                            if (Vector3.Distance(navHit.position, existingPoint) < config.minCoverPointDistance)
+                            {
+                                isTooClose = true;
+                                break;
+                            }
+                        }
+
+                        // Only add if it's far enough from other points
+                        if (!isTooClose)
+                        {
+                            candidates.Add(navHit.position);
+                        }
                     }
                 }
             }
 
-            // Sort by distance
+            // Sort by distance (Visit closest points first)
             candidates.Sort((a, b) => Vector3.Distance(monsterPos, a).CompareTo(Vector3.Distance(monsterPos, b)));
 
             // Fill Queue

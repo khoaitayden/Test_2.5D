@@ -30,9 +30,11 @@ public class MonsterConfig : MonoBehaviour
     public LayerMask obstacleLayerMask;
     
     [Header("Investigation")]
-    public float investigateRadius = 30f;
-    public int investigationPoints = 3;
+    public float investigateRadius = 50f;
+    public int investigationPoints = 5;
     public float maxInvestigationTime = 20.0f;
+    public float minCoverPointDistance = 20.0f; 
+    public int numCoverFinderRayCasts= 16;
     
     [Header("Chase")]
     public float maxChaseTime = 15.0f;
