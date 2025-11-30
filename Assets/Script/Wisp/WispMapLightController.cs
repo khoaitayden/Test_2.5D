@@ -5,29 +5,29 @@ using System.Collections.Generic;
 public class WispMapLightController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform player;
+    [SerializeField] private Transform player;
     private Transform mainCameraTransform;
 
     [Header("Lights")]
-    public Light pointLight;
-    public Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
+    [SerializeField] private Light pointLight;
+    [SerializeField] private Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
 
-    public Light visionLight;
-    public Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
+    [SerializeField] private Light visionLight;
+    [SerializeField] private Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
 
-    public Light focusLight;
-    public Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
+    [SerializeField] private Light focusLight;
+    [SerializeField] private Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
 
     [Header("Detection")]
     public LayerMask detectionLayer = -1;
 
     [Header("Floating & Movement")]
-    public float floatStrength = 0.2f;
-    public float floatSpeed = 2f;
-    public float smoothTime = 0.3f;
+    [SerializeField] private float floatStrength = 0.2f;
+    [SerializeField] private float floatSpeed = 2f;
+    [SerializeField] private float smoothTime = 0.3f;
 
     [Header("Controls")]
-    public KeyCode switchKey = KeyCode.F;
+    [SerializeField] private KeyCode switchKey = KeyCode.F;
 
     // Original settings (full power)
     private float origPointI, origPointR;

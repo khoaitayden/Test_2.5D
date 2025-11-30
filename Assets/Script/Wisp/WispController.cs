@@ -4,27 +4,27 @@ using UnityEngine;
 public class WispController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform playerTransform;
-    public PlayerController playerController;
+    [SerializeField] private Transform playerTransform;
+    [SerializeField] private PlayerController playerController;
 
     [Header("Orbit Settings")]
-    public float orbitRadius = 2f;
-    public float orbitHeight = 1.5f;
-    public float orbitSpeed = 40f;
-    public float followLag = 0.5f;
+    [SerializeField] private float orbitRadius = 2f;
+    [SerializeField] private float orbitHeight = 1.5f;
+    [SerializeField] private float orbitSpeed = 40f;
+    [SerializeField] private float followLag = 0.5f;
 
     [Header("Lively Motion")]
-    public float bobSpeed = 2f;
-    public float bobHeight = 0.3f;
+    [SerializeField] private float bobSpeed = 2f;
+    [SerializeField] private float bobHeight = 0.3f;
 
     [Header("Camera Safety")]
-    public Transform mainCameraTransform;
-    public float minDistanceFromCamera = 2f;
+    [SerializeField] private Transform mainCameraTransform;
+    [SerializeField] private float minDistanceFromCamera = 2f;
 
     [Header("Inner Glow")]
-    public Light innerGlowLight;
-    public float maxGlowIntensity = 2f;
-    public float minGlowIntensity = 0.5f;
+    [SerializeField] private Light innerGlowLight;
+    [SerializeField] private float maxGlowIntensity = 2f;
+    [SerializeField] private float minGlowIntensity = 0.5f;
 
     private Vector3 currentVelocity = Vector3.zero;
     private float orbitAngle;
