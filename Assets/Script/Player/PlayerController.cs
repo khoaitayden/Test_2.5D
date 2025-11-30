@@ -37,40 +37,15 @@ public class PlayerController : MonoBehaviour
     private Transform mainCameraTransform;
     private bool isDead;
     public Vector3 WorldSpaceMoveDirection { get; private set; }
-    public bool IsSlowWalking { get; private set; }
+    
+    // Properties strictly for logic/animation
+    private bool IsSlowWalking => InputManager.Instance.IsSlowWalking;
+    private bool IsSprinting => InputManager.Instance.IsSprinting;
+    
     private bool wasGrounded;
-    private bool currentTrailActive = false;
-    public bool IsSprinting { get; private set; }
     
-    // Public property for animator to read
-    public Vector2 MoveInput { get; private set; }
-
-    private bool jumpInputDown; // For triggering the jump
-    private bool jumpInputHeld; // For variable jump height
-
-    public void SetMoveInput(Vector2 input)
-    {
-        MoveInput = input;
-    }
-
-    public void SetSlowWalk(bool isWalking)
-    {
-        IsSlowWalking = isWalking;
-    }
-    
-    public void SetSprint(bool isSprinting)
-    {
-        IsSprinting = isSprinting;
-    }
-
-    public void HandleJumpInput(bool isPressed)
-    {
-        if (isPressed)
-        {
-            jumpInputDown = true;
-        }
-        jumpInputHeld = isPressed;
-    }
+    // Jump specific flags
+    private bool jumpRequest; 
 
     void Start()
     {
@@ -78,20 +53,38 @@ public class PlayerController : MonoBehaviour
         mainCameraTransform = Camera.main.transform;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        isDead=false;
+        isDead = false;
 
-        IsSlowWalking = false;
         isGrounded = groundCheck();
         wasGrounded = isGrounded;
-        currentTrailActive = isGrounded && !IsSlowWalking; // <-- ADD THIS
 
         particleController?.ToggleTrail(isGrounded, IsSlowWalking);
+
+        // Subscribe to Jump Event from InputManager
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnJumpTriggered += HandleJumpTrigger;
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnJumpTriggered -= HandleJumpTrigger;
+        }
+    }
+
+    private void HandleJumpTrigger()
+    {
+        if(isGrounded) jumpRequest = true;
     }
 
     void Update()
     {
         isGrounded = groundCheck();
         
+        // --- Landing Logic ---
         if (isGrounded && !wasGrounded)
         {
             float fallIntensity = Mathf.Abs(velocity.y);
@@ -99,44 +92,51 @@ public class PlayerController : MonoBehaviour
             particleController?.ToggleTrail(isGrounded, IsSlowWalking);
             playerAnimation?.Land();
         }
-
-        
         
         wasGrounded = isGrounded;
 
+        // Reset gravity accumulation when grounded
         if (isGrounded && velocity.y < 0) { velocity.y = -2f; }
         
+        // --- Movement Calculation ---
+        // Get Input directly from Manager
+        Vector2 moveInput = InputManager.Instance.MoveInput;
+
         Vector3 camForward = mainCameraTransform.forward;
         Vector3 camRight = mainCameraTransform.right;
         camForward.y = 0; camRight.y = 0;
         camForward.Normalize(); camRight.Normalize();
-        WorldSpaceMoveDirection = (camForward * MoveInput.y + camRight * MoveInput.x).normalized;
+        WorldSpaceMoveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
 
+        // Rotation
         if (WorldSpaceMoveDirection.magnitude >= 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
-        if (jumpInputDown && isGrounded)
+        // --- Jumping ---
+        if (jumpRequest && isGrounded)
         {
             particleController?.PlayJumpEffect();
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             playerAnimation?.Jump();
+            jumpRequest = false; // Reset request
         }
-        jumpInputDown = false;
         
+        // --- Gravity ---
         if (velocity.y < 0) 
         { 
             velocity.y += gravity * (fallMultiplier - 1) * Time.deltaTime; 
         }
-        else if (velocity.y > 0 && !jumpInputHeld) 
+        else if (velocity.y > 0 && !InputManager.Instance.IsJumpHeld) // Check held state for variable jump
         { 
             velocity.y += gravity * (lowJumpMultiplier - 1) * Time.deltaTime; 
         }
         velocity.y += gravity * Time.deltaTime;
         velocity.y = Mathf.Max(velocity.y, -terminalVelocity);
         
+        // --- Velocity Application ---
         float currentMoveSpeed = moveSpeed;
         if (IsSprinting) { currentMoveSpeed *= sprintSpeedMultiplier; }
         else if (IsSlowWalking) { currentMoveSpeed *= slowWalkSpeedMultiplier; }

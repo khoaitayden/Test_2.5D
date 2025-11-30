@@ -1,4 +1,3 @@
-// WispMapLightController.cs
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -26,10 +25,9 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private float floatSpeed = 2f;
     [SerializeField] private float smoothTime = 0.3f;
 
-    [Header("Controls")]
-    [SerializeField] private KeyCode switchKey = KeyCode.F;
+    // REMOVED: [SerializeField] private KeyCode switchKey = KeyCode.F; // No longer needed
 
-    // Original settings (full power)
+    // Original settings
     private float origPointI, origPointR;
     private float origVisionI, origVisionR;
     private float origFocusI, origFocusR;
@@ -50,20 +48,28 @@ public class WispMapLightController : MonoBehaviour
 
         CacheOriginalSettings();
         ApplyLightMode();
+
+        // Subscribe to Input
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnWispSwitchTriggered += CycleLightMode;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Always unsubscribe to prevent memory leaks
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnWispSwitchTriggered -= CycleLightMode;
+        }
     }
 
     void Update()
     {
-        HandleInput();
+        // REMOVED: HandleInput(); // Logic moved to Event
         ApplyGlobalLightEnergy();
         UpdateLitObjects();
-    }
-
-    void FixedUpdate()
-    {
-        // Optional: keep for debugging, or remove
-        // Collider[] litObjects = GetObjectsInLight();
-        // foreach (Collider obj in litObjects) Debug.Log(obj.name);
     }
 
     void LateUpdate()
@@ -79,13 +85,11 @@ public class WispMapLightController : MonoBehaviour
     }
 
     // --- Input Handling ---
-    void HandleInput()
+    // Changed from "HandleInput" (called in Update) to a standalone method called by Event
+    void CycleLightMode()
     {
-        if (Input.GetKeyDown(switchKey))
-        {
-            currentMode = (LightMode)(((int)currentMode + 1) % 3);
-            ApplyLightMode();
-        }
+        currentMode = (LightMode)(((int)currentMode + 1) % 3);
+        ApplyLightMode();
     }
 
     // --- Global Light Energy (Dimming) ---
@@ -106,32 +110,21 @@ public class WispMapLightController : MonoBehaviour
         }
     }
 
-    // --- Lit Object Management (Observer Pattern) ---
+    // --- Lit Object Management ---
     void UpdateLitObjects()
     {
         Collider[] newlyLitColliders = GetObjectsInLight();
         HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
 
-        // Handle newly lit objects
         foreach (Collider col in newLitSet)
         {
-            if (!currentlyLit.Contains(col))
-            {
-                NotifyLit(col, true);
-            }
-            else
-            {
-                DrainEnergyFrom(col);
-            }
+            if (!currentlyLit.Contains(col)) NotifyLit(col, true);
+            else DrainEnergyFrom(col);
         }
 
-        // Handle objects that are no longer lit
         foreach (Collider col in currentlyLit)
         {
-            if (!newLitSet.Contains(col))
-            {
-                NotifyLit(col, false);
-            }
+            if (!newLitSet.Contains(col)) NotifyLit(col, false);
         }
 
         currentlyLit = newLitSet;
@@ -142,18 +135,15 @@ public class WispMapLightController : MonoBehaviour
         ILitObject litObj = col.GetComponent<ILitObject>();
         if (litObj != null)
         {
-            if (isLit)
-                litObj.OnLit();
-            else
-                litObj.OnUnlit();
+            if (isLit) litObj.OnLit();
+            else litObj.OnUnlit();
         }
     }
 
     void DrainEnergyFrom(Collider col)
     {
         TombstoneController tomb = col.GetComponent<TombstoneController>();
-        if (tomb != null)
-            tomb.DrainEnergy(Time.deltaTime);
+        if (tomb != null) tomb.DrainEnergy(Time.deltaTime);
     }
 
     // --- Light Position & Rotation ---
@@ -239,14 +229,14 @@ public class WispMapLightController : MonoBehaviour
 
         if (activeLight.type == LightType.Point)
         {
-            return Physics.OverlapSphere(activeLight.transform.position, currentRange*0.7f, detectionLayer);
+            return Physics.OverlapSphere(activeLight.transform.position, currentRange * 0.7f, detectionLayer);
         }
         else if (activeLight.type == LightType.Spot)
         {
             return OverlapSpot(
                 activeLight.transform.position,
                 activeLight.transform.forward,
-                currentRange*0.7f,
+                currentRange * 0.7f,
                 activeLight.spotAngle,
                 detectionLayer
             );

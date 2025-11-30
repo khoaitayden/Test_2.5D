@@ -1,66 +1,87 @@
-// FILE TO EDIT: PlayerInputManager.cs
-
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
-[RequireComponent(typeof(PlayerController))]
-public class InputManager : MonoBehaviour
+public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
 {
-    private PlayerController playerController;
-    private PlayerInput playerInputActions;
+    public static InputManager Instance { get; private set; }
+
+    private PlayerInput _playerInput;
+
+    // --- Data Properties (Polled in Update) ---
+    public Vector2 MoveInput { get; private set; }
+    public bool IsSprinting { get; private set; }
+    public bool IsSlowWalking { get; private set; }
+    public bool IsJumpHeld { get; private set; }
+
+    // --- Events (Subscribed to by other scripts) ---
+    public event Action OnJumpTriggered;   // Happens frame button is pressed
+    public event Action OnJumpReleased;    // Happens frame button is released
+    public event Action OnWispSwitchTriggered; // The new 'F' key action
 
     private void Awake()
     {
-        playerController = GetComponent<PlayerController>();
-        playerInputActions = new PlayerInput();
+        // Singleton Setup
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            return;
+        }
+
+        _playerInput = new PlayerInput();
+        // Register this class to handle the callbacks defined in the Input Asset
+        _playerInput.Player.SetCallbacks(this);
     }
 
     private void OnEnable()
     {
-        playerInputActions.Player.Enable();
-        
-        // Subscribe to events
-        playerInputActions.Player.Movement.performed += OnMovementInput;
-        playerInputActions.Player.Movement.canceled += OnMovementInput;
-
-        // --- THIS IS THE FIX for JUMP HOLD ---
-        playerInputActions.Player.Jump.performed += OnJumpInput;
-        playerInputActions.Player.Jump.canceled += OnJumpRelease; // Subscribe to release event
-
-        playerInputActions.Player.SlowWalk.performed += context => playerController.SetSlowWalk(true);
-        playerInputActions.Player.SlowWalk.canceled += context => playerController.SetSlowWalk(false);
-
-        playerInputActions.Player.Sprint.performed += context => playerController.SetSprint(true);
-        playerInputActions.Player.Sprint.canceled += context => playerController.SetSprint(false);
+        _playerInput.Player.Enable();
     }
 
     private void OnDisable()
     {
-        // Unsubscribe from all events
-        playerInputActions.Player.Movement.performed -= OnMovementInput;
-        playerInputActions.Player.Movement.canceled -= OnMovementInput;
-
-        playerInputActions.Player.Jump.performed -= OnJumpInput;
-        playerInputActions.Player.Jump.canceled -= OnJumpRelease; // Unsubscribe
-
-        // ... (rest of OnDisable is the same as before) ...
-
-        playerInputActions.Player.Disable();
-    }
-    
-    private void OnMovementInput(InputAction.CallbackContext context)
-    {
-        playerController.SetMoveInput(context.ReadValue<Vector2>());
+        _playerInput.Player.Disable();
     }
 
-    private void OnJumpInput(InputAction.CallbackContext context)
+    // --- Interface Implementation (IPlayerActions) ---
+
+    public void OnMovement(InputAction.CallbackContext context)
     {
-        playerController.HandleJumpInput(true); // Signal jump button is PRESSED
+        MoveInput = context.ReadValue<Vector2>();
     }
 
-    // --- NEW METHOD ---
-    private void OnJumpRelease(InputAction.CallbackContext context)
+    public void OnSlowWalk(InputAction.CallbackContext context)
     {
-        playerController.HandleJumpInput(false); // Signal jump button is RELEASED
+        IsSlowWalking = context.ReadValueAsButton();
+    }
+
+    public void OnSprint(InputAction.CallbackContext context)
+    {
+        IsSprinting = context.ReadValueAsButton();
+    }
+
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            IsJumpHeld = true;
+            OnJumpTriggered?.Invoke();
+        }
+        else if (context.canceled)
+        {
+            IsJumpHeld = false;
+            OnJumpReleased?.Invoke();
+        }
+    }
+
+    public void OnWispSwitch(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            OnWispSwitchTriggered?.Invoke();
+        }
     }
 }
