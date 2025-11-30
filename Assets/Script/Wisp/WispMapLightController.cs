@@ -25,8 +25,6 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private float floatSpeed = 2f;
     [SerializeField] private float smoothTime = 0.3f;
 
-    // REMOVED: [SerializeField] private KeyCode switchKey = KeyCode.F; // No longer needed
-
     // Original settings
     private float origPointI, origPointR;
     private float origVisionI, origVisionR;
@@ -41,6 +39,9 @@ public class WispMapLightController : MonoBehaviour
     private Light activeLight;
     private HashSet<Collider> currentlyLit = new HashSet<Collider>();
 
+    // New flag for Manual Toggle
+    private bool isSystemPoweredOn = true;
+
     void Start()
     {
         if (Camera.main != null)
@@ -52,25 +53,89 @@ public class WispMapLightController : MonoBehaviour
         // Subscribe to Input
         if (InputManager.Instance != null)
         {
-            InputManager.Instance.OnWispSwitchTriggered += CycleLightMode;
+            // Short Press = Cycle Mode
+            InputManager.Instance.OnWispCycleTriggered += CycleLightMode;
+            // Long Hold = Toggle Power
+            InputManager.Instance.OnWispPowerToggleTriggered += TogglePower;
         }
     }
 
     private void OnDestroy()
     {
-        // Always unsubscribe to prevent memory leaks
         if (InputManager.Instance != null)
         {
-            InputManager.Instance.OnWispSwitchTriggered -= CycleLightMode;
+            InputManager.Instance.OnWispCycleTriggered -= CycleLightMode;
+            InputManager.Instance.OnWispPowerToggleTriggered -= TogglePower;
         }
     }
 
     void Update()
     {
-        // REMOVED: HandleInput(); // Logic moved to Event
-        ApplyGlobalLightEnergy();
+        // Only calculate dimming/energy if the system is actually On
+        if (isSystemPoweredOn)
+        {
+            ApplyGlobalLightEnergy();
+        }
+        
         UpdateLitObjects();
     }
+
+    // --- Input Event Handlers ---
+
+    void CycleLightMode()
+    {
+        // Don't change modes if the light is turned off
+        if (!isSystemPoweredOn) return;
+
+        currentMode = (LightMode)(((int)currentMode + 1) % 3);
+        ApplyLightMode();
+    }
+
+    void TogglePower()
+    {
+        isSystemPoweredOn = !isSystemPoweredOn;
+
+        if (isSystemPoweredOn)
+        {
+            // Turning ON: Resume Drain, Restore Light
+            if (LightEnergyManager.Instance != null)
+                LightEnergyManager.Instance.SetDrainPaused(false);
+            
+            ApplyLightMode(); 
+        }
+        else
+        {
+            // Turning OFF: Pause Drain, Kill Light
+            if (LightEnergyManager.Instance != null)
+                LightEnergyManager.Instance.SetDrainPaused(true);
+            
+            TurnOffAllLights();
+        }
+        
+    }
+
+    // --- Core Logic ---
+
+    void ApplyGlobalLightEnergy()
+    {
+        if (LightEnergyManager.Instance == null) return;
+
+        float energy = LightEnergyManager.Instance.GetIntensityFactor();
+        
+        // Even if system is ON, if energy is 0, we must turn off
+        if (energy <= 0f)
+        {
+            TurnOffAllLights();
+            return;
+        }
+
+        float effectiveRange = energy;
+        float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
+
+        ApplyDimmedSettings(effectiveRange, effectiveIntensity);
+    }
+
+    // ... (LateUpdate, UpdateLitObjects, NotifyLit, DrainEnergyFrom, UpdateLight, CacheOriginalSettings, ApplyDimmedSettings, GetObjectsInLight REMAIN EXACTLY THE SAME AS BEFORE) ...
 
     void LateUpdate()
     {
@@ -79,38 +144,14 @@ public class WispMapLightController : MonoBehaviour
         Vector3 basePos = player.position;
         float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
 
+        // Visuals update even if light is off (the physical object still floats)
         UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
         UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
-
-    // --- Input Handling ---
-    // Changed from "HandleInput" (called in Update) to a standalone method called by Event
-    void CycleLightMode()
-    {
-        currentMode = (LightMode)(((int)currentMode + 1) % 3);
-        ApplyLightMode();
-    }
-
-    // --- Global Light Energy (Dimming) ---
-    void ApplyGlobalLightEnergy()
-    {
-        if (LightEnergyManager.Instance == null) return;
-
-        float energy = LightEnergyManager.Instance.GetIntensityFactor();
-        float effectiveRange = energy;
-        float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
-
-        ApplyDimmedSettings(effectiveRange, effectiveIntensity);
-
-        if (energy <= 0f)
-        {
-            TurnOffAllLights();
-            activeLight = null;
-        }
-    }
-
-    // --- Lit Object Management ---
+    
+    // ... (Keep the rest of the existing methods below) ...
+    
     void UpdateLitObjects()
     {
         Collider[] newlyLitColliders = GetObjectsInLight();
@@ -146,7 +187,6 @@ public class WispMapLightController : MonoBehaviour
         if (tomb != null) tomb.DrainEnergy(Time.deltaTime);
     }
 
-    // --- Light Position & Rotation ---
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
     {
         if (light == null) return;
@@ -164,7 +204,6 @@ public class WispMapLightController : MonoBehaviour
             light.transform.rotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
     }
 
-    // --- Initialization ---
     void CacheOriginalSettings()
     {
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
@@ -174,6 +213,9 @@ public class WispMapLightController : MonoBehaviour
 
     void ApplyLightMode()
     {
+        // If system is manually off, don't turn on lights
+        if (!isSystemPoweredOn) return; 
+
         TurnOffAllLights();
         switch (currentMode)
         {
@@ -218,8 +260,7 @@ public class WispMapLightController : MonoBehaviour
             focusLight.intensity = origFocusI * intensityFactor;
         }
     }
-
-    // --- Detection ---
+    
     public Collider[] GetObjectsInLight()
     {
         if (activeLight == null || !activeLight.enabled)

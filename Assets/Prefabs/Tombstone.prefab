@@ -48,7 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce1e465c42dc5f24392a8867cd1a7ef5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tombstonecontroller
-  energyRange: {x: 0.4, y: 0.8}
+  energyRange: {x: 0.5, y: 0.8}
   spriteRenderer: {fileID: 9174580218717002390}
   tombstoneSprites:
   - {fileID: -2020022695, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
@@ -61,7 +61,7 @@ MonoBehaviour:
   - {fileID: 871994168, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   - {fileID: -251498489, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   maxEnergy: 0.5
-  transferRate: 0.1
+  transferRate: 0.5
   rechargeDelay: 10
   regainRate: 0.1
   energyIndicatorLight: {fileID: 1161283004597510785}
@@ -315,6 +315,7 @@ GameObject:
   - component: {fileID: 259921578880902126}
   - component: {fileID: 5884447155509154794}
   - component: {fileID: 1983756327750524819}
+  - component: {fileID: 7608005325626858961}
   m_Layer: 9
   m_Name: WispEnergy Particle
   m_TagString: Untagged
@@ -420,7 +421,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 2
+      scalar: 10
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -5142,3 +5143,20 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &7608005325626858961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9215938340996226496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79382dc69229267d497b489cb9f46052, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TombstonePowerParticleController
+  triggerLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  checkRadius: 0.01
+  energyPerParticle: 0.1

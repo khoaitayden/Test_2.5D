@@ -1,3 +1,4 @@
+using System.Collections;
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
 using CrashKonijn.Goap.Runtime;
@@ -19,31 +20,48 @@ public class MonsterBrain : MonoBehaviour
     private void Awake()
     {
         provider = GetComponent<GoapActionProvider>();
+        
+        // CRITICAL FIX: Stop the Provider from starting before we assign the AgentType
+        if (provider != null)
+        {
+            provider.enabled = false;
+        }
     }
 
-    // FIX: Moved Goal Request to Start() so the AgentType has time to initialize
-    private void Start()
+    private IEnumerator Start()
     {
-        // 1. Auto-assign AgentType if missing
+        // 1. Wait for the GOAP System to initialize
+        yield return null; 
+
+        // 2. Resolve Agent Type
         if (provider.AgentType == null)
         {
-            // Find the main GOAP Controller in the scene
             var goap = Object.FindFirstObjectByType<GoapBehaviour>();
             
-            if (goap != null)
+            if (goap == null)
             {
-                // Assign the 'ScriptMonsterAgent' type we defined in the factory
+                Debug.LogError("[MonsterBrain] CRITICAL: No GoapBehaviour found in scene!");
+                yield break;
+            }
+
+            try 
+            {
                 provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
             }
-            else
+            catch (System.Exception)
             {
-                Debug.LogError("[MonsterBrain] Critical: No GoapBehaviour found in scene!");
-                return;
+                Debug.LogError("[MonsterBrain] AgentType 'ScriptMonsterAgent' not found! Check your GoapBehaviour.");
+                yield break;
             }
         }
 
-        // 2. NOW it is safe to request goals
+        // 3. Setup Initial State
         UpdateGOAPState(); 
+        
+        // 4. ACTIVATE THE PROVIDER (Safe now)
+        provider.enabled = true;
+        
+        // 5. Request Goal
         provider.RequestGoal<KillPlayerGoal>();
     }
 
@@ -90,7 +108,8 @@ public class MonsterBrain : MonoBehaviour
 
     public void OnArrivedAtSuspiciousLocation()
     {
-        provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
+        if (provider != null)
+            provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
     }
 
     // --- INTERNAL HELPER ---
