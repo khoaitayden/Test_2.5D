@@ -1,6 +1,7 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Core;
 using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 
 namespace CrashKonijn.Goap.MonsterGen
@@ -9,6 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterBrain brain;
         private MonsterConfig config;
+        private CoverFinder coverFinder;
 
         public override void Created() { }
         public override void Update() { }
@@ -17,16 +19,24 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
+            if (coverFinder == null) coverFinder = references.GetCachedComponent<CoverFinder>();
             
             if (brain == null || brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 
-            // Physical Distance Check
-            float dist = Vector3.Distance(agent.Transform.position, brain.LastKnownPlayerPosition);
+            // 1. Logic Override: If we have points, we are "At Location" (doing the job)
+            if (coverFinder != null && coverFinder.HasPoints) return 1;
 
-            // Use the Investigate Radius itself.
-            // If we are ANYWHERE inside the investigation zone, we are "At Location".
-            // This allows us to move between cover points without triggering "GoTo".
-            return (dist <= config.investigateRadius) ? 1 : 0;
+            // 2. Physical Distance Check
+            // Flatten Y to handle elevation differences
+            Vector3 current = agent.Transform.position; current.y = 0;
+            Vector3 target = brain.LastKnownPlayerPosition; target.y = 0;
+            
+            float dist = Vector3.Distance(current, target);
+            
+            // Must match the threshold in InvestigateTargetSensor
+            float threshold = config.stoppingDistance + 1.0f;
+
+            return (dist <= threshold) ? 1 : 0;
         }
     }
 }

@@ -21,7 +21,6 @@ namespace CrashKonijn.Goap.MonsterGen
             
             if (data.Target != null)
             {
-                // Simple Move Call
                 movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
             }
         }
@@ -30,8 +29,10 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
             
+            // Use the simplified check
             if (movement.HasArrivedOrStuck())
             {
+                // Critical: Tell Brain we arrived so we can transition to Search
                 brain?.OnArrivedAtSuspiciousLocation();
                 return ActionRunState.Completed;
             }
@@ -39,7 +40,11 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
         
-        public override void End(IMonoAgent agent, Data data) { movement.Stop(); }
+        public override void End(IMonoAgent agent, Data data) 
+        { 
+            movement.Stop(); 
+        }
+        
         public class Data : IActionData { public ITarget Target { get; set; } }
     }
 }
