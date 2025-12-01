@@ -1,11 +1,21 @@
 using UnityEngine;
 using System.Collections.Generic;
+// If this namespace errors, try "using Cinemachine;" instead
+using Unity.Cinemachine; 
 
 public class WispMapLightController : MonoBehaviour
 {
     [Header("Target")]
     [SerializeField] private Transform player;
     private Transform mainCameraTransform;
+
+    [Header("Cinemachine Settings")]
+    // CHANGED: CinemachineVirtualCamera -> CinemachineCamera (CM 3.0)
+    [SerializeField] private CinemachineCamera virtualCamera; 
+    [SerializeField] private float pointLightFarClip = 40f;
+    [SerializeField] private float visionLightFarClip = 100f;
+    [SerializeField] private float focusLightFarClip = 60f;
+    [SerializeField] private float offLightFarClip = 15f;
 
     [Header("Lights")]
     [SerializeField] private Light pointLight;
@@ -48,14 +58,12 @@ public class WispMapLightController : MonoBehaviour
             mainCameraTransform = Camera.main.transform;
 
         CacheOriginalSettings();
-        ApplyLightMode();
+        ApplyLightMode(); 
 
         // Subscribe to Input
         if (InputManager.Instance != null)
         {
-            // Short Press = Cycle Mode
             InputManager.Instance.OnWispCycleTriggered += CycleLightMode;
-            // Long Hold = Toggle Power
             InputManager.Instance.OnWispPowerToggleTriggered += TogglePower;
         }
     }
@@ -71,7 +79,6 @@ public class WispMapLightController : MonoBehaviour
 
     void Update()
     {
-        // Only calculate dimming/energy if the system is actually On
         if (isSystemPoweredOn)
         {
             ApplyGlobalLightEnergy();
@@ -84,7 +91,6 @@ public class WispMapLightController : MonoBehaviour
 
     void CycleLightMode()
     {
-        // Don't change modes if the light is turned off
         if (!isSystemPoweredOn) return;
 
         currentMode = (LightMode)(((int)currentMode + 1) % 3);
@@ -97,7 +103,7 @@ public class WispMapLightController : MonoBehaviour
 
         if (isSystemPoweredOn)
         {
-            // Turning ON: Resume Drain, Restore Light
+            // Turning ON
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(false);
             
@@ -105,13 +111,12 @@ public class WispMapLightController : MonoBehaviour
         }
         else
         {
-            // Turning OFF: Pause Drain, Kill Light
+            // Turning OFF
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(true);
             
             TurnOffAllLights();
         }
-        
     }
 
     // --- Core Logic ---
@@ -122,7 +127,6 @@ public class WispMapLightController : MonoBehaviour
 
         float energy = LightEnergyManager.Instance.GetIntensityFactor();
         
-        // Even if system is ON, if energy is 0, we must turn off
         if (energy <= 0f)
         {
             TurnOffAllLights();
@@ -135,8 +139,6 @@ public class WispMapLightController : MonoBehaviour
         ApplyDimmedSettings(effectiveRange, effectiveIntensity);
     }
 
-    // ... (LateUpdate, UpdateLitObjects, NotifyLit, DrainEnergyFrom, UpdateLight, CacheOriginalSettings, ApplyDimmedSettings, GetObjectsInLight REMAIN EXACTLY THE SAME AS BEFORE) ...
-
     void LateUpdate()
     {
         if (player == null || mainCameraTransform == null) return;
@@ -144,14 +146,64 @@ public class WispMapLightController : MonoBehaviour
         Vector3 basePos = player.position;
         float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
 
-        // Visuals update even if light is off (the physical object still floats)
         UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
         UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
+
+    // --- Camera Helper (FIXED FOR CM 3.0) ---
     
-    // ... (Keep the rest of the existing methods below) ...
-    
+    void UpdateCameraClip(float farClipValue)
+    {
+        if (virtualCamera != null)
+        {
+            // In CM 3.0, Lens is a property returning a struct. 
+            // We must read it, modify it, and write it back.
+            var lensSettings = virtualCamera.Lens;
+            lensSettings.FarClipPlane = farClipValue;
+            virtualCamera.Lens = lensSettings;
+        }
+    }
+
+    // --- Light Management ---
+
+    void ApplyLightMode()
+    {
+        // If system is manually off, don't turn on lights
+        if (!isSystemPoweredOn) return; 
+
+        TurnOffAllLights(); // Reset active light
+
+        switch (currentMode)
+        {
+            case LightMode.Point:
+                if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
+                UpdateCameraClip(pointLightFarClip);
+                break;
+            case LightMode.Vision:
+                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
+                UpdateCameraClip(visionLightFarClip);
+                break;
+            case LightMode.Focus:
+                if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
+                UpdateCameraClip(focusLightFarClip);
+                break;
+        }
+    }
+
+    void TurnOffAllLights()
+    {
+        if (pointLight != null) pointLight.enabled = false;
+        if (visionLight != null) visionLight.enabled = false;
+        if (focusLight != null) focusLight.enabled = false;
+        activeLight = null;
+
+        // Apply "Off" camera setting
+        UpdateCameraClip(offLightFarClip);
+    }
+
+    // --- Boilerplate ---
+
     void UpdateLitObjects()
     {
         Collider[] newlyLitColliders = GetObjectsInLight();
@@ -209,34 +261,6 @@ public class WispMapLightController : MonoBehaviour
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
         if (visionLight != null) { origVisionI = visionLight.intensity; origVisionR = visionLight.range; }
         if (focusLight != null) { origFocusI = focusLight.intensity; origFocusR = focusLight.range; }
-    }
-
-    void ApplyLightMode()
-    {
-        // If system is manually off, don't turn on lights
-        if (!isSystemPoweredOn) return; 
-
-        TurnOffAllLights();
-        switch (currentMode)
-        {
-            case LightMode.Point:
-                if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
-                break;
-            case LightMode.Vision:
-                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
-                break;
-            case LightMode.Focus:
-                if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
-                break;
-        }
-    }
-
-    void TurnOffAllLights()
-    {
-        if (pointLight != null) pointLight.enabled = false;
-        if (visionLight != null) visionLight.enabled = false;
-        if (focusLight != null) focusLight.enabled = false;
-        activeLight = null;
     }
 
     void ApplyDimmedSettings(float rangeFactor, float intensityFactor)

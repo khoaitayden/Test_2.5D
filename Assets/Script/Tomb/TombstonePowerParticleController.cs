@@ -67,6 +67,6 @@ public class TombstonePowerParticleController : MonoBehaviour
     
     void OnParticleAbsorbed(GameObject absorber, Vector3 position)
     {
-        Debug.Log($"Particle absorbed by {absorber.name} - Energy restored: {energyManager.CurrentEnergy}");
+        //Debug.Log($"Particle absorbed by {absorber.name} - Energy restored: {energyManager.CurrentEnergy}");
     }
 }
