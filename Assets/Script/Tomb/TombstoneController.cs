@@ -110,7 +110,7 @@ public class TombstoneController : MonoBehaviour, ILitObject
     public void DrainEnergyByAmount(float amount)
     {
         if (currentEnergy <= 0f) return;
-        
+        TraceEventBus.Emit(transform.position, TraceType.Soul_Collection);
         currentEnergy -= amount;
         if (currentEnergy < 0f) currentEnergy = 0f;
         

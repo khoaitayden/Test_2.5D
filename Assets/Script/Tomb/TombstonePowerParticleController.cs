@@ -4,35 +4,37 @@ public class TombstonePowerParticleController : MonoBehaviour
 {
     [Header("Detection Settings")]
     [SerializeField] private LayerMask triggerLayers;
-    [SerializeField] private float checkRadius;
+    [SerializeField] private float checkRadius = 0.5f;
     
     [Header("Energy Settings")]
-    [SerializeField] private float energyPerParticle; 
-    
-    // [Header("Optional: Visual Feedback")]
-    // [SerializeField] private bool spawnAbsorbEffect = false;
-    // [SerializeField] private GameObject absorbEffectPrefab;
+    [SerializeField] private float energyPerParticle = 0.05f; 
     
     private ParticleSystem ps;
     private ParticleSystem.Particle[] particles;
     private Collider[] hitBuffer = new Collider[4];
     private LightEnergyManager energyManager;
+    
+    // Reference to the parent logic script
+    private TombstoneController tombstoneController;
 
     void Start()
     {
         ps = GetComponent<ParticleSystem>();
-        particles = new ParticleSystem.Particle[ps.main.maxParticles];
+        // Ensure array is large enough
+        if (ps != null)
+            particles = new ParticleSystem.Particle[ps.main.maxParticles];
         
-        // Find the energy manager
         energyManager = FindFirstObjectByType<LightEnergyManager>();
-        if (energyManager == null)
-        {
-            Debug.LogWarning("LightEnergyManager not found! Particles won't restore energy.");
-        }
+        
+        // Grab the controller on the same object (or parent)
+        tombstoneController = GetComponent<TombstoneController>();
+        if (tombstoneController == null) tombstoneController = GetComponentInParent<TombstoneController>();
     }
 
     void LateUpdate()
     {
+        if (ps == null) return;
+
         int count = ps.GetParticles(particles);
 
         for (int i = 0; i < count; i++)
@@ -42,31 +44,24 @@ public class TombstonePowerParticleController : MonoBehaviour
             
             if (hits > 0)
             {
-                // Restore energy when particle is absorbed
+                // 1. Give Energy to Player
                 if (energyManager != null && energyPerParticle > 0f)
                 {
                     energyManager.RestoreEnergy(energyPerParticle);
                 }
                 
-                // Optional: spawn absorption effect
-                // if (spawnAbsorbEffect && absorbEffectPrefab != null)
-                // {
-                //     Instantiate(absorbEffectPrefab, pos, Quaternion.identity);
-                // }
+                // 2. Remove Energy from Tombstone (Crucial Fix)
+                if (tombstoneController != null)
+                {
+                    // This will trigger the Trace Event inside TombstoneController
+                    tombstoneController.DrainEnergyByAmount(energyPerParticle);
+                }
                 
-                // Optional: notify the absorber (Wisp)
-                OnParticleAbsorbed(hitBuffer[0].gameObject, pos);
-                
-                // Kill particle
+                // 3. Kill particle
                 particles[i].remainingLifetime = 0f;
             }
         }
 
         ps.SetParticles(particles, count);
-    }
-    
-    void OnParticleAbsorbed(GameObject absorber, Vector3 position)
-    {
-        //Debug.Log($"Particle absorbed by {absorber.name} - Energy restored: {energyManager.CurrentEnergy}");
     }
 }
