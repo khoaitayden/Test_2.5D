@@ -1,33 +1,44 @@
-// WispController.cs
+using JetBrains.Annotations;
 using UnityEngine;
 
 public class WispController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform playerTransform;
-    public PlayerController playerController;
+    [SerializeField] private Transform playerTransform;
+    [SerializeField] private PlayerController playerController;
 
     [Header("Orbit Settings")]
-    public float orbitRadius = 2f;
-    public float orbitHeight = 1.5f;
-    public float orbitSpeed = 40f;
-    public float followLag = 0.5f;
+    [SerializeField] private float orbitRadius = 2f;
+    [SerializeField] private float orbitHeight = 1.5f;
+    [SerializeField] private float orbitSpeed = 40f;
+    [SerializeField] private float followLag = 0.5f;
 
     [Header("Lively Motion")]
-    public float bobSpeed = 2f;
-    public float bobHeight = 0.3f;
+    [SerializeField] private float bobSpeed = 2f;
+    [SerializeField] private float bobHeight = 0.3f;
+
+    [Header("Obstacle Avoidance")]
+    [Tooltip("Layers the Wisp should dodge (e.g., Default, Ground). Don't include Player!")]
+    [SerializeField] private LayerMask obstacleLayer; 
+    [Tooltip("How large is the bubble around the wisp for detection?")]
+    [SerializeField] private float collisionRadius = 0.5f;
+    [Tooltip("How hard the wisp pushes away from walls.")]
+    [SerializeField] private float avoidanceStrength = 5f;
 
     [Header("Camera Safety")]
-    public Transform mainCameraTransform;
-    public float minDistanceFromCamera = 2f;
+    [SerializeField] private Transform mainCameraTransform;
+    [SerializeField] private float minDistanceFromCamera = 2f;
 
     [Header("Inner Glow")]
-    public Light innerGlowLight;
-    public float maxGlowIntensity = 2f;
-    public float minGlowIntensity = 0.5f;
+    [SerializeField] private Light innerGlowLight;
+    [SerializeField] private float maxGlowIntensity = 2f;
+    [SerializeField] private float minGlowIntensity = 0.5f;
 
     private Vector3 currentVelocity = Vector3.zero;
     private float orbitAngle;
+    
+    // Optimization for Physics allocation
+    private Collider[] hitColliders = new Collider[5]; 
 
     void Start()
     {
@@ -53,7 +64,7 @@ public class WispController : MonoBehaviour
     {
         if (!enabled || playerTransform == null || mainCameraTransform == null) return;
 
-        // --- Orbit ---
+        // --- 1. Base Orbit Calculation ---
         orbitAngle += orbitSpeed * Time.deltaTime;
         if (orbitAngle > 360f) orbitAngle -= 360f;
 
@@ -63,34 +74,76 @@ public class WispController : MonoBehaviour
             Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
         );
 
-        // --- Lag ---
+        // --- 2. Follow Lag ---
         Vector3 lagOffset = Vector3.zero;
         if (playerController.WorldSpaceMoveDirection.magnitude > 0.1f)
         {
             lagOffset = -playerTransform.forward * followLag;
         }
 
-        // --- Bob ---
+        // --- 3. Bobbing ---
         float bobOffset = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
 
-        // --- Final Position ---
-        Vector3 finalTargetPosition = playerTransform.position + orbitOffset + lagOffset + Vector3.up * bobOffset;
-        transform.position = Vector3.SmoothDamp(transform.position, finalTargetPosition, ref currentVelocity, 0.2f);
+        // --- 4. Calculate Initial Target ---
+        Vector3 targetPos = playerTransform.position + orbitOffset + lagOffset + Vector3.up * bobOffset;
 
-        // --- Billboard to camera ---
+        // --- 5. OBSTACLE AVOIDANCE (New) ---
+        // Check if the *current* wisp position is touching something, or if the *target* is inside something
+        // We use the current position for the origin to push away from what we are currently touching
+        int numHits = Physics.OverlapSphereNonAlloc(transform.position, collisionRadius, hitColliders, obstacleLayer);
+
+        Vector3 avoidanceVector = Vector3.zero;
+
+        if (numHits > 0)
+        {
+            for (int i = 0; i < numHits; i++)
+            {
+                Collider hit = hitColliders[i];
+                if (hit == null) continue;
+
+                // Find the closest point on the obstacle to the Wisp
+                Vector3 closestPoint = hit.ClosestPoint(transform.position);
+                
+                // Calculate direction AWAY from the obstacle
+                Vector3 pushDir = transform.position - closestPoint;
+                
+                // Prevent divide by zero if exactly inside
+                if (pushDir.sqrMagnitude < 0.0001f) pushDir = Vector3.up;
+
+                // The closer we are, the stronger the push
+                float distance = pushDir.magnitude;
+                float pushFactor = 1f - Mathf.Clamp01(distance / collisionRadius);
+
+                avoidanceVector += pushDir.normalized * pushFactor * avoidanceStrength;
+            }
+        }
+
+        // Apply avoidance to the target
+        targetPos += avoidanceVector;
+
+
+        // --- 6. Apply Movement ---
+        transform.position = Vector3.SmoothDamp(transform.position, targetPos, ref currentVelocity, 0.2f);
+
+        // --- 7. Billboard to camera ---
         Vector3 flatForward = mainCameraTransform.forward;
         flatForward.y = 0;
         if (flatForward.magnitude > 0.1f)
             transform.rotation = Quaternion.LookRotation(flatForward);
 
-        // --- Camera safety ---
+        // --- 8. Camera safety (Clip Prevention) ---
         Vector3 toWisp = transform.position - mainCameraTransform.position;
         if (toWisp.magnitude < minDistanceFromCamera)
         {
             transform.position = mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
         }
 
-        // --- Inner Glow with Global Dimming ---
+        // --- 9. Inner Glow Logic ---
+        UpdateGlow();
+    }
+
+    private void UpdateGlow()
+    {
         if (innerGlowLight != null && LightEnergyManager.Instance != null)
         {
             // Pulsation noise

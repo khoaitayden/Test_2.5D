@@ -1,35 +1,41 @@
-// WispMapLightController.cs
 using UnityEngine;
 using System.Collections.Generic;
+// If this namespace errors, try "using Cinemachine;" instead
+using Unity.Cinemachine; 
 
 public class WispMapLightController : MonoBehaviour
 {
     [Header("Target")]
-    public Transform player;
+    [SerializeField] private Transform player;
     private Transform mainCameraTransform;
 
+    [Header("Cinemachine Settings")]
+    // CHANGED: CinemachineVirtualCamera -> CinemachineCamera (CM 3.0)
+    [SerializeField] private CinemachineCamera virtualCamera; 
+    [SerializeField] private float pointLightFarClip = 40f;
+    [SerializeField] private float visionLightFarClip = 100f;
+    [SerializeField] private float focusLightFarClip = 60f;
+    [SerializeField] private float offLightFarClip = 15f;
+
     [Header("Lights")]
-    public Light pointLight;
-    public Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
+    [SerializeField] private Light pointLight;
+    [SerializeField] private Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
 
-    public Light visionLight;
-    public Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
+    [SerializeField] private Light visionLight;
+    [SerializeField] private Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
 
-    public Light focusLight;
-    public Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
+    [SerializeField] private Light focusLight;
+    [SerializeField] private Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
 
     [Header("Detection")]
     public LayerMask detectionLayer = -1;
 
     [Header("Floating & Movement")]
-    public float floatStrength = 0.2f;
-    public float floatSpeed = 2f;
-    public float smoothTime = 0.3f;
+    [SerializeField] private float floatStrength = 0.2f;
+    [SerializeField] private float floatSpeed = 2f;
+    [SerializeField] private float smoothTime = 0.3f;
 
-    [Header("Controls")]
-    public KeyCode switchKey = KeyCode.F;
-
-    // Original settings (full power)
+    // Original settings
     private float origPointI, origPointR;
     private float origVisionI, origVisionR;
     private float origFocusI, origFocusR;
@@ -43,27 +49,94 @@ public class WispMapLightController : MonoBehaviour
     private Light activeLight;
     private HashSet<Collider> currentlyLit = new HashSet<Collider>();
 
+    // New flag for Manual Toggle
+    private bool isSystemPoweredOn = true;
+
     void Start()
     {
         if (Camera.main != null)
             mainCameraTransform = Camera.main.transform;
 
         CacheOriginalSettings();
-        ApplyLightMode();
+        ApplyLightMode(); 
+
+        // Subscribe to Input
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnWispCycleTriggered += CycleLightMode;
+            InputManager.Instance.OnWispPowerToggleTriggered += TogglePower;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnWispCycleTriggered -= CycleLightMode;
+            InputManager.Instance.OnWispPowerToggleTriggered -= TogglePower;
+        }
     }
 
     void Update()
     {
-        HandleInput();
-        ApplyGlobalLightEnergy();
+        if (isSystemPoweredOn)
+        {
+            ApplyGlobalLightEnergy();
+        }
+        
         UpdateLitObjects();
     }
 
-    void FixedUpdate()
+    // --- Input Event Handlers ---
+
+    void CycleLightMode()
     {
-        // Optional: keep for debugging, or remove
-        // Collider[] litObjects = GetObjectsInLight();
-        // foreach (Collider obj in litObjects) Debug.Log(obj.name);
+        if (!isSystemPoweredOn) return;
+
+        currentMode = (LightMode)(((int)currentMode + 1) % 3);
+        ApplyLightMode();
+    }
+
+    void TogglePower()
+    {
+        isSystemPoweredOn = !isSystemPoweredOn;
+
+        if (isSystemPoweredOn)
+        {
+            // Turning ON
+            if (LightEnergyManager.Instance != null)
+                LightEnergyManager.Instance.SetDrainPaused(false);
+            
+            ApplyLightMode(); 
+        }
+        else
+        {
+            // Turning OFF
+            if (LightEnergyManager.Instance != null)
+                LightEnergyManager.Instance.SetDrainPaused(true);
+            
+            TurnOffAllLights();
+        }
+    }
+
+    // --- Core Logic ---
+
+    void ApplyGlobalLightEnergy()
+    {
+        if (LightEnergyManager.Instance == null) return;
+
+        float energy = LightEnergyManager.Instance.GetIntensityFactor();
+        
+        if (energy <= 0f)
+        {
+            TurnOffAllLights();
+            return;
+        }
+
+        float effectiveRange = energy;
+        float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
+
+        ApplyDimmedSettings(effectiveRange, effectiveIntensity);
     }
 
     void LateUpdate()
@@ -78,60 +151,73 @@ public class WispMapLightController : MonoBehaviour
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
 
-    // --- Input Handling ---
-    void HandleInput()
+    // --- Camera Helper (FIXED FOR CM 3.0) ---
+    
+    void UpdateCameraClip(float farClipValue)
     {
-        if (Input.GetKeyDown(switchKey))
+        if (virtualCamera != null)
         {
-            currentMode = (LightMode)(((int)currentMode + 1) % 3);
-            ApplyLightMode();
+            // In CM 3.0, Lens is a property returning a struct. 
+            // We must read it, modify it, and write it back.
+            var lensSettings = virtualCamera.Lens;
+            lensSettings.FarClipPlane = farClipValue;
+            virtualCamera.Lens = lensSettings;
         }
     }
 
-    // --- Global Light Energy (Dimming) ---
-    void ApplyGlobalLightEnergy()
+    // --- Light Management ---
+
+    void ApplyLightMode()
     {
-        if (LightEnergyManager.Instance == null) return;
+        // If system is manually off, don't turn on lights
+        if (!isSystemPoweredOn) return; 
 
-        float energy = LightEnergyManager.Instance.GetIntensityFactor();
-        float effectiveRange = energy;
-        float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
+        TurnOffAllLights(); // Reset active light
 
-        ApplyDimmedSettings(effectiveRange, effectiveIntensity);
-
-        if (energy <= 0f)
+        switch (currentMode)
         {
-            TurnOffAllLights();
-            activeLight = null;
+            case LightMode.Point:
+                if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
+                UpdateCameraClip(pointLightFarClip);
+                break;
+            case LightMode.Vision:
+                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
+                UpdateCameraClip(visionLightFarClip);
+                break;
+            case LightMode.Focus:
+                if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
+                UpdateCameraClip(focusLightFarClip);
+                break;
         }
     }
 
-    // --- Lit Object Management (Observer Pattern) ---
+    void TurnOffAllLights()
+    {
+        if (pointLight != null) pointLight.enabled = false;
+        if (visionLight != null) visionLight.enabled = false;
+        if (focusLight != null) focusLight.enabled = false;
+        activeLight = null;
+
+        // Apply "Off" camera setting
+        UpdateCameraClip(offLightFarClip);
+    }
+
+    // --- Boilerplate ---
+
     void UpdateLitObjects()
     {
         Collider[] newlyLitColliders = GetObjectsInLight();
         HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
 
-        // Handle newly lit objects
         foreach (Collider col in newLitSet)
         {
-            if (!currentlyLit.Contains(col))
-            {
-                NotifyLit(col, true);
-            }
-            else
-            {
-                DrainEnergyFrom(col);
-            }
+            if (!currentlyLit.Contains(col)) NotifyLit(col, true);
+            else DrainEnergyFrom(col);
         }
 
-        // Handle objects that are no longer lit
         foreach (Collider col in currentlyLit)
         {
-            if (!newLitSet.Contains(col))
-            {
-                NotifyLit(col, false);
-            }
+            if (!newLitSet.Contains(col)) NotifyLit(col, false);
         }
 
         currentlyLit = newLitSet;
@@ -142,21 +228,17 @@ public class WispMapLightController : MonoBehaviour
         ILitObject litObj = col.GetComponent<ILitObject>();
         if (litObj != null)
         {
-            if (isLit)
-                litObj.OnLit();
-            else
-                litObj.OnUnlit();
+            if (isLit) litObj.OnLit();
+            else litObj.OnUnlit();
         }
     }
 
     void DrainEnergyFrom(Collider col)
     {
         TombstoneController tomb = col.GetComponent<TombstoneController>();
-        if (tomb != null)
-            tomb.DrainEnergy(Time.deltaTime);
+        if (tomb != null) tomb.DrainEnergy(Time.deltaTime);
     }
 
-    // --- Light Position & Rotation ---
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
     {
         if (light == null) return;
@@ -174,37 +256,11 @@ public class WispMapLightController : MonoBehaviour
             light.transform.rotation = Quaternion.Euler(0f, player.eulerAngles.y, 0f);
     }
 
-    // --- Initialization ---
     void CacheOriginalSettings()
     {
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
         if (visionLight != null) { origVisionI = visionLight.intensity; origVisionR = visionLight.range; }
         if (focusLight != null) { origFocusI = focusLight.intensity; origFocusR = focusLight.range; }
-    }
-
-    void ApplyLightMode()
-    {
-        TurnOffAllLights();
-        switch (currentMode)
-        {
-            case LightMode.Point:
-                if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
-                break;
-            case LightMode.Vision:
-                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
-                break;
-            case LightMode.Focus:
-                if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
-                break;
-        }
-    }
-
-    void TurnOffAllLights()
-    {
-        if (pointLight != null) pointLight.enabled = false;
-        if (visionLight != null) visionLight.enabled = false;
-        if (focusLight != null) focusLight.enabled = false;
-        activeLight = null;
     }
 
     void ApplyDimmedSettings(float rangeFactor, float intensityFactor)
@@ -228,8 +284,7 @@ public class WispMapLightController : MonoBehaviour
             focusLight.intensity = origFocusI * intensityFactor;
         }
     }
-
-    // --- Detection ---
+    
     public Collider[] GetObjectsInLight()
     {
         if (activeLight == null || !activeLight.enabled)
@@ -239,14 +294,14 @@ public class WispMapLightController : MonoBehaviour
 
         if (activeLight.type == LightType.Point)
         {
-            return Physics.OverlapSphere(activeLight.transform.position, currentRange*0.7f, detectionLayer);
+            return Physics.OverlapSphere(activeLight.transform.position, currentRange * 0.7f, detectionLayer);
         }
         else if (activeLight.type == LightType.Spot)
         {
             return OverlapSpot(
                 activeLight.transform.position,
                 activeLight.transform.forward,
-                currentRange*0.7f,
+                currentRange * 0.7f,
                 activeLight.spotAngle,
                 detectionLayer
             );

@@ -6,7 +6,6 @@ public class PlayerParticleController : MonoBehaviour
     // We want a direct reference to the ParticleSystem component itself.
     [SerializeField] private ParticleSystem trailEffect;
     [SerializeField] private ParticleSystem landEffect;
-    [SerializeField] private ParticleSystem jumpEffect;
 
     [Header("Landing Effect Settings")]
     [SerializeField] private float minFallIntensity = 5f;
@@ -30,10 +29,6 @@ public class PlayerParticleController : MonoBehaviour
     }
     public void PlayJumpEffect()
     {
-        if (jumpEffect == null) return;
-
-        jumpEffect.Play();
-        Debug.Log("Played jump effect");
     }
 
     // --- THIS IS THE NEW, ROBUST TOGGLE LOGIC ---

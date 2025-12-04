@@ -60,6 +60,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 125d35407e7c89fe99ca9fe8dd69b0de, type: 2}
+    - target: {fileID: -7511558181221131132, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bfa8261c8b99a894c8325ecbfb38c0de, type: 2}
     - target: {fileID: 919132149155446097, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
       propertyPath: m_Name
       value: Young_Pine_Tree_1
@@ -68,21 +76,44 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 7
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8692663883724915415}
+      addedObject: {fileID: -7893086230438405337}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2113110361763014077}
   m_SourcePrefab: {fileID: 100100000, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
 --- !u!1 &8321876057161695673 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
   m_PrefabInstance: {fileID: 9204328491971951848}
   m_PrefabAsset: {fileID: 0}
---- !u!64 &8692663883724915415
-MeshCollider:
+--- !u!208 &-7893086230438405337
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8321876057161695673}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.035, y: 0.5, z: 0.035}
+  m_MoveThreshold: 0.1
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0.4, z: 0}
+  m_TimeToStationary: 0.5
+--- !u!65 &2113110361763014077
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -99,7 +130,6 @@ MeshCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -454789665567061285, guid: 01eb8f0ce8d56f049956cc001798fcb4, type: 3}
+  serializedVersion: 3
+  m_Size: {x: 0.07, y: 1, z: 0.07}
+  m_Center: {x: 0, y: 0.4, z: 0}

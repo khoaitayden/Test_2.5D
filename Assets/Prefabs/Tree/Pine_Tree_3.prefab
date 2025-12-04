@@ -60,6 +60,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 125d35407e7c89fe99ca9fe8dd69b0de, type: 2}
+    - target: {fileID: -7511558181221131132, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: bfa8261c8b99a894c8325ecbfb38c0de, type: 2}
     - target: {fileID: 919132149155446097, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
       propertyPath: m_Name
       value: Pine_Tree_3
@@ -68,21 +76,44 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 7
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3550089761716053399}
+      addedObject: {fileID: 7393589563659753822}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3448711974637840845}
   m_SourcePrefab: {fileID: 100100000, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
 --- !u!1 &7395701641545990028 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
   m_PrefabInstance: {fileID: 7666154216654766813}
   m_PrefabAsset: {fileID: 0}
---- !u!64 &3550089761716053399
-MeshCollider:
+--- !u!208 &7393589563659753822
+NavMeshObstacle:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7395701641545990028}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Shape: 1
+  m_Extents: {x: 0.15, y: 1.5, z: 0.15}
+  m_MoveThreshold: 0.1
+  m_Carve: 1
+  m_CarveOnlyStationary: 1
+  m_Center: {x: 0, y: 0.8, z: 0}
+  m_TimeToStationary: 0.5
+--- !u!65 &3448711974637840845
+BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -99,7 +130,6 @@ MeshCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -3456135434659019865, guid: 4d9727e49f8e93d4198262c817115d5e, type: 3}
+  serializedVersion: 3
+  m_Size: {x: 0.3, y: 3, z: 0.3}
+  m_Center: {x: -0.02, y: 0.8, z: 0}

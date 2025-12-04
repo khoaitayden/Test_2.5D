@@ -1,0 +1,51 @@
+using CrashKonijn.Agent.Core;
+using CrashKonijn.Goap.Runtime;
+using CrashKonijn.Goap.MonsterGen.Capabilities;
+using UnityEngine;
+
+namespace CrashKonijn.Goap.MonsterGen
+{
+    public class PatrolAction : GoapActionBase<PatrolAction.Data>
+    {
+        private MonsterMovement movement;
+        private MonsterConfig config;
+
+        public override void Created() { }
+
+        public override void Start(IMonoAgent agent, Data data)
+        {
+            movement = agent.GetComponent<MonsterMovement>();
+            config = agent.GetComponent<MonsterConfig>();
+
+            if (data.Target != null)
+            {
+                // Send the command to the Dumb Driver
+                movement.MoveTo(data.Target.Position, config.patrolSpeed, config.stoppingDistance);
+            }
+        }
+
+        public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
+        {
+            if (data.Target == null) return ActionRunState.Stop;
+            // FIX: Real-time stuck check.
+            // If the monster hits a tree/wall and stops moving for 1s, this returns TRUE.
+            // If the monster arrives at the point, this returns TRUE.
+            if (movement.HasArrivedOrStuck())
+            {
+                return ActionRunState.Completed;
+            }
+
+            return ActionRunState.Continue;
+        }
+
+        public override void End(IMonoAgent agent, Data data)
+        {
+            movement.Stop();
+        }
+
+        public class Data : IActionData
+        {
+            public ITarget Target { get; set; }
+        }
+    }
+}
