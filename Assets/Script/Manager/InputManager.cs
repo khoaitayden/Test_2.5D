@@ -21,6 +21,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     // --- Events ---
     public event Action OnJumpTriggered;
     public event Action OnJumpReleased;
+    public event Action OnInteractTriggered; 
     
     // Light Events
     public event Action OnWispCycleTriggered;       // Short Press
@@ -64,7 +65,10 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public void OnSprint(InputAction.CallbackContext context) => IsSprinting = context.ReadValueAsButton();
     public void OnInteract(InputAction.CallbackContext context)
     {
-        
+        if (context.performed)
+        {
+            OnInteractTriggered?.Invoke();
+        }
     }
 
     public void OnJump(InputAction.CallbackContext context)
