@@ -45,8 +45,9 @@ public class TraceManager : MonoBehaviour
         switch (type)
         {
             case TraceType.Soul_Collection: duration = soulTraceDuration; break;
-            case TraceType.Footstep_Run: duration = 20f; break; // Shorter than walking? Or longer? Up to you.
-            case TraceType.Footstep_Walk: duration = 30f; break;
+            case TraceType.Footstep_Run: duration = defaultFootstepDuration; break; 
+            case TraceType.Footstep_Walk: duration = defaultFootstepDuration; break;
+            case TraceType.Footstep_Jump: duration = defaultFootstepDuration; break;
         }
 
         GameTrace trace = new GameTrace(pos, type, duration);
@@ -96,6 +97,7 @@ public class TraceManager : MonoBehaviour
                 case TraceType.Footstep_Run: Gizmos.color = new Color(1, 0, 0, ratio); break; // Red
                 case TraceType.Footstep_Walk: Gizmos.color = new Color(1, 0.92f, 0.016f, ratio); break; // Yellow
                 case TraceType.Soul_Collection: Gizmos.color = new Color(0, 1, 1, ratio); break; // Cyan
+                case TraceType.Footstep_Jump: Gizmos.color = new Color(0, 0, 1, ratio); break; //Blue
                 default: Gizmos.color = new Color(1, 1, 1, ratio); break;
             }
 

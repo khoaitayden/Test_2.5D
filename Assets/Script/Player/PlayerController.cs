@@ -78,6 +78,7 @@ public class PlayerController : MonoBehaviour
     private void HandleJumpTrigger()
     {
         if(isGrounded) jumpRequest = true;
+        TraceEventBus.Emit(transform.position, TraceType.Footstep_Jump);
     }
 
     void Update()

@@ -62,6 +62,10 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public void OnMovement(InputAction.CallbackContext context) => MoveInput = context.ReadValue<Vector2>();
     public void OnSlowWalk(InputAction.CallbackContext context) => IsSlowWalking = context.ReadValueAsButton();
     public void OnSprint(InputAction.CallbackContext context) => IsSprinting = context.ReadValueAsButton();
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        
+    }
 
     public void OnJump(InputAction.CallbackContext context)
     {

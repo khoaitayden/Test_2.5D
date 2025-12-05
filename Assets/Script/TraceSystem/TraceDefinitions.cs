@@ -5,6 +5,7 @@ public enum TraceType
 {
     Footstep_Walk,
     Footstep_Run,
+    Footstep_Jump,
     Soul_Collection,
     Loud_Noise
 }
