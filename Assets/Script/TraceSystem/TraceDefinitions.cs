@@ -7,7 +7,7 @@ public enum TraceType
     Footstep_Run,
     Footstep_Jump,
     Soul_Collection,
-    Loud_Noise
+    EnviromentNoise
 }
 
 [System.Serializable]

@@ -7,8 +7,9 @@ public class TraceManager : MonoBehaviour
     public static TraceManager Instance { get; private set; }
 
     [Header("Settings")]
-    [SerializeField] private float defaultFootstepDuration = 30f;
+    [SerializeField] private float footstepDuration = 30f;
     [SerializeField] private float soulTraceDuration = 60f;
+    [SerializeField] private float enviromentNoiseDuration=25f;
     [SerializeField] private int maxTraceCount = 100;
 
     [Header("Debug")]
@@ -39,15 +40,16 @@ public class TraceManager : MonoBehaviour
     // This runs automatically when someone calls TraceEventBus.Emit()
     private void HandleNewTrace(Vector3 pos, TraceType type)
     {
-        float duration = defaultFootstepDuration;
+        float duration = footstepDuration;
         
         // Custom durations based on type
         switch (type)
         {
             case TraceType.Soul_Collection: duration = soulTraceDuration; break;
-            case TraceType.Footstep_Run: duration = defaultFootstepDuration; break; 
-            case TraceType.Footstep_Walk: duration = defaultFootstepDuration; break;
-            case TraceType.Footstep_Jump: duration = defaultFootstepDuration; break;
+            case TraceType.Footstep_Run: duration = footstepDuration; break; 
+            case TraceType.Footstep_Walk: duration = footstepDuration; break;
+            case TraceType.Footstep_Jump: duration = footstepDuration; break;
+            case TraceType.EnviromentNoise: duration= enviromentNoiseDuration; break;
         }
 
         GameTrace trace = new GameTrace(pos, type, duration);
@@ -98,6 +100,7 @@ public class TraceManager : MonoBehaviour
                 case TraceType.Footstep_Walk: Gizmos.color = new Color(1, 0.92f, 0.016f, ratio); break; // Yellow
                 case TraceType.Soul_Collection: Gizmos.color = new Color(0, 1, 1, ratio); break; // Cyan
                 case TraceType.Footstep_Jump: Gizmos.color = new Color(0, 0, 1, ratio); break; //Blue
+                case TraceType.EnviromentNoise: Gizmos.color = new Color(1, 0, 1, ratio); break; //Purple
                 default: Gizmos.color = new Color(1, 1, 1, ratio); break;
             }
 

@@ -54,7 +54,7 @@ public class DoorController : MonoBehaviour, IInteractable
     private IEnumerator OperationRoutine(GameObject interactor)
     {
         isBusy = true; // Lock the door immediately so it can't be clicked again
-        
+        TraceEventBus.Emit(transform.position, TraceType.EnviromentNoise);
         // 1. FREEZE PLAYER (Uses the specific freeze duration)
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null)
