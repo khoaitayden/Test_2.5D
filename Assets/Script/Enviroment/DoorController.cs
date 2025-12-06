@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-
 [RequireComponent(typeof(Animator))]
 public class DoorController : MonoBehaviour, IInteractable
 {

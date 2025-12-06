@@ -10,6 +10,7 @@ public class PlayerAnimation : MonoBehaviour
     private readonly int animHorizontal = Animator.StringToHash("HorizontalInput");
     private readonly int animVertical = Animator.StringToHash("VerticalInput");
     private readonly int animSpeed = Animator.StringToHash("Speed");
+    private readonly int animIsClimbing = Animator.StringToHash("IsClimbing"); // Add this Parameter to Animator!
 
     void Start()
     {
@@ -21,8 +22,29 @@ public class PlayerAnimation : MonoBehaviour
 
     void LateUpdate()
     {
-        Vector3 playerForward = playerParentTransform.forward;
+        // 1. BILLBOARDING (Always look at camera)
+        Vector3 lookPos = mainCameraTransform.position;
+        lookPos.y = transform.position.y;
+        transform.LookAt(lookPos);
 
+        // 2. HANDLE CLIMBING
+        if (playerController.IsClimbing)
+        {
+            //animator.SetBool(animIsClimbing, true);
+            
+            // FORCE VISUALS:
+            // When climbing, we usually want to show the "Back" sprite (walking away).
+            // In a blend tree, this is usually Vertical = 1.0, Horizontal = 0.0
+            animator.SetFloat(animVertical, 1.0f);
+            animator.SetFloat(animHorizontal, 0.0f);
+            animator.SetFloat(animSpeed, InputManager.Instance.MoveInput.magnitude);
+            return; // Skip normal calculation
+        }
+        
+        //animator.SetBool(animIsClimbing, false);
+
+        // 3. NORMAL CALCULATION
+        Vector3 playerForward = playerParentTransform.forward;
         Vector3 cameraDirection = playerParentTransform.position - mainCameraTransform.position;
         cameraDirection.y = 0;
         cameraDirection.Normalize();
@@ -34,19 +56,8 @@ public class PlayerAnimation : MonoBehaviour
         animator.SetFloat(animVertical, verticalInput);
         animator.SetFloat(animHorizontal, horizontalInput);
         animator.SetFloat(animSpeed, playerController.WorldSpaceMoveDirection.magnitude);
-
-        Vector3 lookPos = mainCameraTransform.position;
-        lookPos.y = transform.position.y;
-        transform.LookAt(lookPos);
     }
 
-    public void Jump()
-    {
-        animator.SetTrigger("Jump");
-    }
-
-    public void Land()
-    {
-        animator.SetTrigger("Land");
-    }
+    public void Jump() { animator.SetTrigger("Jump"); }
+    public void Land() { animator.SetTrigger("Land"); }
 }
