@@ -7,7 +7,10 @@ public enum TraceType
     Footstep_Run,
     Footstep_Jump,
     Soul_Collection,
-    EnviromentNoise
+    EnviromentNoiseWeak,
+    EnviromentNoiseMedium,
+    EnviromentNoiseStrong
+
 }
 
 [System.Serializable]

@@ -48,6 +48,8 @@ public class PlayerController : MonoBehaviour
     private Vector3 horizontalVelocity = Vector3.zero;
     private bool isGrounded;
     private Transform mainCameraTransform;
+    private float environmentSpeedMultiplier = 1f; 
+    private Coroutine slowCoroutine;
     
     // State Flags
     private bool isDead;
@@ -66,8 +68,8 @@ public class PlayerController : MonoBehaviour
     public bool IsClimbing => isClimbing;
     public bool IsEnteringLadder => isEnteringLadder;
 
-    private bool IsSlowWalking => InputManager.Instance.IsSlowWalking;
-    private bool IsSprinting => InputManager.Instance.IsSprinting;
+    public bool IsSlowWalking => InputManager.Instance.IsSlowWalking;
+    public bool IsSprinting => InputManager.Instance.IsSprinting;
     
     private bool wasGrounded;
     private bool jumpRequest; 
@@ -330,7 +332,7 @@ public class PlayerController : MonoBehaviour
         float currentMoveSpeed = moveSpeed;
         if (IsSprinting) { currentMoveSpeed *= sprintSpeedMultiplier; }
         else if (IsSlowWalking) { currentMoveSpeed *= slowWalkSpeedMultiplier; }
-
+        currentMoveSpeed *= environmentSpeedMultiplier; 
         Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * currentMoveSpeed;
         float currentAcceleration = WorldSpaceMoveDirection.magnitude > 0.1f ? acceleration : deceleration;
         horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, currentAcceleration * Time.deltaTime);
@@ -367,6 +369,25 @@ public class PlayerController : MonoBehaviour
         {
             Die();
         }
+    }
+    public void ApplyEnvironmentalSlow(float slowFactor, float duration)
+    {
+        // If we are already being slowed, stop the previous timer so we don't overlap
+        if (slowCoroutine != null) StopCoroutine(slowCoroutine);
+        
+        slowCoroutine = StartCoroutine(SlowRoutine(slowFactor, duration));
+    }
+
+    private IEnumerator SlowRoutine(float factor, float duration)
+    {
+        environmentSpeedMultiplier = factor;
+        
+        // Wait for the duration
+        yield return new WaitForSeconds(duration);
+        
+        // Reset speed
+        environmentSpeedMultiplier = 1f;
+        slowCoroutine = null;
     }
 
     private void Die()
