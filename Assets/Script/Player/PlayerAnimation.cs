@@ -28,7 +28,7 @@ public class PlayerAnimation : MonoBehaviour
         transform.LookAt(lookPos);
 
         // 2. HANDLE CLIMBING
-        if (playerController.IsClimbing)
+        if (playerController.IsClimbing || playerController.IsEnteringLadder)
         {
             //animator.SetBool(animIsClimbing, true);
             
