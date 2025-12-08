@@ -24,7 +24,6 @@ public class TreeBranch : MonoBehaviour
             if (player.IsSlowWalking) 
             {
                 TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseWeak); 
-                Debug.Log("Branch: Sneaked over (Weak Noise)");
             }
             
             // --- 2. SPRINTING (Running) ---
@@ -34,7 +33,6 @@ public class TreeBranch : MonoBehaviour
                 player.ApplyEnvironmentalSlow(sprintSlowMultiplier, slowDuration);
                 
                 TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
-                Debug.Log("Branch: Ran over (Strong Noise)");
             }
             
             // --- 3. NORMAL WALK ---
@@ -44,7 +42,6 @@ public class TreeBranch : MonoBehaviour
                 player.ApplyEnvironmentalSlow(walkSlowMultiplier, slowDuration);
                 
                 TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium); 
-                Debug.Log("Branch: Walked over (Medium Noise)");
             }
         }
     }
