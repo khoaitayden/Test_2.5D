@@ -3,19 +3,18 @@ using UnityEngine;
 
 public class TraceManager : MonoBehaviour
 {
-    // Singleton access is optional now, but useful for Monster AI to query the list later
     public static TraceManager Instance { get; private set; }
 
     [Header("Settings")]
-    [SerializeField] private float defaultFootstepDuration = 30f;
+    [SerializeField] private float footstepDuration = 35f;
     [SerializeField] private float soulTraceDuration = 60f;
+    [SerializeField] private float enviromentNoiseDuration = 30f; // Duration for branches, doors, etc.
     [SerializeField] private int maxTraceCount = 100;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugGizmos = true;
     [SerializeField] private bool logToConsole = true;
 
-    // The actual memory of traces
     private List<GameTrace> activeTraces = new List<GameTrace>();
 
     private void Awake()
@@ -24,36 +23,43 @@ public class TraceManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    private void OnEnable()
-    {
-        // SUBSCRIBE to the static bus
-        TraceEventBus.OnTraceEmitted += HandleNewTrace;
-    }
+    private void OnEnable() => TraceEventBus.OnTraceEmitted += HandleNewTrace;
+    private void OnDisable() => TraceEventBus.OnTraceEmitted -= HandleNewTrace;
 
-    private void OnDisable()
-    {
-        // UNSUBSCRIBE to prevent memory leaks
-        TraceEventBus.OnTraceEmitted -= HandleNewTrace;
-    }
-
-    // This runs automatically when someone calls TraceEventBus.Emit()
     private void HandleNewTrace(Vector3 pos, TraceType type)
     {
-        float duration = defaultFootstepDuration;
+        float duration = footstepDuration;
         
-        // Custom durations based on type
+        // Assign duration based on type
         switch (type)
         {
-            case TraceType.Soul_Collection: duration = soulTraceDuration; break;
-            case TraceType.Footstep_Run: duration = defaultFootstepDuration; break; 
-            case TraceType.Footstep_Walk: duration = defaultFootstepDuration; break;
-            case TraceType.Footstep_Jump: duration = defaultFootstepDuration; break;
+            case TraceType.Soul_Collection: 
+                duration = soulTraceDuration; 
+                break;
+            case TraceType.Footstep_Run: 
+                duration = footstepDuration*1.5f; 
+                break;
+            case TraceType.Footstep_Walk: 
+                duration = footstepDuration*1; 
+                break;
+            case TraceType.Footstep_Jump: 
+                duration = footstepDuration*2f; 
+                break;
+            
+            case TraceType.EnviromentNoiseWeak:
+                duration = enviromentNoiseDuration*1; 
+                break;
+            case TraceType.EnviromentNoiseMedium:
+                duration = enviromentNoiseDuration*1.5f; 
+                break;
+            case TraceType.EnviromentNoiseStrong:
+                duration = enviromentNoiseDuration*2f; 
+                break;
         }
 
         GameTrace trace = new GameTrace(pos, type, duration);
         activeTraces.Add(trace);
 
-        // Optimization: Remove oldest if list gets too big
         if (activeTraces.Count > maxTraceCount)
         {
             activeTraces.RemoveAt(0);
@@ -67,42 +73,44 @@ public class TraceManager : MonoBehaviour
 
     private void Update()
     {
-        // Remove expired traces (Loop backwards)
         for (int i = activeTraces.Count - 1; i >= 0; i--)
         {
-            if (activeTraces[i].IsExpired)
-            {
-                activeTraces.RemoveAt(i);
-            }
+            if (activeTraces[i].IsExpired) activeTraces.RemoveAt(i);
         }
     }
 
-    // --- MONSTER AI API ---
-    public List<GameTrace> GetTraces()
-    {
-        return activeTraces;
-    }
+    public List<GameTrace> GetTraces() => activeTraces;
 
-    // --- VISUALIZATION ---
     private void OnDrawGizmos()
     {
         if (!showDebugGizmos) return;
 
         foreach (var trace in activeTraces)
         {
-            float ratio = trace.RemainingTime / trace.Duration; // 1.0 (new) to 0.0 (old)
+            float ratio = trace.RemainingTime / trace.Duration;
             
+            // Set Color based on Type
             switch (trace.Type)
             {
-                case TraceType.Footstep_Run: Gizmos.color = new Color(1, 0, 0, ratio); break; // Red
-                case TraceType.Footstep_Walk: Gizmos.color = new Color(1, 0.92f, 0.016f, ratio); break; // Yellow
-                case TraceType.Soul_Collection: Gizmos.color = new Color(0, 1, 1, ratio); break; // Cyan
-                case TraceType.Footstep_Jump: Gizmos.color = new Color(0, 0, 1, ratio); break; //Blue
-                default: Gizmos.color = new Color(1, 1, 1, ratio); break;
+                // Player Movements
+                case TraceType.Footstep_Run:    Gizmos.color = new Color(1f, 0f, 0f, ratio); break; // Red
+                case TraceType.Footstep_Walk:   Gizmos.color = new Color(1f, 0.92f, 0.016f, ratio); break; // Yellow
+                case TraceType.Footstep_Jump:   Gizmos.color = new Color(0f, 0f, 1f, ratio); break; // Blue
+                case TraceType.Soul_Collection: Gizmos.color = new Color(0f, 1f, 1f, ratio); break; // Cyan
+
+                // NEW: Environment Noises
+                case TraceType.EnviromentNoiseWeak:   
+                    Gizmos.color = new Color(0.5f, 1f, 0.5f, ratio); break; // Light Green (Subtle)
+                case TraceType.EnviromentNoiseMedium: 
+                    Gizmos.color = new Color(1f, 0.5f, 0f, ratio); break; // Orange (Noticeable)
+                case TraceType.EnviromentNoiseStrong: 
+                    Gizmos.color = new Color(0.5f, 0f, 0.5f, ratio); break; // Dark Purple (Loud/Dangerous)
+                
+                default: Gizmos.color = new Color(1f, 1f, 1f, ratio); break;
             }
 
             Gizmos.DrawWireSphere(trace.Position, 0.5f);
-            Gizmos.DrawLine(trace.Position, trace.Position + Vector3.up * 2f * ratio); // Line shrinks as it fades
+            Gizmos.DrawLine(trace.Position, trace.Position + Vector3.up * 2f * ratio);
         }
     }
 }

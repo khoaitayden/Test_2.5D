@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &669459977915018671
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4.137811
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.18455458
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3.0092335
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.9974101
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.0719239
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -8.249
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      propertyPath: m_Name
+      value: Branch_1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 903292831982921915}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7251233090723818174}
+  m_SourcePrefab: {fileID: 100100000, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+--- !u!1 &399430156436508926 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+  m_PrefabInstance: {fileID: 669459977915018671}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &903292831982921915
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 399430156436508926}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -746833751823786709, guid: 00e16405bcdcefb40bb973e190c50dcf, type: 3}
+--- !u!114 &7251233090723818174
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 399430156436508926}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53b9b199c3703dad09f9be9b6404733e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TreeBranch
+  slowDuration: 2
+  walkSlowMultiplier: 0.75
+  sprintSlowMultiplier: 0.5
