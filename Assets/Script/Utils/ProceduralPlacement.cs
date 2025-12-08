@@ -1,4 +1,3 @@
-// ProceduralPlacement.cs
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
@@ -19,8 +18,13 @@ public class SpawnConfiguration
     [Tooltip("How much personal space each object requires.")]
     public float objectAvoidanceRadius = 2f;
 
+    [Header("Height Adjustment")]
+    [Tooltip("Random Y Offset added to the grounded position.")]
+    public float minYOffset = 0f;
+    public float maxYOffset = 0f;
+
     [Header("Placement Rules")]
-    public LayerMask spawnOnLayer = 1;
+    public LayerMask spawnOnLayer = 1; // e.g., "Ground" or "Default"
     public LayerMask avoidLayers;
     public LayerMask noSpawnZoneLayer;
 }
@@ -30,6 +34,8 @@ public class ProceduralPlacement : MonoBehaviour
     [Header("Spawn Area (X/Z Plane)")]
     public Vector3 areaCenter;
     public Vector2 areaSize = new Vector2(100f, 100f);
+    [Tooltip("How high from the center to start the raycast down.")]
+    public float raycastHeight = 50f; 
 
     [Header("Spawning Passes (Processed in Order)")]
     public List<SpawnConfiguration> spawnPasses = new List<SpawnConfiguration>();
@@ -57,15 +63,12 @@ public class ProceduralPlacement : MonoBehaviour
             children.Add(child.gameObject);
         }
 
-        // Use different destruction methods for Editor vs. Play Mode
         if (Application.isPlaying)
         {
-            // At runtime, use the standard Destroy()
             children.ForEach(child => Destroy(child));
         }
         else
         {
-            // In the editor, use DestroyImmediate()
             children.ForEach(child => DestroyImmediate(child));
         }
     }
@@ -74,17 +77,15 @@ public class ProceduralPlacement : MonoBehaviour
     {
         SpawnAllObjects();
     }
+
     void SpawnObjectsForPass(SpawnConfiguration config)
     {
-        // --- KEY CHANGE: Calculate Poisson Radius from Density and Count ---
         float desiredCount = config.maxObjectCount * config.density;
         if (desiredCount < 1) return;
 
         float totalArea = areaSize.x * areaSize.y;
         float areaPerObject = totalArea / desiredCount;
         
-        // The Poisson radius is roughly the sqrt of the area per object.
-        // We clamp it to the object's avoidance radius to prevent impossible densities.
         float poissonRadius = Mathf.Sqrt(areaPerObject);
         poissonRadius = Mathf.Max(poissonRadius, config.objectAvoidanceRadius);
         
@@ -97,52 +98,87 @@ public class ProceduralPlacement : MonoBehaviour
 
         Vector2[] candidatePoints = PoissonDiscSampling.GeneratePoints(poissonRadius, spawnRect);
         int spawnedInPass = 0;
-        
-        // --- KEY CHANGE: Cap the number of spawned objects ---
         int maxToSpawn = Mathf.RoundToInt(desiredCount);
 
         foreach (Vector2 point2D in candidatePoints)
         {
-            if (spawnedInPass >= maxToSpawn) break; // Stop when we reach our desired count
+            if (spawnedInPass >= maxToSpawn) break;
 
+            // 1. Convert 2D point to World Position
             Vector3 worldPos = new Vector3(point2D.x, areaCenter.y, point2D.y);
-            Vector3? finalPosition = GetValidGroundPosition(worldPos);
+            
+            // 2. Find exact ground height
+            Vector3? finalPosition = GetValidGroundPosition(worldPos, config);
 
             if (finalPosition.HasValue)
             {
                 if (IsPositionClear(finalPosition.Value, config.objectAvoidanceRadius, config))
                 {
                     GameObject prefab = config.prefabs[Random.Range(0, config.prefabs.Length)];
-                    GameObject spawnedObj = Instantiate(prefab, finalPosition.Value, Quaternion.Euler(0, Random.Range(0, 360), 0));
+                    
+                    // 3. Apply Y Rotation Randomization
+                    Quaternion rot = Quaternion.Euler(0, Random.Range(0, 360), 0);
+
+                    GameObject spawnedObj = Instantiate(prefab, finalPosition.Value, rot);
                     spawnedObj.transform.SetParent(this.transform);
+                    
                     spawnedObjects.Add((finalPosition.Value, config.objectAvoidanceRadius));
                     spawnedInPass++;
                 }
             }
         }
-        Debug.Log($"Pass '{config.name}': Spawned {spawnedInPass} objects (target was ~{maxToSpawn}).");
     }
 
-    // ... (The rest of the script: IsPositionClear, GetValidGroundPosition, OnDrawGizmosSelected) remains exactly the same.
+    // --- FIX: Improved Ground Detection ---
+    Vector3? GetValidGroundPosition(Vector3 position, SpawnConfiguration config)
+    {
+        // 1. Raycast Down to find physical surface
+        Vector3 rayStart = new Vector3(position.x, areaCenter.y + raycastHeight, position.z);
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, raycastHeight * 2f, config.spawnOnLayer))
+        {
+            // 2. (Optional) Validate with NavMesh if needed, otherwise use Hit Point
+            if (NavMesh.SamplePosition(hit.point, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))
+            {
+                // Found valid NavMesh point near the raycast hit
+                Vector3 basePos = navHit.position;
+                
+                // 3. Apply Custom Y Offset
+                float randomOffset = Random.Range(config.minYOffset, config.maxYOffset);
+                return basePos + Vector3.up * randomOffset;
+            }
+            // Fallback: Use Raycast hit if NavMesh fails (e.g. object is outside navmesh)
+            // Vector3 fallbackPos = hit.point;
+            // float fallbackOffset = Random.Range(config.minYOffset, config.maxYOffset);
+            // return fallbackPos + Vector3.up * fallbackOffset;
+        }
+
+        return null; // No ground found
+    }
+
     bool IsPositionClear(Vector3 position, float radius, SpawnConfiguration config)
     {
         if (Physics.CheckSphere(position, radius, config.avoidLayers)) return false;
         if (Physics.CheckSphere(position, 0.1f, config.noSpawnZoneLayer)) return false;
+        
         foreach (var spawned in spawnedObjects)
         {
             float requiredDistance = spawned.radius + radius;
-            if (Vector3.Distance(position, spawned.position) < requiredDistance) return false;
+            // Ignore Y difference for spawning logic? Or check 3D distance?
+            // Using 2D distance is usually safer for ground scatter to avoid stacking
+            float distSqr = (new Vector2(position.x, position.z) - new Vector2(spawned.position.x, spawned.position.z)).sqrMagnitude;
+            if (distSqr < requiredDistance * requiredDistance) return false;
         }
         return true;
     }
-    Vector3? GetValidGroundPosition(Vector3 position)
-    {
-        if (NavMesh.SamplePosition(position, out NavMeshHit navHit, 20f, NavMesh.AllAreas)) return navHit.position;
-        return null;
-    }
+
     void OnDrawGizmosSelected()
     {
         Gizmos.color = new Color(0, 1, 1, 0.2f);
         Gizmos.DrawCube(areaCenter, new Vector3(areaSize.x, 0.1f, areaSize.y));
+        
+        // Visualize Raycast Height
+        Gizmos.color = Color.yellow;
+        Vector3 corner = areaCenter - new Vector3(areaSize.x/2, 0, areaSize.y/2);
+        Gizmos.DrawLine(corner + Vector3.up * raycastHeight, corner + Vector3.down * raycastHeight);
     }
 }
