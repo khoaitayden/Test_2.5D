@@ -28,6 +28,8 @@ public class PlayerController : MonoBehaviour
     [Header("Momentum Settings")]
     [SerializeField] private float acceleration = 10f;
     [SerializeField] private float deceleration = 15f;
+    [Tooltip("How much faster light drains when sprinting (e.g. 2x faster).")]
+    [SerializeField] private float sprintEnergyDrainMult = 2.0f; 
 
     [Header("Ground Detection")]
     [SerializeField] private LayerMask groundLayer;
@@ -185,6 +187,7 @@ public class PlayerController : MonoBehaviour
             particleController?.ToggleTrail(isGrounded, IsSlowWalking);
             playerAnimation?.Land();
         }
+        HandleEnergyDrain();
         wasGrounded = isGrounded;
 
         if (isGrounded && velocity.y < 0) { velocity.y = -2f; }
@@ -192,9 +195,26 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
     }
 
-    // --- CLIMBING LOGIC ---
 
-   
+    private void HandleEnergyDrain()
+    {
+        if (LightEnergyManager.Instance == null) return;
+
+        // Condition: Is Sprinting AND actually moving AND not Climbing
+        bool isSprintingAndMoving = IsSprinting && horizontalVelocity.magnitude > 0.1f && !isClimbing;
+
+        if (isSprintingAndMoving)
+        {
+            LightEnergyManager.Instance.SetDrainMultiplier(sprintEnergyDrainMult);
+        }
+        else
+        {
+            // Reset to normal speed
+            LightEnergyManager.Instance.SetDrainMultiplier(1.0f);
+        }
+    }
+
+    // --- CLIMBING LOGIC ---
     private void ApplyGravityAndFall()
     {
         isGrounded = groundCheck();
