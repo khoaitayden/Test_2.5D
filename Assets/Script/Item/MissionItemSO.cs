@@ -4,5 +4,6 @@ using UnityEngine;
 public class MissionItemSO : ScriptableObject
 {
     public string itemName;
-    public Sprite itemSprite; // The 2D image
+    public Sprite itemSprite; 
+    public int puzzleLayerIndex; 
 }
