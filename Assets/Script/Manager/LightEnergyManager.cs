@@ -12,22 +12,17 @@ public class LightEnergyManager : MonoBehaviour
     private float currentEnergy;
     private float energyDrainRate;
     
-    // New flag to pause mechanics
+    // NEW: Multiplier to speed up drain (default is 1.0)
+    private float activeDrainMultiplier = 1.0f; 
+    
     private bool isDrainPaused = false;
 
     public float CurrentEnergy => currentEnergy;
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
+        if (Instance != null && Instance != this) { Destroy(gameObject); }
+        else { Instance = this; DontDestroyOnLoad(gameObject); }
     }
 
     void Start()
@@ -39,14 +34,21 @@ public class LightEnergyManager : MonoBehaviour
 
     void Update()
     {
-        // Don't drain if paused
         if (isDrainPaused) return;
 
-        currentEnergy -= energyDrainRate * Time.deltaTime;
+        // NEW: Apply the multiplier to the calculation
+        float effectiveDrain = energyDrainRate * activeDrainMultiplier;
+        
+        currentEnergy -= effectiveDrain * Time.deltaTime;
         currentEnergy = Mathf.Clamp01(currentEnergy);
     }
 
-    // New Method to control drain externally
+    // --- NEW API ---
+    public void SetDrainMultiplier(float multiplier)
+    {
+        activeDrainMultiplier = multiplier;
+    }
+
     public void SetDrainPaused(bool isPaused)
     {
         isDrainPaused = isPaused;
@@ -60,8 +62,6 @@ public class LightEnergyManager : MonoBehaviour
 
     public float GetIntensityFactor()
     {
-        // Even if paused, we return the current energy level so the light intensity 
-        // matches the remaining battery when turned back on.
         return useSmoothDimming ? currentEnergy : (currentEnergy > 0f ? 1f : 0f);
     }
 }

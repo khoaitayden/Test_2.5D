@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 // If this namespace errors, try "using Cinemachine;" instead
-using Unity.Cinemachine; 
+using Unity.Cinemachine;
 
 public class WispMapLightController : MonoBehaviour
 {
@@ -10,8 +10,7 @@ public class WispMapLightController : MonoBehaviour
     private Transform mainCameraTransform;
 
     [Header("Cinemachine Settings")]
-    // CHANGED: CinemachineVirtualCamera -> CinemachineCamera (CM 3.0)
-    [SerializeField] private CinemachineCamera virtualCamera; 
+    [SerializeField] private CinemachineCamera virtualCamera;
     [SerializeField] private float pointLightFarClip = 40f;
     [SerializeField] private float visionLightFarClip = 100f;
     [SerializeField] private float focusLightFarClip = 60f;
@@ -27,8 +26,11 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private Light focusLight;
     [SerializeField] private Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
 
-    [Header("Detection")]
+    [Header("Detection & Occlusion")]
+    [Tooltip("Layers that trigger the 'Lit' effect (e.g., Monsters, Interactables)")]
     public LayerMask detectionLayer = -1;
+    [Tooltip("Layers that block light (e.g., Default, Ground, Walls). DO NOT include the detection layer here.")]
+    public LayerMask obstructionLayer = 1; 
 
     [Header("Floating & Movement")]
     [SerializeField] private float floatStrength = 0.2f;
@@ -47,6 +49,8 @@ public class WispMapLightController : MonoBehaviour
     private enum LightMode { Point, Vision, Focus }
     private LightMode currentMode = LightMode.Point;
     private Light activeLight;
+    
+    // Set of objects currently considered "Lit"
     private HashSet<Collider> currentlyLit = new HashSet<Collider>();
 
     // New flag for Manual Toggle
@@ -58,7 +62,7 @@ public class WispMapLightController : MonoBehaviour
             mainCameraTransform = Camera.main.transform;
 
         CacheOriginalSettings();
-        ApplyLightMode(); 
+        ApplyLightMode();
 
         // Subscribe to Input
         if (InputManager.Instance != null)
@@ -83,8 +87,20 @@ public class WispMapLightController : MonoBehaviour
         {
             ApplyGlobalLightEnergy();
         }
-        
+
         UpdateLitObjects();
+    }
+
+    void LateUpdate()
+    {
+        if (player == null || mainCameraTransform == null) return;
+
+        Vector3 basePos = player.position;
+        float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
+
+        UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
+        UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
+        UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
 
     // --- Input Event Handlers ---
@@ -106,15 +122,15 @@ public class WispMapLightController : MonoBehaviour
             // Turning ON
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(false);
-            
-            ApplyLightMode(); 
+
+            ApplyLightMode();
         }
         else
         {
             // Turning OFF
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(true);
-            
+
             TurnOffAllLights();
         }
     }
@@ -126,7 +142,7 @@ public class WispMapLightController : MonoBehaviour
         if (LightEnergyManager.Instance == null) return;
 
         float energy = LightEnergyManager.Instance.GetIntensityFactor();
-        
+
         if (energy <= 0f)
         {
             TurnOffAllLights();
@@ -139,26 +155,12 @@ public class WispMapLightController : MonoBehaviour
         ApplyDimmedSettings(effectiveRange, effectiveIntensity);
     }
 
-    void LateUpdate()
-    {
-        if (player == null || mainCameraTransform == null) return;
+    // --- Camera Helper ---
 
-        Vector3 basePos = player.position;
-        float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
-
-        UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
-        UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
-        UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
-    }
-
-    // --- Camera Helper (FIXED FOR CM 3.0) ---
-    
     void UpdateCameraClip(float farClipValue)
     {
         if (virtualCamera != null)
         {
-            // In CM 3.0, Lens is a property returning a struct. 
-            // We must read it, modify it, and write it back.
             var lensSettings = virtualCamera.Lens;
             lensSettings.FarClipPlane = farClipValue;
             virtualCamera.Lens = lensSettings;
@@ -169,8 +171,7 @@ public class WispMapLightController : MonoBehaviour
 
     void ApplyLightMode()
     {
-        // If system is manually off, don't turn on lights
-        if (!isSystemPoweredOn) return; 
+        if (!isSystemPoweredOn) return;
 
         TurnOffAllLights(); // Reset active light
 
@@ -198,33 +199,95 @@ public class WispMapLightController : MonoBehaviour
         if (focusLight != null) focusLight.enabled = false;
         activeLight = null;
 
-        // Apply "Off" camera setting
         UpdateCameraClip(offLightFarClip);
     }
 
-    // --- Boilerplate ---
+    // --- Lit Object Logic (Detection & Occlusion) ---
 
     void UpdateLitObjects()
     {
-        Collider[] newlyLitColliders = GetObjectsInLight();
-        HashSet<Collider> newLitSet = new HashSet<Collider>(newlyLitColliders);
+        // 1. Get raw candidates via OverlapSphere/Spot
+        Collider[] rawColliders = GetObjectsInLight();
+        HashSet<Collider> validLitSet = new HashSet<Collider>();
 
-        foreach (Collider col in newLitSet)
+        // 2. Filter candidates via Occlusion Raycast
+        if (activeLight != null)
         {
-            if (!currentlyLit.Contains(col)) NotifyLit(col, true);
-            else DrainEnergyFrom(col);
+            Vector3 lightPos = activeLight.transform.position;
+            
+            foreach (Collider col in rawColliders)
+            {
+                if (col == null) continue;
+
+                // Check Line of Sight
+                if (HasLineOfSight(lightPos, col))
+                {
+                    validLitSet.Add(col);
+                }
+            }
         }
 
+        // 3. Process Logic (Lit vs Unlit)
+        
+        // Handle newly lit objects
+        foreach (Collider col in validLitSet)
+        {
+            if (!currentlyLit.Contains(col))
+            {
+                NotifyLit(col, true);
+            }
+            else
+            {
+                // Still lit, drain energy
+                DrainEnergyFrom(col);
+            }
+        }
+
+        // Handle objects that are NO LONGER lit (either out of range or now hidden behind wall)
         foreach (Collider col in currentlyLit)
         {
-            if (!newLitSet.Contains(col)) NotifyLit(col, false);
+            if (!validLitSet.Contains(col))
+            {
+                NotifyLit(col, false);
+            }
         }
 
-        currentlyLit = newLitSet;
+        currentlyLit = validLitSet;
+    }
+
+    // --- NEW: Optimized Line of Sight Check ---
+    private bool HasLineOfSight(Vector3 origin, Collider target)
+    {
+        // Calculate direction and distance to target
+        // We target the center of the collider (usually bounds.center)
+        Vector3 targetCenter = target.bounds.center;
+        Vector3 direction = targetCenter - origin;
+        float distance = direction.magnitude;
+
+        // Optimization: Normalize manually to save a magnitude calc, 
+        // but we already needed magnitude for distance check.
+        
+        // Raycast
+        // We cast a ray from Light -> Target.
+        // We ONLY check against the 'obstructionLayer' (Walls).
+        // If we hit a wall before reaching the 'distance' of the target, it is occluded.
+        
+        if (Physics.Raycast(origin, direction, out RaycastHit hitInfo, distance, obstructionLayer))
+        {
+            // We hit a wall.
+            // Double check: sometimes the wall is BEHIND the target if layers are messy.
+            // But since obstructionLayer should exclude the target itself, 
+            // any hit implies a blocker is in between.
+            return false; 
+        }
+
+        // No wall was hit.
+        return true;
     }
 
     void NotifyLit(Collider col, bool isLit)
     {
+        if (col == null) return;
         ILitObject litObj = col.GetComponent<ILitObject>();
         if (litObj != null)
         {
@@ -235,9 +298,12 @@ public class WispMapLightController : MonoBehaviour
 
     void DrainEnergyFrom(Collider col)
     {
+        if (col == null) return;
         TombstoneController tomb = col.GetComponent<TombstoneController>();
         if (tomb != null) tomb.DrainEnergy(Time.deltaTime);
     }
+
+    // --- Light Positioning Helpers ---
 
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
     {
@@ -284,7 +350,9 @@ public class WispMapLightController : MonoBehaviour
             focusLight.intensity = origFocusI * intensityFactor;
         }
     }
-    
+
+    // --- Detection Areas ---
+
     public Collider[] GetObjectsInLight()
     {
         if (activeLight == null || !activeLight.enabled)
