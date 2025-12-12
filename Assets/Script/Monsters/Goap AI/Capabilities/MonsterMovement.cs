@@ -7,7 +7,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
     public class MonsterMovement : MonoBehaviour
     {
         [SerializeField] private NavMeshAgent agent;
-        [SerializeField] private float stuckTimeout = 1.0f; // If stuck for 1s, force arrival
+        [SerializeField] private float stuckTimeout = 1.0f; 
 
         // State
         private float standStillTimer;
@@ -54,7 +54,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             agent.stoppingDistance = stopDist;
             agent.isStopped = false;
 
-            // Sanitize Point
+            // Sanitize Point with Edge Retreat
             if (NavMesh.SamplePosition(position, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
             {
                 agent.SetDestination(hit.position);
@@ -71,7 +71,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             standStillTimer = 0f;
 
             agent.speed = speed;
-            agent.stoppingDistance = 0.5f; // Kill distance
+            agent.stoppingDistance = 0.5f; 
             agent.isStopped = false;
             agent.SetDestination(target.position);
         }
@@ -95,6 +95,14 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             // 2. NavMesh Arrival
             if (agent.remainingDistance <= agent.stoppingDistance) return true;
+
+            // 3. Partial Path Handling (NEW FIX)
+            // If the target is unreachable (inside building), NavMesh returns PathPartial.
+            // If we are at the END of that partial path (the wall), we are "Arrived".
+            if (agent.pathStatus == NavMeshPathStatus.PathPartial)
+            {
+                if (agent.remainingDistance < 1.0f) return true;
+            }
 
             return false;
         }

@@ -8,67 +8,46 @@ namespace CrashKonijn.Goap.MonsterGen
     public class PatrolTargetSensor : LocalTargetSensorBase
     {
         private MonsterConfig config;
-        private PatrolHistory patrolHistory;
-        private NavMeshPath pathCache;
 
-        public override void Created() 
-        {
-            pathCache = new NavMeshPath();
-        }
+        public override void Created() { }
+        public override void Update() { }
 
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
-            config = references.GetCachedComponent<MonsterConfig>();
-            
-            // FIX: Use standard GetComponent to ensure we find the one added in Inspector
-            if (patrolHistory == null) 
-                patrolHistory = agent.Transform.GetComponent<PatrolHistory>();
+            if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
-            if (patrolHistory == null)
-            {
-                Debug.LogError("PatrolHistory component missing on Monster! Please add it in Inspector.");
-                return new PositionTarget(agent.Transform.position);
-            }
-
-            // Optimization: If we have a target and are far away, keep it.
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > 5.0f)
+            // 1. Keep existing target if we are still moving towards it
+            // This prevents the monster from jittering/switching targets every frame.
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance + 1.0f)
             {
                 return existingTarget;
             }
 
-            Vector3? p = FindPoint(agent.Transform.position);
-            if (p.HasValue)
+            // 2. Find a new random point
+            Vector3? point = GetRandomPoint(agent.Transform.position);
+            
+            if (point.HasValue)
             {
-                patrolHistory.RecordPatrolPoint(p.Value);
-                return new PositionTarget(p.Value);
+                return new PositionTarget(point.Value);
             }
 
+            // Fallback: Stay where we are
             return new PositionTarget(agent.Transform.position);
         }
 
-        public override void Update()
+        private Vector3? GetRandomPoint(Vector3 origin)
         {
-        }
-
-        private Vector3? FindPoint(Vector3 origin)
-        {
-            for (int i = 0; i < 10; i++)
+            // Try 5 times to find a valid spot
+            for (int i = 0; i < 5; i++)
             {
-                Vector2 rnd = Random.insideUnitCircle.normalized * Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
+                // Random point inside circle
+                Vector2 rnd = Random.insideUnitCircle * config.maxPatrolDistance;
                 Vector3 candidate = origin + new Vector3(rnd.x, 0, rnd.y);
 
-                // 1. Check NavMesh
+                // Snap to NavMesh
                 if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10.0f, NavMesh.AllAreas))
                 {
-                    // 2. Check History
-                    if (patrolHistory.IsTooCloseToRecentPoints(hit.position, config.minDistanceFromRecentPoints)) continue;
-
-                    // 3. Check Reachability (Crucial for large agents)
-                    if (NavMesh.CalculatePath(origin, hit.position, NavMesh.AllAreas, pathCache))
-                    {
-                        if (pathCache.status == NavMeshPathStatus.PathComplete)
-                            return hit.position;
-                    }
+                    return hit.position;
                 }
             }
             return null;

@@ -43,7 +43,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
-                .SetBaseCost(2);
+                .SetBaseCost(2)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // 4. Patrol
             builder.AddAction<PatrolAction>()
