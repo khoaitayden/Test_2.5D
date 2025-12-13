@@ -62,22 +62,23 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private void MarkBestTraceAsHandled()
         {
-            // Find the timestamp of the trace we just visited (or the current newest one)
-            // Since we always target the "Best" trace, we can just grab the best timestamp from manager
             if (TraceManager.Instance == null) return;
 
             var traces = TraceManager.Instance.GetTraces();
             float bestTime = -1f;
 
-            // Logic mirrors LoudTraceSensor
             foreach (var trace in traces)
             {
                 if (trace.IsExpired) continue;
-                bool isLoud = trace.Type == TraceType.Soul_Collection;
+
+                // FIX: Update filter to include your new noise types
+                bool isLoud = trace.Type == TraceType.Soul_Collection || 
+                            trace.Type == TraceType.EnviromentNoiseStrong ||
+                            trace.Type == TraceType.EnviromentNoiseMedium; // <--- ADDED THIS
+
                 if (!isLoud) continue;
                 
-                // We only care about traces that match where we just went
-                // Using a loose distance check to match the trace to our target position
+                // Match trace to our location
                 if (Vector3.Distance(trace.Position, currentTargetPos) < 2.0f)
                 {
                     if (trace.Timestamp > bestTime) bestTime = trace.Timestamp;
@@ -86,7 +87,14 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (bestTime > 0)
             {
+                // Debug.Log($"[NoiseAction] Marking noise at {bestTime} as HANDLED.");
                 brain.MarkNoiseAsHandled(bestTime);
+            }
+            else
+            {
+                // Fallback: If we can't find the trace (maybe expired?), just mark 'Now' to break the loop
+                // This prevents the infinite loop if the trace disappeared while moving.
+                brain.MarkNoiseAsHandled(Time.time);
             }
         }
 

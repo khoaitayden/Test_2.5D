@@ -26,7 +26,7 @@ public class MonsterConfig : MonoBehaviour
 
     [Header("Senses - Hearing")]
     [Tooltip("Maximum distance to hear loud noises (Soul Collection, Explosions, etc)")]
-    public float hearingRange = 40f;
+    public float hearingRange;
     
     [Header("Investigation")]
     public float investigateRadius = 50f;
@@ -39,16 +39,29 @@ public class MonsterConfig : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
     #if UNITY_EDITOR
-        // Vision Cone (Existing)
-        Handles.color = new Color(1, 1, 0, 0.2f);
-        Vector3 origin = transform.position;
-        Vector3 forward = transform.forward;
-        Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
-        Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
-
-        // NEW: Hearing Range (Blue Wire Circle)
-        Handles.color = new Color(0, 0, 1, 0.3f);
-        Handles.DrawWireDisc(origin, Vector3.up, hearingRange);
+            // Vision Cone (Hollow Triangle with Arc)
+            Handles.color = new Color(1, 1, 0, 0.5f);
+            Vector3 origin = transform.position;
+            Vector3 forward = transform.forward;
+            
+            // Calculate the two edge directions
+            Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
+            Vector3 rightEdgeDirection = Quaternion.Euler(0, ViewAngle / 2, 0) * forward;
+            
+            // Calculate end points of the cone edges
+            Vector3 leftPoint = origin + leftEdgeDirection * viewRadius;
+            Vector3 rightPoint = origin + rightEdgeDirection * viewRadius;
+            
+            // Draw the two straight edges
+            Handles.DrawLine(origin, leftPoint);      // Left edge
+            Handles.DrawLine(origin, rightPoint);     // Right edge
+            
+            // Draw the arc at the end (matches original filled shape)
+            Handles.DrawWireArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
+            
+            // NEW: Hearing Range (Blue Wire Circle)
+            Handles.color = new Color(0, 0, 1, 0.3f);
+            Handles.DrawWireDisc(origin, Vector3.up, hearingRange);
     #endif
     }
 }
