@@ -103,5 +103,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeBranch
   slowDuration: 2
-  walkSlowMultiplier: 0.75
-  sprintSlowMultiplier: 0.5
+  walkSlowMultiplier: 0.65
+  sprintSlowMultiplier: 0.25

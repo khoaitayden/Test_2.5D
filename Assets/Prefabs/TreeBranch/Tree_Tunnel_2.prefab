@@ -126,6 +126,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 333ce34d083ec3776a9a2ba71115f435, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeLog
-  tripDuration: 0.7
+  tripDuration: 0.5
   walkSlowFactor: 0.6
-  slowDuration: 2
+  slowDuration: 1.5

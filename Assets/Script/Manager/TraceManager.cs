@@ -6,9 +6,9 @@ public class TraceManager : MonoBehaviour
     public static TraceManager Instance { get; private set; }
 
     [Header("Settings")]
-    [SerializeField] private float footstepDuration = 35f;
-    [SerializeField] private float soulTraceDuration = 60f;
-    [SerializeField] private float enviromentNoiseDuration = 30f; // Duration for branches, doors, etc.
+    [SerializeField] private float footstepDuration = 25f;
+    [SerializeField] private float soulTraceDuration = 40f;
+    [SerializeField] private float enviromentNoiseDuration = 20f; // Duration for branches, doors, etc.
     [SerializeField] private int maxTraceCount = 100;
 
     [Header("Debug")]

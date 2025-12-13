@@ -41,7 +41,7 @@ namespace CrashKonijn.Goap.MonsterGen
             for (int i = 0; i < 5; i++)
             {
                 // Random point inside circle
-                Vector2 rnd = Random.insideUnitCircle * config.maxPatrolDistance;
+                Vector2 rnd = Random.insideUnitCircle * config.patrolDistance;
                 Vector3 candidate = origin + new Vector3(rnd.x, 0, rnd.y);
 
                 // Snap to NavMesh

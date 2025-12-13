@@ -6,21 +6,15 @@ using UnityEditor;
 public class MonsterConfig : MonoBehaviour
 {
     [Header("Patrol Behavior")]
-    public float minPatrolDistance = 20f;
-    public float maxPatrolDistance = 60f;
-    public int patrolHistorySize = 5;
-    public float minDistanceFromRecentPoints = 15f;
+    public float patrolDistance = 60f;
     
     [Header("Movement")]
     public float patrolSpeed = 4f;
     public float investigateSpeed = 6f;
     public float chaseSpeed = 8f;
     
-    [Tooltip("How quickly the monster accelerates/decelerates")]
-    public float acceleration = 8f;
-    
     [Tooltip("How close monster needs to be to consider destination 'reached'")]
-    public float stoppingDistance = 3.5f;
+    public float stoppingDistance;
     
     [Header("Vision")]
     public int numOfRayCast = 5;
@@ -35,17 +29,8 @@ public class MonsterConfig : MonoBehaviour
     public float maxInvestigationTime = 20.0f;
     public float minCoverPointDistance = 20.0f; 
     public int numCoverFinderRayCasts= 16;
-    
     [Header("Chase")]
     public float maxChaseTime = 15.0f;
-    
-    [Header("Stuck Detection")]
-    [Tooltip("How long with zero velocity before considering stuck")]
-    public float stuckTimeout = 2.5f;
-    
-    [Tooltip("Additional tolerance multiplier for investigation points (more forgiving)")]
-    public float investigationTolerance = 2.0f;
-
     private void OnDrawGizmosSelected()
     {
 #if UNITY_EDITOR

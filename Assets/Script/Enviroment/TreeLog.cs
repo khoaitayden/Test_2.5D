@@ -38,7 +38,6 @@ public class TreeLog : MonoBehaviour
         else
         {
             player.ApplyEnvironmentalSlow(walkSlowFactor, slowDuration);
-            Debug.Log("Player Slowed by Log");
         }
     }
 }

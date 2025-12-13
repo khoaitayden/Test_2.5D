@@ -102,6 +102,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53b9b199c3703dad09f9be9b6404733e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeBranch
-  slowDuration: 2
+  slowDuration: 1
   walkSlowMultiplier: 0.75
   sprintSlowMultiplier: 0.5
