@@ -9,6 +9,9 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
+        
+        // Track current target to detect changes
+        private Vector3 currentTargetPos;
 
         public override void Created() { }
 
@@ -19,9 +22,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
-                // Go to the noise!
-                movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
-                Debug.Log($"[NoiseAction] Heard something at {data.Target.Position}. Investigating.");
+                UpdateTarget(data.Target.Position);
             }
         }
 
@@ -29,10 +30,17 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
 
-            // FIX: If we are close enough that the sensor MIGHT flick off, force complete.
-            // Distance check here acts as a "Success" trigger.
-            // Using 2.0f here ensures we finish BEFORE the sensor (at 1.0f) turns off the lights.
-            if (Vector3.Distance(agent.Transform.position, data.Target.Position) <= 1.5f)
+            // --- DYNAMIC RETARGETING FIX ---
+            // Check if the sensor found a NEW, better noise (Target position changed)
+            if (Vector3.Distance(data.Target.Position, currentTargetPos) > 1.0f)
+            {
+                Debug.Log($"[NoiseAction] Newer noise detected! Switching target to {data.Target.Position}");
+                UpdateTarget(data.Target.Position);
+            }
+            // -------------------------------
+
+            // Completion Logic
+            if (Vector3.Distance(agent.Transform.position, currentTargetPos) <= 2.0f)
             {
                 return ActionRunState.Completed;
             }
@@ -48,6 +56,12 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
+        }
+
+        private void UpdateTarget(Vector3 pos)
+        {
+            currentTargetPos = pos;
+            movement.MoveTo(pos, config.investigateSpeed, config.stoppingDistance);
         }
 
         public class Data : IActionData
