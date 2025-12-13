@@ -2,6 +2,7 @@ using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
+using System.Linq;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -9,8 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
-        
-        // Track current target to detect changes
+        private MonsterBrain brain;
         private Vector3 currentTargetPos;
 
         public override void Created() { }
@@ -19,6 +19,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfig>();
+            brain = agent.GetComponent<MonsterBrain>();
 
             if (data.Target != null)
             {
@@ -30,23 +31,18 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
 
-            // --- DYNAMIC RETARGETING FIX ---
-            // Check if the sensor found a NEW, better noise (Target position changed)
+            // Dynamic Retargeting: If Sensor picks a newer trace, the Position changes
             if (Vector3.Distance(data.Target.Position, currentTargetPos) > 1.0f)
             {
-                Debug.Log($"[NoiseAction] Newer noise detected! Switching target to {data.Target.Position}");
                 UpdateTarget(data.Target.Position);
             }
-            // -------------------------------
 
-            // Completion Logic
-            if (Vector3.Distance(agent.Transform.position, currentTargetPos) <= 2.0f)
-            {
-                return ActionRunState.Completed;
-            }
-
+            // Arrival Check
             if (movement.HasArrivedOrStuck())
             {
+                // We arrived! 
+                // Mark the trace as Handled so we don't visit it again.
+                MarkBestTraceAsHandled();
                 return ActionRunState.Completed;
             }
 
@@ -62,6 +58,36 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             currentTargetPos = pos;
             movement.MoveTo(pos, config.investigateSpeed, config.stoppingDistance);
+        }
+
+        private void MarkBestTraceAsHandled()
+        {
+            // Find the timestamp of the trace we just visited (or the current newest one)
+            // Since we always target the "Best" trace, we can just grab the best timestamp from manager
+            if (TraceManager.Instance == null) return;
+
+            var traces = TraceManager.Instance.GetTraces();
+            float bestTime = -1f;
+
+            // Logic mirrors LoudTraceSensor
+            foreach (var trace in traces)
+            {
+                if (trace.IsExpired) continue;
+                bool isLoud = trace.Type == TraceType.Soul_Collection;
+                if (!isLoud) continue;
+                
+                // We only care about traces that match where we just went
+                // Using a loose distance check to match the trace to our target position
+                if (Vector3.Distance(trace.Position, currentTargetPos) < 2.0f)
+                {
+                    if (trace.Timestamp > bestTime) bestTime = trace.Timestamp;
+                }
+            }
+
+            if (bestTime > 0)
+            {
+                brain.MarkNoiseAsHandled(bestTime);
+            }
         }
 
         public class Data : IActionData

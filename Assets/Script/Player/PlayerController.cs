@@ -147,7 +147,7 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         { 
             jumpRequest = true;
-            TraceEventBus.Emit(transform.position, TraceType.Footstep_Jump);
+            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
         }
     }
 

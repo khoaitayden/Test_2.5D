@@ -42,9 +42,6 @@ public class TraceManager : MonoBehaviour
             case TraceType.Footstep_Walk: 
                 duration = footstepDuration*1; 
                 break;
-            case TraceType.Footstep_Jump: 
-                duration = footstepDuration*2f; 
-                break;
             
             case TraceType.EnviromentNoiseWeak:
                 duration = enviromentNoiseDuration*1; 
@@ -95,7 +92,6 @@ public class TraceManager : MonoBehaviour
                 // Player Movements
                 case TraceType.Footstep_Run:    Gizmos.color = new Color(1f, 0f, 0f, ratio); break; // Red
                 case TraceType.Footstep_Walk:   Gizmos.color = new Color(1f, 0.92f, 0.016f, ratio); break; // Yellow
-                case TraceType.Footstep_Jump:   Gizmos.color = new Color(0f, 0f, 1f, ratio); break; // Blue
                 case TraceType.Soul_Collection: Gizmos.color = new Color(0f, 1f, 1f, ratio); break; // Cyan
 
                 // NEW: Environment Noises

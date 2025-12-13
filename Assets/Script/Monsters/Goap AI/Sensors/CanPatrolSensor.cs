@@ -59,8 +59,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 // Filter loud types
                 bool isLoud = trace.Type == TraceType.Soul_Collection || 
                               trace.Type == TraceType.EnviromentNoiseStrong ||
-                              trace.Type == TraceType.EnviromentNoiseMedium ||
-                              trace.Type == TraceType.Footstep_Jump;
+                              trace.Type == TraceType.EnviromentNoiseMedium;
                 
                 if(!isLoud) continue;
 
