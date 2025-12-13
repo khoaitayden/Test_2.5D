@@ -54,18 +54,32 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+                
+            // 5. Investigate noise
+            builder.AddAction<InvestigateNoiseAction>()
+                .SetTarget<LoudTraceTarget>()
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                .AddCondition<IsHearingNoise>(Comparison.GreaterThanOrEqual, 1)
+                
+                // NEW: Stop investigating noise if we see the player
+                // (We require PlayerInSight to be False to perform this action)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1) 
+                
+                .SetBaseCost(4) 
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // --- SENSORS ---
             builder.AddWorldSensor<IsPlayerInSightSensor>().SetKey<IsPlayerInSight>();
             builder.AddWorldSensor<IsAtSuspiciousLocationSensor>().SetKey<IsAtSuspiciousLocation>();
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
+            builder.AddWorldSensor<IsHearingNoiseSensor>().SetKey<IsHearingNoise>();
             
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
-            
+            builder.AddTargetSensor<LoudTraceSensor>().SetTarget<LoudTraceTarget>(); 
             return builder.Build();
         }
     }

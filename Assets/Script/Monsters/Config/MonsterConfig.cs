@@ -22,6 +22,11 @@ public class MonsterConfig : MonoBehaviour
     [Range(0, 360)] public float ViewAngle = 120f;
     public LayerMask playerLayerMask;
     public LayerMask obstacleLayerMask;
+
+
+    [Header("Senses - Hearing")]
+    [Tooltip("Maximum distance to hear loud noises (Soul Collection, Explosions, etc)")]
+    public float hearingRange = 40f;
     
     [Header("Investigation")]
     public float investigateRadius = 50f;
@@ -33,12 +38,17 @@ public class MonsterConfig : MonoBehaviour
     public float maxChaseTime = 15.0f;
     private void OnDrawGizmosSelected()
     {
-#if UNITY_EDITOR
+    #if UNITY_EDITOR
+        // Vision Cone (Existing)
         Handles.color = new Color(1, 1, 0, 0.2f);
         Vector3 origin = transform.position;
         Vector3 forward = transform.forward;
         Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
         Handles.DrawSolidArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
-#endif
+
+        // NEW: Hearing Range (Blue Wire Circle)
+        Handles.color = new Color(0, 0, 1, 0.3f);
+        Handles.DrawWireDisc(origin, Vector3.up, hearingRange);
+    #endif
     }
 }
