@@ -2,7 +2,6 @@ using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
-using System.Linq;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -11,7 +10,9 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterMovement movement;
         private MonsterConfig config;
         private MonsterBrain brain;
-        private Vector3 currentTargetPos;
+        
+        // Track where we are currently going
+        private Vector3 currentDestination;
 
         public override void Created() { }
 
@@ -23,7 +24,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
-                UpdateTarget(data.Target.Position);
+                UpdateDestination(data.Target.Position);
             }
         }
 
@@ -31,18 +32,21 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
 
-            // Dynamic Retargeting: If Sensor picks a newer trace, the Position changes
-            if (Vector3.Distance(data.Target.Position, currentTargetPos) > 1.0f)
+            // --- INTERRUPT / SWITCH LOGIC ---
+            // Check if the sensor found a NEW noise (Target changed significantly)
+            if (Vector3.Distance(data.Target.Position, currentDestination) > 2.0f)
             {
-                UpdateTarget(data.Target.Position);
+                // Debug.Log($"[NoiseAction] Switching to newer noise at {data.Target.Position}");
+                UpdateDestination(data.Target.Position);
             }
+            // --------------------------------
 
-            // Arrival Check
+            // Check Arrival at CURRENT destination
             if (movement.HasArrivedOrStuck())
             {
-                // We arrived! 
-                // Mark the trace as Handled so we don't visit it again.
-                MarkBestTraceAsHandled();
+                // We reached the noise we were aiming for.
+                // Mark THIS specific noise (at currentDestination) as handled.
+                MarkNoiseAtLocationAsHandled(currentDestination);
                 return ActionRunState.Completed;
             }
 
@@ -54,13 +58,13 @@ namespace CrashKonijn.Goap.MonsterGen
             movement.Stop();
         }
 
-        private void UpdateTarget(Vector3 pos)
+        private void UpdateDestination(Vector3 pos)
         {
-            currentTargetPos = pos;
+            currentDestination = pos;
             movement.MoveTo(pos, config.investigateSpeed, config.stoppingDistance);
         }
 
-        private void MarkBestTraceAsHandled()
+        private void MarkNoiseAtLocationAsHandled(Vector3 location)
         {
             if (TraceManager.Instance == null) return;
 
@@ -70,16 +74,15 @@ namespace CrashKonijn.Goap.MonsterGen
             foreach (var trace in traces)
             {
                 if (trace.IsExpired) continue;
-
-                // FIX: Update filter to include your new noise types
+                
+                // Only look for loud noises near where we arrived
                 bool isLoud = trace.Type == TraceType.Soul_Collection || 
-                            trace.Type == TraceType.EnviromentNoiseStrong ||
-                            trace.Type == TraceType.EnviromentNoiseMedium; // <--- ADDED THIS
+                              trace.Type == TraceType.EnviromentNoiseStrong ||
+                              trace.Type == TraceType.EnviromentNoiseMedium; 
 
                 if (!isLoud) continue;
-                
-                // Match trace to our location
-                if (Vector3.Distance(trace.Position, currentTargetPos) < 2.0f)
+
+                if (Vector3.Distance(trace.Position, location) < 2.5f)
                 {
                     if (trace.Timestamp > bestTime) bestTime = trace.Timestamp;
                 }
@@ -87,13 +90,11 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (bestTime > 0)
             {
-                // Debug.Log($"[NoiseAction] Marking noise at {bestTime} as HANDLED.");
                 brain.MarkNoiseAsHandled(bestTime);
             }
             else
             {
-                // Fallback: If we can't find the trace (maybe expired?), just mark 'Now' to break the loop
-                // This prevents the infinite loop if the trace disappeared while moving.
+                // Safety: if trace is gone, mark current time so we don't loop
                 brain.MarkNoiseAsHandled(Time.time);
             }
         }
