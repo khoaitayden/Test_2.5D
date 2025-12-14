@@ -18,13 +18,11 @@ public class TreeLog : MonoBehaviour
 
         // Check 2: State Logic
         
-        // A. SLOW WALK: No Effect, No Trace
         if (player.IsSlowWalking)
         {
             return;
         }
 
-        // B. SPRINTING: Trip + Strong Noise
         if (player.IsSprinting)
         {
             // 1. Freeze Input and Movement (Uses the function we made for Doors/Ladders)
@@ -34,10 +32,10 @@ public class TreeLog : MonoBehaviour
             TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
         }
 
-        // C. NORMAL WALK: Slow Down + No Trace
         else
         {
             player.ApplyEnvironmentalSlow(walkSlowFactor, slowDuration);
+            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
         }
     }
 }
