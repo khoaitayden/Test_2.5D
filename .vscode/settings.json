@@ -56,5 +56,6 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Test_2.5D.slnx"
+    "dotnet.defaultSolution": "Test_2.5D.slnx",
+    "editor.acceptSuggestionOnEnter": "off"
 }

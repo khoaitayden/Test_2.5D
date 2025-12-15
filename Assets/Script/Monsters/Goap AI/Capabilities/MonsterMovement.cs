@@ -13,6 +13,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         private float standStillTimer;
         private bool isChaseMode;
         private Transform chaseTarget;
+        
+        // Safety: Don't check arrival immediately after setting a destination
+        private float pathSetTime; 
 
         private void Awake()
         {
@@ -43,22 +46,42 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         }
 
         // --- API ---
-
-        public void MoveTo(Vector3 position, float speed, float stopDist)
+        public bool MoveTo(Vector3 position, float speed, float stopDist)
         {
             isChaseMode = false;
             chaseTarget = null;
             standStillTimer = 0f;
+            pathSetTime = Time.time;
 
             agent.speed = speed;
             agent.stoppingDistance = stopDist;
             agent.isStopped = false;
 
-            // Sanitize Point with Edge Retreat
             if (NavMesh.SamplePosition(position, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
             {
-                agent.SetDestination(hit.position);
+                // 2. CHECK REACHABILITY (The Fix)
+                NavMeshPath path = new NavMeshPath();
+                agent.CalculatePath(hit.position, path);
+
+                if (path.status == NavMeshPathStatus.PathPartial)
+                {
+                    // The point is on the NavMesh, but we can't get there (blocked by wall/door)
+                    // Solution: Move to the last reachable corner (the wall itself)
+                    if (path.corners.Length > 0)
+                    {
+                        // Go to the point on the wall closest to the sound
+                        agent.SetDestination(path.corners[path.corners.Length - 1]);
+                        return true;
+                    }
+                }
+                
+                // Path is Complete or Valid enough
+                return agent.SetDestination(hit.position);
             }
+
+            // Failed to find any navmesh point near the trace
+            agent.ResetPath();
+            return false;
         }
 
         public void Chase(Transform target, float speed)
@@ -69,6 +92,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             isChaseMode = true;
             chaseTarget = target;
             standStillTimer = 0f;
+            pathSetTime = Time.time;
 
             agent.speed = speed;
             agent.stoppingDistance = 0.5f; 
@@ -87,18 +111,22 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         
         public bool HasArrivedOrStuck()
         {
-            if (agent.pathPending) return false;
-            if (!agent.hasPath) return true; // No path = Arrived
+            // SAFETY: Wait 0.25s for path calculation to potentially start/fail
+            if (Time.time < pathSetTime + 0.25f) return false;
 
-            // 1. Timeout (Hit Wall)
+            if (agent.pathPending) return false;
+            
+            // If no path after safety time, we are done (or failed)
+            if (!agent.hasPath) return true; 
+
+            // 1. Timeout (Hit Wall / Stuck)
             if (standStillTimer > stuckTimeout) return true;
 
             // 2. NavMesh Arrival
             if (agent.remainingDistance <= agent.stoppingDistance) return true;
 
-            // 3. Partial Path Handling (NEW FIX)
-            // If the target is unreachable (inside building), NavMesh returns PathPartial.
-            // If we are at the END of that partial path (the wall), we are "Arrived".
+            // 3. Partial Path Handling (Stuck at Building Wall)
+            // If we can't reach the target (Partial), and we are at the end of the partial path...
             if (agent.pathStatus == NavMeshPathStatus.PathPartial)
             {
                 if (agent.remainingDistance < 1.0f) return true;

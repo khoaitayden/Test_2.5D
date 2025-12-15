@@ -16,16 +16,26 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             // --- ACTIONS ---
 
-            // 1. Attack Player
-            builder.AddAction<AttackPlayerAction>()
-                .SetTarget<PlayerTarget>()
-                .AddEffect<HasKilledPlayer>(EffectType.Increase)
-                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(1)
-                // CRITICAL FIX: Run Perform() immediately so we can track the moving player
-                .SetMoveMode(ActionMoveMode.PerformWhileMoving); 
+        // 1. Attack Player
+        builder.AddAction<AttackPlayerAction>()
+            .SetTarget<PlayerTarget>()
+            .AddEffect<HasKilledPlayer>(EffectType.Increase)
+            .AddEffect<IsInvestigating>(EffectType.Decrease) 
+            .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+            .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) 
+            .SetBaseCost(1)
+            .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 2. Search Surroundings
+            // 2. Flee
+            builder.AddAction<FleeAction>()
+                .SetTarget<PlayerTarget>()
+                .AddEffect<CanPatrol>(EffectType.Increase)
+                .AddEffect<IsFleeing>(EffectType.Decrease) 
+                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
+                .SetBaseCost(2) 
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+
+            // 3. Search Surroundings
             builder.AddAction<SearchSurroundingsAction>()
                 .SetTarget<InvestigateTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
@@ -33,10 +43,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(3)
-                // CRITICAL FIX: Run Perform() immediately so we can handle timeouts/stuck checks
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 3. Go To Last Seen
+            // 4. Go To Last Seen
             builder.AddAction<GoToLastSeenPlayerAreaAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
@@ -46,26 +55,22 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetBaseCost(2)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 4. Patrol
+            // 5. Investigate noise
+            builder.AddAction<InvestigateNoiseAction>()
+                .SetTarget<LoudTraceTarget>()
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                .AddCondition<IsHearingNoise>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1) 
+                .SetBaseCost(4) 
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+
+            // 6. Patrol
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
                 .AddEffect<CanPatrol>(EffectType.Increase)
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(10)
-                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-                
-            // 5. Investigate noise
-            builder.AddAction<InvestigateNoiseAction>()
-                .SetTarget<LoudTraceTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
-                .AddCondition<IsHearingNoise>(Comparison.GreaterThanOrEqual, 1)
-                
-                // NEW: Stop investigating noise if we see the player
-                // (We require PlayerInSight to be False to perform this action)
-                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1) 
-                
-                .SetBaseCost(4) 
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // --- SENSORS ---
@@ -75,11 +80,15 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
             builder.AddWorldSensor<IsHearingNoiseSensor>().SetKey<IsHearingNoise>();
             
+            // NEW: Register Flee Sensor
+            builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
+            
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
             builder.AddTargetSensor<LoudTraceSensor>().SetTarget<LoudTraceTarget>(); 
+            
             return builder.Build();
         }
     }

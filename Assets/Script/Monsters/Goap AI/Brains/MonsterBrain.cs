@@ -11,10 +11,7 @@ public class MonsterBrain : MonoBehaviour
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
     public bool IsInvestigating { get; private set; }
-    
-    // --- NEW NOISE MEMORY ---
-    // The timestamp of the noise we have processed (or are currently processing).
-    // Any noise older than this is considered "Old News" and ignored.
+    public bool IsFleeing { get; private set; }
     public float HandledNoiseTimestamp { get; private set; } = -1f;
 
     private GoapActionProvider provider;
@@ -86,14 +83,44 @@ public class MonsterBrain : MonoBehaviour
     {
         if (provider != null) provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
     }
-    
+    // Rename this method (and update references in AttackPlayerAction)
+    public void OnMovementStuck()
+    {
+        Debug.Log("[Brain] Stuck! Engaging Flee Mode.");
+        
+        // --- CLEAR PREVIOUS STATE (THE FIX) ---
+        // Stop investigating. We are now in a panic/reset mode.
+        IsInvestigating = false; 
+        
+        // It's also good practice to clear these when entering a panic state.
+        IsPlayerVisible = false;
+        CurrentPlayerTarget = null;
+        LastKnownPlayerPosition = Vector3.zero;
+
+        // --- ENGAGE NEW STATE ---
+        IsFleeing = true;
+        UpdateGOAPState();
+    }
+
+    public void OnFleeComplete()
+    {
+        Debug.Log("[Brain] Flee complete. Returning to normal behavior.");
+        IsFleeing = false;
+        UpdateGOAPState();
+    }
     private void UpdateGOAPState()
     {
         if (provider == null) return;
         provider.WorldData.SetState(new IsPlayerInSight(), IsPlayerVisible ? 1 : 0);
         provider.WorldData.SetState(new IsInvestigating(), IsInvestigating ? 1 : 0);
-        bool busy = IsPlayerVisible || IsInvestigating;
+        
+        // NEW: Flee State
+        provider.WorldData.SetState(new IsFleeing(), IsFleeing ? 1 : 0);
+
+        // CanPatrol logic: Not busy fighting/searching/fleeing
+        bool busy = IsPlayerVisible || IsInvestigating || IsFleeing;
         provider.WorldData.SetState(new CanPatrol(), busy ? 0 : 1);
+        
         bool hasLoc = LastKnownPlayerPosition != Vector3.zero;
         provider.WorldData.SetState(new HasSuspiciousLocation(), hasLoc ? 1 : 0);
     }

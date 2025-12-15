@@ -18,7 +18,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             // 1. Keep existing target if we are still moving towards it
             // This prevents the monster from jittering/switching targets every frame.
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance + 1.0f)
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance)
             {
                 return existingTarget;
             }
