@@ -2,7 +2,6 @@ using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -10,7 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
-        private MonsterBrain brain; // Need brain reference
+        private MonsterBrain brain;
         
         public override void Created() { }
 
@@ -18,18 +17,18 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfig>();
-            brain = agent.GetComponent<MonsterBrain>(); // Get brain
+            brain = agent.GetComponent<MonsterBrain>(); 
 
-            // Flee FROM the last known valid player position, not the live one (which might be null)
+            // Flee FROM the last known valid player position
             Vector3 fleeFromPos = brain.LastKnownPlayerPosition != Vector3.zero 
                 ? brain.LastKnownPlayerPosition 
                 : (data.Target != null ? data.Target.Position : agent.Transform.position);
 
             Vector3 awayDir = (agent.Transform.position - fleeFromPos).normalized;
-            // Ensure we don't just run backwards into a wall
             awayDir = Quaternion.Euler(0, Random.Range(-30, 30), 0) * awayDir; 
             
-            Vector3 fleePos = agent.Transform.position + awayDir * 20.0f; 
+            // --- UPDATED: Uses Config Variable ---
+            Vector3 fleePos = agent.Transform.position + awayDir * config.fleeRunDistance; 
 
             // Move fast
             movement.MoveTo(fleePos, config.chaseSpeed, config.stoppingDistance);
@@ -37,7 +36,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // Complete when we arrive or get stuck
             if (movement.HasArrivedOrStuck())
             {
                 return ActionRunState.Completed;
@@ -48,7 +46,6 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
-            // CRITICAL: Tell the brain we are done fleeing!
             brain?.OnFleeComplete();
         }
 
