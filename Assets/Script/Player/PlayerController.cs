@@ -279,23 +279,16 @@ public class PlayerController : MonoBehaviour
         bool isAtTopPerch = (feetY >= stopYPosition);
 
 
-        // --- 1. HANDLE JUMP EXIT (PRIMARY ACTION) ---
-        // This is now the ONLY way to get off the top of the ladder.
-        if (InputManager.Instance.IsJumpHeld)
+        // --- 1. HANDLE JUMP EXIT (MODIFIED) ---
+        // Player can now ONLY jump if they are at the top perch.
+        if (isAtTopPerch && InputManager.Instance.IsJumpHeld)
         {
             StopClimbing();
 
-            // If we are at the top perch, perform a powerful dismount.
-            if (isAtTopPerch)
-            {
-                velocity.y = topDismountUpwardForce;
-                horizontalVelocity = -transform.forward * topDismountBackwardForce;
-            }
-            else // Otherwise, perform a standard jump off the side.
-            {
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-                horizontalVelocity = -transform.forward * 4f;
-            }
+            // Perform the powerful dismount launch
+            velocity.y = topDismountUpwardForce;
+            horizontalVelocity = -transform.forward * topDismountBackwardForce;
+            
             return; // Exit. Physics will apply next frame.
         }
 
@@ -303,7 +296,7 @@ public class PlayerController : MonoBehaviour
         // --- 2. MOVEMENT LOGIC (WITH INVISIBLE CEILING) ---
         float verticalInput = InputManager.Instance.MoveInput.y;
 
-        // THE FIX: If at the top perch and trying to move up, clamp input to zero.
+        // If at the top perch and trying to move up, clamp input to zero.
         if (isAtTopPerch && verticalInput > 0)
         {
             verticalInput = 0;
