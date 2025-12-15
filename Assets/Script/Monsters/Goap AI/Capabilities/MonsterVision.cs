@@ -94,13 +94,14 @@ public class MonsterVision : MonoBehaviour
     private bool CanHitTargetWithRays(Vector3 start, Vector3 end, float distance)
     {
         int rays = Mathf.Max(1, config.numOfRayCast);
-        
-        // Define the direction
         Vector3 centerDir = (end - start).normalized;
+        
+        // Spread angle
+        float spreadAngle = 15f; 
 
-        // How much to spread rays (in degrees). 
-        // Example: if 5 rays, spread them within 5 degrees to verify 'peeking'
-        float spreadAngle = 15f; // Degrees total spread
+        // COMBINE MASKS: We want to hit Walls OR the Player
+        // Ensure 'playerLayerMask' is set correctly in Config
+        int combinedMask = config.obstacleLayerMask | config.playerLayerMask;
 
         for (int i = 0; i < rays; i++)
         {
@@ -108,30 +109,35 @@ public class MonsterVision : MonoBehaviour
 
             if (rays > 1)
             {
-                // Calculate offset to fan out the rays
-                // t goes from -0.5 to +0.5
                 float t = (i / (float)(rays - 1)) - 0.5f; 
                 float angleOffset = t * spreadAngle;
-                
-                // Rotate the direction around the UP axis
                 finalDir = Quaternion.Euler(0, angleOffset, 0) * centerDir;
             }
 
-            // Cast the ray
-            // Returns TRUE if we hit something.
-            if (Physics.Raycast(start, finalDir, out RaycastHit hit, distance, config.obstacleLayerMask))
+            // Raycast against EVERYTHING (Walls + Player)
+            // We add +1.0f buffer to distance to ensure we pierce the player's collider surface
+            if (Physics.Raycast(start, finalDir, out RaycastHit hit, distance + 1.0f, combinedMask))
             {
-                // Debug: We hit an obstacle
-                Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f);
-            }
-            else
-            {
-                // Returns FALSE means we hit NO OBSTACLES (Open Air)
-                // Since we already know the player is at 'distance', if we didn't hit a wall, we see the player.
+                // 1. Check if we hit an Obstacle (Wall/Building)
+                // (Bitwise check to see if the object's layer is in the obstacle mask)
+                if (((1 << hit.collider.gameObject.layer) & config.obstacleLayerMask) != 0)
+                {
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f);
+                    continue; // Blocked by wall, try next ray
+                }
                 
-                Debug.DrawRay(start, finalDir * distance, Color.red, 0.1f); // RED = I SEE YOU
-                return true;
+                // 2. Check if we hit the Player
+                if (((1 << hit.collider.gameObject.layer) & config.playerLayerMask) != 0)
+                {
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.red, 0.1f);
+                    return true; // CONFIRMED VISUAL: We actually hit the player!
+                }
             }
+            
+            // If we get here, the ray hit nothing (Empty Air).
+            // OLD CODE: This returned true (Bug).
+            // NEW CODE: This counts as a miss.
+            Debug.DrawRay(start, finalDir * distance, Color.gray, 0.1f);
         }
 
         return false;
