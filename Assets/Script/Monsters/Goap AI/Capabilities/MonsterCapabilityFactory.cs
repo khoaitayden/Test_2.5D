@@ -76,7 +76,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<IsAtSuspiciousLocationSensor>().SetKey<IsAtSuspiciousLocation>();
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
-            builder.AddWorldSensor<IsHearingNoiseSensor>().SetKey<IsHearingNoise>();
             builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
             
             // NEW: Register Flee Sensor
@@ -86,7 +85,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
-            builder.AddTargetSensor<LoudTraceSensor>().SetTarget<LoudTraceTarget>(); 
             builder.AddTargetSensor<FreshTraceSensor>().SetTarget<FreshTraceTarget>();
             return builder.Build();
         }
