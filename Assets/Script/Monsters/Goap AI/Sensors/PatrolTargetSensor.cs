@@ -16,14 +16,14 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
-            // 1. Keep existing target if we are still moving towards it
-            // This prevents the monster from jittering/switching targets every frame.
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance)
+            // 1. Keep existing target if we haven't reached it yet
+            // This prevents switching targets mid-walk
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 2f)
             {
                 return existingTarget;
             }
 
-            // 2. Find a new random point
+            // 2. Try to find a valid random point
             Vector3? point = GetRandomPoint(agent.Transform.position);
             
             if (point.HasValue)
@@ -31,23 +31,36 @@ namespace CrashKonijn.Goap.MonsterGen
                 return new PositionTarget(point.Value);
             }
 
-            // Fallback: Stay where we are
-            return new PositionTarget(agent.Transform.position);
+            // 3. Return null if failed. 
+            // This causes "No Action Found" -> Idle for one frame -> Retry.
+            // Much better than returning current position (which causes instant-complete flickering).
+            return null;
         }
 
         private Vector3? GetRandomPoint(Vector3 origin)
         {
-            // Try 5 times to find a valid spot
-            for (int i = 0; i < 5; i++)
+            // Try 30 times to find a valid point on the NavMesh
+            for (int i = 0; i < 30; i++)
             {
-                // Random point inside circle
-                Vector2 rnd = Random.insideUnitCircle * config.patrolDistance;
-                Vector3 candidate = origin + new Vector3(rnd.x, 0, rnd.y);
+                // A. Get Random Direction
+                Vector2 rndDir = Random.insideUnitCircle.normalized;
+                
+                // B. Get Random Distance (Between Min and Max)
+                float rndDist = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
+                
+                // C. Calculate Candidate Position
+                Vector3 candidate = origin + new Vector3(rndDir.x, 0, rndDir.y) * rndDist;
 
-                // Snap to NavMesh
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10.0f, NavMesh.AllAreas))
+                // D. Snap to NavMesh
+                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
                 {
-                    return hit.position;
+                    // E. Double Check Distance
+                    // Sometimes SamplePosition snaps the point BACK towards the agent.
+                    // We verify the final point is still far enough away.
+                    if (Vector3.Distance(origin, hit.position) >= config.minPatrolDistance)
+                    {
+                        return hit.position;
+                    }
                 }
             }
             return null;

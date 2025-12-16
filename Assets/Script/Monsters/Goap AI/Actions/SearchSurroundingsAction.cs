@@ -61,8 +61,8 @@ namespace CrashKonijn.Goap.MonsterGen
                 if (dist > 3.0f) 
                 {
                     Debug.LogWarning($"[Search] Stuck {dist:F1}m away from cover. Triggering Flee.");
-                    brain?.OnMovementStuck(); // <--- THIS TRIGGERS FLEE ACTION
-                    return ActionRunState.Stop; // Stop this action immediately
+                    brain?.OnMovementStuck();
+                    return ActionRunState.Stop; 
                 }
 
                 // Otherwise, normal arrival.

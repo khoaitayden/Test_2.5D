@@ -88,11 +88,8 @@ public class MonsterBrain : MonoBehaviour
     {
         Debug.Log("[Brain] Stuck! Engaging Flee Mode.");
         
-        // --- CLEAR PREVIOUS STATE (THE FIX) ---
-        // Stop investigating. We are now in a panic/reset mode.
         IsInvestigating = false; 
-        
-        // It's also good practice to clear these when entering a panic state.
+
         IsPlayerVisible = false;
         CurrentPlayerTarget = null;
         LastKnownPlayerPosition = Vector3.zero;

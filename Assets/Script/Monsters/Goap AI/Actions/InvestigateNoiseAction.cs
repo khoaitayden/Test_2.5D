@@ -2,6 +2,7 @@ using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
+using UnityEngine.AI; // Needed for NavMesh sampling
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -11,8 +12,8 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterConfig config;
         private MonsterBrain brain;
         
-        // Track where we are currently going
         private Vector3 currentDestination;
+        private float currentTraceTimestamp; // Track the time of the noise we are chasing
 
         public override void Created() { }
 
@@ -24,7 +25,12 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
+                // 1. Initial Setup
                 UpdateDestination(data.Target.Position);
+                
+                // 2. Try to guess the timestamp of the target we were given so we can compare later
+                // (We default to the Brain's floor if we can't match it, just to be safe)
+                currentTraceTimestamp = FindTimestampForPosition(data.Target.Position) ?? brain.HandledNoiseTimestamp;
             }
         }
 
@@ -32,21 +38,32 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.Target == null) return ActionRunState.Stop;
 
-            // --- INTERRUPT / SWITCH LOGIC ---
-            // Check if the sensor found a NEW noise (Target changed significantly)
-            if (Vector3.Distance(data.Target.Position, currentDestination) > 2.0f)
-            {
-                // Debug.Log($"[NoiseAction] Switching to newer noise at {data.Target.Position}");
-                UpdateDestination(data.Target.Position);
-            }
-            // --------------------------------
+            // --- 1. ACTIVE SCAN FOR NEWER NOISE ---
+            // We duplicate the sensor logic here briefly to find if there is a "Better Offer"
+            GameTrace betterTrace = CheckForNewerTrace(agent.Transform.position);
 
-            // Check Arrival at CURRENT destination
+            if (betterTrace != null)
+            {
+                // We found a noise NEWER than the one we are currently walking to
+                // Debug.Log($"[Investigate] Switched to newer noise! ({currentTraceTimestamp} -> {betterTrace.Timestamp})");
+                
+                currentTraceTimestamp = betterTrace.Timestamp;
+                
+                // Snap to NavMesh (matching Sensor logic) to ensure valid path
+                Vector3 targetPos = betterTrace.Position;
+                if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, config.traceNavMeshSnapRadius, NavMesh.AllAreas))
+                {
+                    targetPos = hit.position;
+                }
+
+                UpdateDestination(targetPos);
+            }
+
+            // --- 2. ARRIVAL CHECK ---
             if (movement.HasArrivedOrStuck())
             {
-                // We reached the noise we were aiming for.
-                // Mark THIS specific noise (at currentDestination) as handled.
-                MarkNoiseAtLocationAsHandled(currentDestination);
+                // We arrived. Mark this timestamp as handled.
+                brain.MarkNoiseAsHandled(currentTraceTimestamp);
                 return ActionRunState.Completed;
             }
 
@@ -64,39 +81,46 @@ namespace CrashKonijn.Goap.MonsterGen
             movement.MoveTo(pos, config.investigateSpeed, config.stoppingDistance);
         }
 
-        private void MarkNoiseAtLocationAsHandled(Vector3 location)
+        // Helper to find the "Best" trace currently available
+        private GameTrace CheckForNewerTrace(Vector3 agentPos)
         {
-            if (TraceManager.Instance == null) return;
+            if (TraceManager.Instance == null) return null;
 
             var traces = TraceManager.Instance.GetTraces();
-            float bestTime = -1f;
+            GameTrace bestCandidate = null;
+            float bestTime = currentTraceTimestamp; // We only care if it's newer than CURRENT
 
             foreach (var trace in traces)
             {
                 if (trace.IsExpired) continue;
-                
-                // Only look for loud noises near where we arrived
+                if (trace.Timestamp <= bestTime) continue; // Must be newer than what we have
+
                 bool isLoud = trace.Type == TraceType.Soul_Collection || 
                               trace.Type == TraceType.EnviromentNoiseStrong ||
-                              trace.Type == TraceType.EnviromentNoiseMedium; 
+                              trace.Type == TraceType.EnviromentNoiseMedium;
 
                 if (!isLoud) continue;
+                if (Vector3.Distance(agentPos, trace.Position) > config.hearingRange) continue;
 
-                if (Vector3.Distance(trace.Position, location) < 2.5f)
-                {
-                    if (trace.Timestamp > bestTime) bestTime = trace.Timestamp;
-                }
+                bestTime = trace.Timestamp;
+                bestCandidate = trace;
             }
 
-            if (bestTime > 0)
+            return bestCandidate;
+        }
+
+        // Helper to match a position back to a timestamp (for Start)
+        private float? FindTimestampForPosition(Vector3 pos)
+        {
+            if (TraceManager.Instance == null) return null;
+            var traces = TraceManager.Instance.GetTraces();
+            
+            foreach (var trace in traces)
             {
-                brain.MarkNoiseAsHandled(bestTime);
+                if (Vector3.Distance(trace.Position, pos) < 1.0f) // Loose match
+                    return trace.Timestamp;
             }
-            else
-            {
-                // Safety: if trace is gone, mark current time so we don't loop
-                brain.MarkNoiseAsHandled(Time.time);
-            }
+            return null;
         }
 
         public class Data : IActionData

@@ -5,13 +5,17 @@ using UnityEditor;
 
 public class MonsterConfig : MonoBehaviour
 {
+
     [Header("Patrol Behavior")]
-    public float patrolDistance = 60f;
+    [Tooltip("The MINIMUM distance the monster must travel when patrolling.")]
+    public float minPatrolDistance; 
+    [Tooltip("The MAXIMUM distance the monster can travel when patrolling.")]
+    public float maxPatrolDistance; 
     
     [Header("Movement")]
-    public float patrolSpeed = 4f;
-    public float investigateSpeed = 6f;
-    public float chaseSpeed = 8f;
+    public float patrolSpeed;
+    public float investigateSpeed;
+    public float chaseSpeed;
     
     [Tooltip("How close monster needs to be to consider destination 'reached'")]
     public float stoppingDistance;
