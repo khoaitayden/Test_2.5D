@@ -16,15 +16,15 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             // --- ACTIONS ---
 
-        // 1. Attack Player
-        builder.AddAction<AttackPlayerAction>()
-            .SetTarget<PlayerTarget>()
-            .AddEffect<HasKilledPlayer>(EffectType.Increase)
-            .AddEffect<IsInvestigating>(EffectType.Decrease) 
-            .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
-            .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) 
-            .SetBaseCost(1)
-            .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            // 1. Attack Player
+            builder.AddAction<AttackPlayerAction>()
+                .SetTarget<PlayerTarget>()
+                .AddEffect<HasKilledPlayer>(EffectType.Increase)
+                .AddEffect<IsInvestigating>(EffectType.Decrease) 
+                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) 
+                .SetBaseCost(1)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // 2. Flee
             builder.AddAction<FleeAction>()
@@ -34,36 +34,34 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(2) 
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-
-            // 3. Search Surroundings
+            // 3. Track Trace
+            builder.AddAction<TrackTraceAction>()
+                .SetTarget<FreshTraceTarget>()
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                .AddEffect<IsInvestigating>(EffectType.Decrease)
+                .AddCondition<IsTrackingTrace>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1)
+                .SetBaseCost(3)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            // 4. Search Surroundings
             builder.AddAction<SearchSurroundingsAction>()
                 .SetTarget<InvestigateTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddEffect<CanPatrol>(EffectType.Increase)     
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(3)
+                .SetBaseCost(5)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 4. Go To Last Seen
+            // 5. Go To Last Seen
             builder.AddAction<GoToLastSeenPlayerAreaAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
-                .SetBaseCost(2)
+                .SetBaseCost(4)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-
-            // 5. Investigate noise
-            builder.AddAction<InvestigateNoiseAction>()
-                .SetTarget<LoudTraceTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
-                .AddCondition<IsHearingNoise>(Comparison.GreaterThanOrEqual, 1)
-                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1) 
-                .SetBaseCost(4) 
-                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-
             // 6. Patrol
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
@@ -79,6 +77,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
             builder.AddWorldSensor<IsHearingNoiseSensor>().SetKey<IsHearingNoise>();
+            builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
             
             // NEW: Register Flee Sensor
             builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
@@ -88,7 +87,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
             builder.AddTargetSensor<LoudTraceSensor>().SetTarget<LoudTraceTarget>(); 
-            
+            builder.AddTargetSensor<FreshTraceSensor>().SetTarget<FreshTraceTarget>();
             return builder.Build();
         }
     }

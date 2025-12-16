@@ -5,8 +5,8 @@ public class MonsterVision : MonoBehaviour
 {
     [Header("Settings")]
     [SerializeField] private MonsterConfig config;
-    [SerializeField] private float detectionFrequency = 0.1f; 
-    [SerializeField] private float sightLostDelay = 1.0f; 
+    [SerializeField] private float detectionFrequency; 
+    [SerializeField] private float sightLostDelay; 
     
     [Header("Debug Read-Only")]
     [SerializeField] private bool canSeePlayerNow; 
@@ -14,7 +14,7 @@ public class MonsterVision : MonoBehaviour
     private MonsterBrain brain;
     private float scanTimer;
     private float timeSinceLastSeen;
-    
+
     // Reusable array to save memory (GC Optimization)
     private Collider[] _overlapBuffer = new Collider[10];
 
@@ -58,7 +58,7 @@ public class MonsterVision : MonoBehaviour
     private Transform ScanForPlayer()
     {
         // 1. Define Eyes Position (Up 1.5f for a better "Head" view, 0.5f might be too low/waist)
-        Vector3 eyesPosition = transform.position + Vector3.up * 1.5f;
+        Vector3 eyesPosition = transform.position + Vector3.up * 1.2f;
 
         // 2. Overlap Check (Broad Phase)
         int count = Physics.OverlapSphereNonAlloc(
@@ -103,7 +103,7 @@ public class MonsterVision : MonoBehaviour
         // 2. Tighten the spread!
         // A 15-degree spread misses the player at long range.
         // Use 3 degrees. This covers the width of a human body at ~50 meters.
-        float totalSpreadAngle = 3.0f; 
+        float totalSpreadAngle = 5.0f; 
 
         int combinedMask = config.obstacleLayerMask | config.playerLayerMask;
 
