@@ -57,11 +57,12 @@ public class MonsterVision : MonoBehaviour
 
     private Transform ScanForPlayer()
     {
-        Vector3 eyesPosition = transform.position + Vector3.up * 0.5f; // Lift eyes up to chest/head height
+        // 1. Define Eyes Position (Up 1.5f for a better "Head" view, 0.5f might be too low/waist)
+        Vector3 eyesPosition = transform.position + Vector3.up * 1.5f;
 
-        // 1. Physical Overlap (Broad Phase)
+        // 2. Overlap Check (Broad Phase)
         int count = Physics.OverlapSphereNonAlloc(
-            eyesPosition,
+            transform.position, // Check from feet is fine for radius
             config.viewRadius,
             _overlapBuffer,
             config.playerLayerMask
@@ -70,21 +71,22 @@ public class MonsterVision : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Transform target = _overlapBuffer[i].transform;
-            Vector3 targetPosition = target.position + Vector3.up * 0.5f; // Look at player's chest, not feet
             
-            Vector3 toTarget = targetPosition - eyesPosition;
-            float dist = toTarget.magnitude;
+            // Target Center: Aim for the chest/center, not the feet pivot
+            Vector3 targetCenter = target.position + Vector3.up * 1.0f;
 
-            // 2. Angle Check
-            if (Vector3.Angle(transform.forward, toTarget) > config.ViewAngle / 2f)
+            Vector3 dirToTarget = (targetCenter - eyesPosition).normalized;
+            
+            // 3. Angle Check (Is player inside the Vision Cone?)
+            if (Vector3.Angle(transform.forward, dirToTarget) < config.ViewAngle / 2f)
             {
-                continue; // Outside peripheral vision
-            }
+                float dist = Vector3.Distance(eyesPosition, targetCenter);
 
-            // 3. Multi-Raycast Check (Detail Phase)
-            if (CanHitTargetWithRays(eyesPosition, targetPosition, dist))
-            {
-                return target; // Return the first player we see
+                // 4. Raycast Fan Check (Detail Phase)
+                if (CanHitTargetWithRays(eyesPosition, targetCenter, dist))
+                {
+                    return target;
+                }
             }
         }
 
@@ -94,49 +96,52 @@ public class MonsterVision : MonoBehaviour
     private bool CanHitTargetWithRays(Vector3 start, Vector3 end, float distance)
     {
         int rays = Mathf.Max(1, config.numOfRayCast);
-        Vector3 centerDir = (end - start).normalized;
         
-        // Spread angle
-        float spreadAngle = 15f; 
+        // 1. Calculate the Perfect Direct Line
+        Vector3 directLineToPlayer = (end - start).normalized;
 
-        // COMBINE MASKS: We want to hit Walls OR the Player
-        // Ensure 'playerLayerMask' is set correctly in Config
+        // 2. Tighten the spread!
+        // A 15-degree spread misses the player at long range.
+        // Use 3 degrees. This covers the width of a human body at ~50 meters.
+        float totalSpreadAngle = 3.0f; 
+
         int combinedMask = config.obstacleLayerMask | config.playerLayerMask;
 
         for (int i = 0; i < rays; i++)
         {
-            Vector3 finalDir = centerDir;
+            Vector3 finalDir = directLineToPlayer;
 
+            // Only fan out if we have multiple rays
             if (rays > 1)
             {
+                // Calculate offset (-0.5 to 0.5)
                 float t = (i / (float)(rays - 1)) - 0.5f; 
-                float angleOffset = t * spreadAngle;
-                finalDir = Quaternion.Euler(0, angleOffset, 0) * centerDir;
+                float angleOffset = t * totalSpreadAngle;
+                
+                // ROTATE the direct line around the UP axis
+                finalDir = Quaternion.Euler(0, angleOffset, 0) * directLineToPlayer;
             }
 
-            // Raycast against EVERYTHING (Walls + Player)
-            // We add +1.0f buffer to distance to ensure we pierce the player's collider surface
-            if (Physics.Raycast(start, finalDir, out RaycastHit hit, distance + 1.0f, combinedMask))
+            // Cast Ray
+            // We add distance + 2.0f to ensure we punch through the collider
+            if (Physics.Raycast(start, finalDir, out RaycastHit hit, distance + 2.0f, combinedMask))
             {
-                // 1. Check if we hit an Obstacle (Wall/Building)
-                // (Bitwise check to see if the object's layer is in the obstacle mask)
+                // Did we hit an Obstacle?
                 if (((1 << hit.collider.gameObject.layer) & config.obstacleLayerMask) != 0)
                 {
-                    Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f);
-                    continue; // Blocked by wall, try next ray
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f); // Blocked
+                    continue; 
                 }
                 
-                // 2. Check if we hit the Player
+                // Did we hit the Player?
                 if (((1 << hit.collider.gameObject.layer) & config.playerLayerMask) != 0)
                 {
-                    Debug.DrawRay(start, finalDir * hit.distance, Color.red, 0.1f);
-                    return true; // CONFIRMED VISUAL: We actually hit the player!
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.red, 0.1f); // SEEN
+                    return true; 
                 }
             }
             
-            // If we get here, the ray hit nothing (Empty Air).
-            // OLD CODE: This returned true (Bug).
-            // NEW CODE: This counts as a miss.
+            // Missed everything (Gray)
             Debug.DrawRay(start, finalDir * distance, Color.gray, 0.1f);
         }
 
