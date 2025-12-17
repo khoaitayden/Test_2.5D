@@ -17,13 +17,12 @@ namespace CrashKonijn.Goap.MonsterGen
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
             // 1. Keep existing target if we haven't reached it yet
-            // This prevents switching targets mid-walk
             if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 2f)
             {
                 return existingTarget;
             }
 
-            // 2. Try to find a valid random point
+            // 2. Try to find a valid, REACHABLE random point using Config settings
             Vector3? point = GetRandomPoint(agent.Transform.position);
             
             if (point.HasValue)
@@ -31,35 +30,53 @@ namespace CrashKonijn.Goap.MonsterGen
                 return new PositionTarget(point.Value);
             }
 
-            // 3. Return null if failed. 
-            // This causes "No Action Found" -> Idle for one frame -> Retry.
-            // Much better than returning current position (which causes instant-complete flickering).
+            // 3. Return null on failure (triggers idle -> retry)
             return null;
         }
 
         private Vector3? GetRandomPoint(Vector3 origin)
         {
-            // Try 30 times to find a valid point on the NavMesh
-            for (int i = 0; i < 30; i++)
+            NavMeshPath path = new NavMeshPath();
+
+            // Try 30 times to find a valid point
+            for (int i = 0; i < 10; i++)
             {
-                // A. Get Random Direction
+                // A. Generate Random Coordinate
                 Vector2 rndDir = Random.insideUnitCircle.normalized;
-                
-                // B. Get Random Distance (Between Min and Max)
                 float rndDist = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
-                
-                // C. Calculate Candidate Position
                 Vector3 candidate = origin + new Vector3(rndDir.x, 0, rndDir.y) * rndDist;
 
-                // D. Snap to NavMesh
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+                Vector3 finalHitPos = Vector3.zero;
+                bool foundMesh = false;
+
+                // B. PASS 1: Precision Snap (Use Config Variable)
+                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, config.traceNavMeshSnapRadius, NavMesh.AllAreas))
                 {
-                    // E. Double Check Distance
-                    // Sometimes SamplePosition snaps the point BACK towards the agent.
-                    // We verify the final point is still far enough away.
-                    if (Vector3.Distance(origin, hit.position) >= config.minPatrolDistance)
+                    finalHitPos = hit.position;
+                    foundMesh = true;
+                }
+                // C. PASS 2: Fallback Snap (Use Config Variable)
+                // If the random point was inside a thick wall/tree, search wider.
+                else if (NavMesh.SamplePosition(candidate, out hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
+                {
+                    finalHitPos = hit.position;
+                    foundMesh = true;
+                }
+
+                if (foundMesh)
+                {
+                    // D. Min Distance Check
+                    // Ensure the snapped point didn't get pulled back too close to us
+                    if (Vector3.Distance(origin, finalHitPos) < config.minPatrolDistance) continue;
+
+                    // E. REACHABILITY CHECK (Crucial Fix)
+                    // Ensure we can actually walk there (not inside a locked room)
+                    if (NavMesh.CalculatePath(origin, finalHitPos, NavMesh.AllAreas, path))
                     {
-                        return hit.position;
+                        if (path.status == NavMeshPathStatus.PathComplete)
+                        {
+                            return finalHitPos;
+                        }
                     }
                 }
             }
