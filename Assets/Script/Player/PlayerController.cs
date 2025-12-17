@@ -44,6 +44,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerParticleController particleController;
     [SerializeField] private PlayerAnimation playerAnimation;
     [SerializeField] private UIManager uIManager;
+    [SerializeField] private WispMapLightController wispController;
     
     private CharacterController controller;
     private Vector3 velocity;
@@ -315,23 +316,27 @@ public class PlayerController : MonoBehaviour
         }
     }
     // --- NORMAL MOVEMENT LOGIC ---
-
     private void HandleMovement()
     {
+        // --- 1. GET INPUT AND CALCULATE WORLD DIRECTION ---
         Vector2 moveInput = InputManager.Instance.MoveInput;
 
         Vector3 camForward = mainCameraTransform.forward;
         Vector3 camRight = mainCameraTransform.right;
-        camForward.y = 0; camRight.y = 0;
-        camForward.Normalize(); camRight.Normalize();
+        camForward.y = 0; 
+        camRight.y = 0;
+        camForward.Normalize(); 
+        camRight.Normalize();
         WorldSpaceMoveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
 
+        // --- 2. ROTATE PLAYER ---
         if (WorldSpaceMoveDirection.magnitude >= 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
+        // --- 3. HANDLE JUMPING ---
         if (jumpRequest && isGrounded)
         {
             particleController?.PlayJumpEffect();
@@ -340,19 +345,48 @@ public class PlayerController : MonoBehaviour
             jumpRequest = false; 
         }
 
+        // --- 4. APPLY GRAVITY ---
         ApplyGravity();
         
+        // --- 5. DETERMINE MOVEMENT SPEED (WITH LIGHT CHECK) ---
         float currentMoveSpeed = moveSpeed;
-        if (IsSprinting) { currentMoveSpeed *= sprintSpeedMultiplier; }
-        else if (IsSlowWalking) { currentMoveSpeed *= slowWalkSpeedMultiplier; }
+        bool hasLight = (wispController != null && wispController.IsLightActive);
+
+        if (hasLight)
+        {
+            // Normal behavior: Player can sprint, walk, or slow walk.
+            if (IsSprinting) 
+            {
+                currentMoveSpeed *= sprintSpeedMultiplier;
+            }
+            else if (IsSlowWalking) 
+            {
+                currentMoveSpeed *= slowWalkSpeedMultiplier;
+            }
+        }
+        else
+        {
+            // NO LIGHT: Force player into slow walk speed.
+            // Ignore Sprint and normal Walk input.
+            currentMoveSpeed *= slowWalkSpeedMultiplier;
+        }
+        
+        // Apply any environmental effects (e.g., branch traps)
         currentMoveSpeed *= environmentSpeedMultiplier; 
+
+        // --- 6. CALCULATE FINAL VELOCITY (with acceleration/deceleration) ---
         Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * currentMoveSpeed;
-        float currentAcceleration = WorldSpaceMoveDirection.magnitude > 0.1f ? acceleration : deceleration;
+        float currentAcceleration = (WorldSpaceMoveDirection.magnitude > 0.1f) ? acceleration : deceleration;
         horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, currentAcceleration * Time.deltaTime);
         
-        if (horizontalVelocity.magnitude < 0.01f) { horizontalVelocity = Vector3.zero; }
+        // Clamp small values to zero to prevent sliding
+        if (horizontalVelocity.magnitude < 0.01f) 
+        {
+            horizontalVelocity = Vector3.zero;
+        }
         
-        Vector3 totalVelocity = horizontalVelocity + Vector3.up * velocity.y;
+        // --- 7. MOVE THE CHARACTER CONTROLLER ---
+        Vector3 totalVelocity = horizontalVelocity + (Vector3.up * velocity.y);
         controller.Move(totalVelocity * Time.deltaTime);
     }
 

@@ -55,7 +55,7 @@ public class WispMapLightController : MonoBehaviour
 
     // New flag for Manual Toggle
     private bool isSystemPoweredOn = true;
-
+    public bool IsLightActive { get; private set; } = true;
     void Start()
     {
         if (Camera.main != null)
@@ -122,16 +122,17 @@ public class WispMapLightController : MonoBehaviour
             // Turning ON
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(false);
-
-            ApplyLightMode();
+            
+            ApplyLightMode(); 
+            // We only set IsLightActive if energy > 0, which ApplyLightMode handles via ApplyGlobalLightEnergy
         }
         else
         {
             // Turning OFF
             if (LightEnergyManager.Instance != null)
                 LightEnergyManager.Instance.SetDrainPaused(true);
-
-            TurnOffAllLights();
+            
+            TurnOffAllLights(); // This will set IsLightActive to false
         }
     }
 
@@ -142,12 +143,17 @@ public class WispMapLightController : MonoBehaviour
         if (LightEnergyManager.Instance == null) return;
 
         float energy = LightEnergyManager.Instance.GetIntensityFactor();
-
+        
         if (energy <= 0f)
         {
-            TurnOffAllLights();
+            TurnOffAllLights(); // This will set IsLightActive to false
             return;
         }
+
+        // --- NEW ---
+        // If we have energy and system is on, light is active
+        IsLightActive = isSystemPoweredOn; 
+        // ---------
 
         float effectiveRange = energy;
         float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
@@ -199,6 +205,10 @@ public class WispMapLightController : MonoBehaviour
         if (focusLight != null) focusLight.enabled = false;
         activeLight = null;
 
+        // --- NEW ---
+        IsLightActive = false;
+        // ---------
+
         UpdateCameraClip(offLightFarClip);
     }
 
@@ -243,7 +253,6 @@ public class WispMapLightController : MonoBehaviour
             }
         }
 
-        // Handle objects that are NO LONGER lit (either out of range or now hidden behind wall)
         foreach (Collider col in currentlyLit)
         {
             if (!validLitSet.Contains(col))
@@ -255,29 +264,14 @@ public class WispMapLightController : MonoBehaviour
         currentlyLit = validLitSet;
     }
 
-    // --- NEW: Optimized Line of Sight Check ---
     private bool HasLineOfSight(Vector3 origin, Collider target)
     {
-        // Calculate direction and distance to target
-        // We target the center of the collider (usually bounds.center)
         Vector3 targetCenter = target.bounds.center;
         Vector3 direction = targetCenter - origin;
         float distance = direction.magnitude;
-
-        // Optimization: Normalize manually to save a magnitude calc, 
-        // but we already needed magnitude for distance check.
-        
-        // Raycast
-        // We cast a ray from Light -> Target.
-        // We ONLY check against the 'obstructionLayer' (Walls).
-        // If we hit a wall before reaching the 'distance' of the target, it is occluded.
         
         if (Physics.Raycast(origin, direction, out RaycastHit hitInfo, distance, obstructionLayer))
         {
-            // We hit a wall.
-            // Double check: sometimes the wall is BEHIND the target if layers are messy.
-            // But since obstructionLayer should exclude the target itself, 
-            // any hit implies a blocker is in between.
             return false; 
         }
 
