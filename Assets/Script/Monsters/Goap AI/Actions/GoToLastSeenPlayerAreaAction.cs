@@ -10,6 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
         private MonsterMovement movement;
         private MonsterConfig config;
         private MonsterBrain brain;
+        private bool initFailed;
 
         public override void Created() { }
 
@@ -18,21 +19,40 @@ namespace CrashKonijn.Goap.MonsterGen
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfig>();
             brain = agent.GetComponent<MonsterBrain>();
+            initFailed = false;
             
             if (data.Target != null)
             {
-                movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
+                // Try to move
+                bool success = movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
+                
+                if (!success)
+                {
+                    Debug.LogWarning($"[GoTo] Path Failed. Resetting investigation to Current Location.");
+                    
+                    // Instead of failing completely (going to Patrol), 
+                    // we tell the Brain to search HERE.
+                    brain?.OnMovementStuck(); // Re-use the same logic!
+                    
+                    // We don't need to continue this action since we are already "Here"
+                    // The planner will switch to SearchSurroundings next frame.
+                }
             }
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            if (data.Target == null) return ActionRunState.Stop;
+            if (initFailed || data.Target == null) return ActionRunState.Stop;
             
-            // Use the simplified check
             if (movement.HasArrivedOrStuck())
             {
-                // Critical: Tell Brain we arrived so we can transition to Search
+                // If stuck trying to reach the investigation area
+                if (Vector3.Distance(agent.Transform.position, data.Target.Position) > 5.0f)
+                {
+                    brain?.OnMovementStuck();
+                    return ActionRunState.Stop;
+                }
+                
                 brain?.OnArrivedAtSuspiciousLocation();
                 return ActionRunState.Completed;
             }
@@ -40,11 +60,7 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
         
-        public override void End(IMonoAgent agent, Data data) 
-        { 
-            movement.Stop(); 
-        }
-        
+        public override void End(IMonoAgent agent, Data data) { movement.Stop(); }
         public class Data : IActionData { public ITarget Target { get; set; } }
     }
 }

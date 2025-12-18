@@ -1,4 +1,3 @@
-// TombstoneController.cs
 using UnityEngine;
 using System.Collections;
 
@@ -26,25 +25,20 @@ public class TombstoneController : MonoBehaviour, ILitObject
 
     void Start()
     {
-        // Randomize max energy
         maxEnergy = Random.Range(energyRange.x, energyRange.y);
         currentEnergy = maxEnergy;
         
-        // Randomize sprite
         if (spriteRenderer != null && tombstoneSprites != null && tombstoneSprites.Length > 0)
         {
-            Sprite randomSprite = tombstoneSprites[Random.Range(0, tombstoneSprites.Length)];
-            spriteRenderer.sprite = randomSprite;
+            spriteRenderer.sprite = tombstoneSprites[Random.Range(0, tombstoneSprites.Length)];
         }
         
-        // Initialize visuals
         if (wispSoul != null) wispSoul.Stop();
         UpdateIndicatorLight();
     }
 
     void FixedUpdate()
     {
-        // Billboard to camera
         Camera cam = Camera.main;
         if (cam != null)
         {
@@ -56,7 +50,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
             }
         }
         
-        // Recharge when not lit and delay passed
         if (!isLit && Time.time - lastDrainTime > rechargeDelay)
         {
             currentEnergy = Mathf.MoveTowards(currentEnergy, maxEnergy, regainRate * Time.deltaTime);
@@ -67,8 +60,8 @@ public class TombstoneController : MonoBehaviour, ILitObject
     public void OnLit()
     {
         isLit = true;
-        lastDrainTime = Time.time;
-        PlayTransferParticles();
+        // --- MODIFIED: We DO NOT play particles here anymore. ---
+        // PlayTransferParticles(); 
     }
 
     public void OnUnlit()
@@ -77,6 +70,7 @@ public class TombstoneController : MonoBehaviour, ILitObject
         StopTransferParticles();
     }
 
+    // This method is now ONLY called when the player actively holds 'E'
     public void DrainEnergy(float deltaTime)
     {
         if (!isLit || currentEnergy <= 0f)
@@ -87,26 +81,17 @@ public class TombstoneController : MonoBehaviour, ILitObject
             return;
         }
         
-        // Check if player is at max energy - stop emitting particles
-        var manager = FindFirstObjectByType<LightEnergyManager>();
-        if (manager != null && manager.CurrentEnergy >= 0.95f)
+        var manager = LightEnergyManager.Instance;
+        if (manager != null && manager.CurrentEnergy >= 0.99f)
         {
-            StopTransferParticles();
+            StopTransferParticles(); // Stop emitting if player's energy is full
             return;
         }
         
-        // Keep particles playing if there's energy
-        if (currentEnergy > 0f)
-        {
-            PlayTransferParticles();
-        }
-        else
-        {
-            StopTransferParticles();
-        }
+        // --- NEW: This is now the only place particles are started ---
+        PlayTransferParticles();
     }
     
-    // NEW METHOD: Called by particle controller when energy is actually absorbed
     public void DrainEnergyByAmount(float amount)
     {
         if (currentEnergy <= 0f) return;
@@ -117,11 +102,7 @@ public class TombstoneController : MonoBehaviour, ILitObject
         UpdateIndicatorLight();
         lastDrainTime = Time.time;
         
-        // Stop particles if depleted
-        if (currentEnergy <= 0f)
-        {
-            StopTransferParticles();
-        }
+        if (currentEnergy <= 0f) StopTransferParticles();
     }
 
     void PlayTransferParticles()
@@ -148,7 +129,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
         energyIndicatorLight.enabled = true;
     }
     
-    // PUBLIC GETTER for current energy state
     public float CurrentEnergy => currentEnergy;
     public float EnergyPercentage => maxEnergy > 0 ? currentEnergy / maxEnergy : 0f;
 }

@@ -17,6 +17,9 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public bool IsSprinting { get; private set; }
     public bool IsSlowWalking { get; private set; }
     public bool IsJumpHeld { get; private set; }
+    
+    // --- NEW: Property for holding the Interact key ---
+    public bool IsInteractHeld { get; private set; }
 
     // --- Events ---
     public event Action OnJumpTriggered;
@@ -24,8 +27,8 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public event Action OnInteractTriggered; 
     
     // Light Events
-    public event Action OnWispCycleTriggered;       // Short Press
-    public event Action OnWispPowerToggleTriggered; // Long Hold
+    public event Action OnWispCycleTriggered;
+    public event Action OnWispPowerToggleTriggered;
 
     // Internal State for "Hold" logic
     private bool _isWispSwitchDown;
@@ -46,14 +49,12 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
 
     private void Update()
     {
-        // Handle "Hold" Logic
         if (_isWispSwitchDown && !_wispHoldEventFired)
         {
             if (Time.time - _wispSwitchStartTime >= lightToggleHoldDuration)
             {
-                // Threshold reached: Trigger Power Toggle
                 OnWispPowerToggleTriggered?.Invoke();
-                _wispHoldEventFired = true; // Mark as fired so we don't fire again this press
+                _wispHoldEventFired = true;
             }
         }
     }
@@ -63,11 +64,15 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public void OnMovement(InputAction.CallbackContext context) => MoveInput = context.ReadValue<Vector2>();
     public void OnSlowWalk(InputAction.CallbackContext context) => IsSlowWalking = context.ReadValueAsButton();
     public void OnSprint(InputAction.CallbackContext context) => IsSprinting = context.ReadValueAsButton();
+
     public void OnInteract(InputAction.CallbackContext context)
     {
+        // --- MODIFIED: Set the hold state AND fire the press event ---
+        IsInteractHeld = context.ReadValueAsButton();
+
         if (context.performed)
         {
-            OnInteractTriggered?.Invoke();
+            OnInteractTriggered?.Invoke(); // For single-press actions like doors
         }
     }
 
@@ -81,22 +86,14 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     {
         if (context.started)
         {
-            // Button Pressed Down
             _isWispSwitchDown = true;
             _wispSwitchStartTime = Time.time;
             _wispHoldEventFired = false;
         }
         else if (context.canceled)
         {
-            // Button Released
             _isWispSwitchDown = false;
-
-            // If we released the button BEFORE the hold threshold triggered,
-            // treat it as a "Tap" (Cycle Mode)
-            if (!_wispHoldEventFired)
-            {
-                OnWispCycleTriggered?.Invoke();
-            }
+            if (!_wispHoldEventFired) OnWispCycleTriggered?.Invoke();
         }
     }
 }

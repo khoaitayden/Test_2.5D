@@ -6,78 +6,56 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
-    // --- THE MEMORY ---
+    // --- EXISTING MEMORY ---
     public bool IsPlayerVisible { get; private set; }
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
-    
-    // Logic States
     public bool IsInvestigating { get; private set; }
-    
-    // Components
+    public bool IsFleeing { get; private set; }
+    public float HandledNoiseTimestamp { get; private set; } = -1f;
+
     private GoapActionProvider provider;
     
     private void Awake()
     {
         provider = GetComponent<GoapActionProvider>();
-        
-        // CRITICAL FIX: Stop the Provider from starting before we assign the AgentType
-        if (provider != null)
-        {
-            provider.enabled = false;
-        }
+        if (provider != null) provider.enabled = false;
     }
 
     private IEnumerator Start()
     {
-        // 1. Wait for the GOAP System to initialize
         yield return null; 
-
-        // 2. Resolve Agent Type
         if (provider.AgentType == null)
         {
             var goap = Object.FindFirstObjectByType<GoapBehaviour>();
-            
-            if (goap == null)
-            {
-                Debug.LogError("[MonsterBrain] CRITICAL: No GoapBehaviour found in scene!");
-                yield break;
-            }
-
-            try 
-            {
-                provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
-            }
-            catch (System.Exception)
-            {
-                Debug.LogError("[MonsterBrain] AgentType 'ScriptMonsterAgent' not found! Check your GoapBehaviour.");
-                yield break;
-            }
+            if (goap != null) provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
         }
-
-        // 3. Setup Initial State
         UpdateGOAPState(); 
-        
-        // 4. ACTIVATE THE PROVIDER (Safe now)
         provider.enabled = true;
-        
-        // 5. Request Goal
         provider.RequestGoal<KillPlayerGoal>();
     }
 
-    // --- INPUTS ---
+    // --- NOISE API (NEW) ---
+
+    public void MarkNoiseAsHandled(float timestamp)
+    {
+        // We finished investigating this time.
+        // Update memory so we don't look at it (or anything older) again.
+        if (timestamp > HandledNoiseTimestamp)
+        {
+            HandledNoiseTimestamp = timestamp;
+            // Debug.Log($"[Brain] Noise Handled. Ignoring traces older than: {HandledNoiseTimestamp}");
+        }
+    }
+
+    // --- EXISTING INPUTS ---
 
     public void OnPlayerSeen(Transform player)
     {
         IsPlayerVisible = true;
         CurrentPlayerTarget = player;
         LastKnownPlayerPosition = player.position;
-
-        if (IsInvestigating)
-        {
-            IsInvestigating = false;
-        }
-        
+        if (IsInvestigating) IsInvestigating = false;
         UpdateGOAPState();
     }
 
@@ -88,9 +66,7 @@ public class MonsterBrain : MonoBehaviour
             IsPlayerVisible = false;
             IsInvestigating = true; 
             CurrentPlayerTarget = null;
-            Debug.Log($"[Brain] Player Lost. Switched to Memory at {LastKnownPlayerPosition}");
         }
-        
         UpdateGOAPState();
     }
 
@@ -101,32 +77,47 @@ public class MonsterBrain : MonoBehaviour
         UpdateGOAPState();
     }
 
-    public void OnInvestigationFailed()
-    {
-        OnInvestigationFinished();
-    }
+    public void OnInvestigationFailed() => OnInvestigationFinished();
 
     public void OnArrivedAtSuspiciousLocation()
     {
-        if (provider != null)
-            provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
+        if (provider != null) provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
+    }
+    // Rename this method (and update references in AttackPlayerAction)
+    public void OnMovementStuck()
+    {
+        Debug.Log("[Brain] Stuck! Engaging Flee Mode.");
+        
+        IsInvestigating = false; 
+
+        IsPlayerVisible = false;
+        CurrentPlayerTarget = null;
+        LastKnownPlayerPosition = Vector3.zero;
+
+        // --- ENGAGE NEW STATE ---
+        IsFleeing = true;
+        UpdateGOAPState();
     }
 
-    // --- INTERNAL HELPER ---
-    
+    public void OnFleeComplete()
+    {
+        Debug.Log("[Brain] Flee complete. Returning to normal behavior.");
+        IsFleeing = false;
+        UpdateGOAPState();
+    }
     private void UpdateGOAPState()
     {
         if (provider == null) return;
-
-        // Sync public bools to GOAP WorldData
         provider.WorldData.SetState(new IsPlayerInSight(), IsPlayerVisible ? 1 : 0);
         provider.WorldData.SetState(new IsInvestigating(), IsInvestigating ? 1 : 0);
         
-        // Logic for "Can Patrol"
-        bool busy = IsPlayerVisible || IsInvestigating;
+        // NEW: Flee State
+        provider.WorldData.SetState(new IsFleeing(), IsFleeing ? 1 : 0);
+
+        // CanPatrol logic: Not busy fighting/searching/fleeing
+        bool busy = IsPlayerVisible || IsInvestigating || IsFleeing;
         provider.WorldData.SetState(new CanPatrol(), busy ? 0 : 1);
         
-        // Logic for "Has Suspicious Location"
         bool hasLoc = LastKnownPlayerPosition != Vector3.zero;
         provider.WorldData.SetState(new HasSuspiciousLocation(), hasLoc ? 1 : 0);
     }

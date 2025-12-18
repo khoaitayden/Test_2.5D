@@ -44,13 +44,28 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.isDone) return ActionRunState.Completed;
 
+            // Global Timeout
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
                 return ActionRunState.Completed; 
             }
 
+            // --- CHECK STATUS ---
             if (movement.HasArrivedOrStuck())
             {
+                // DETECT STUCK VS ARRIVED
+                // If we stopped but are still far from target, we are stuck.
+                float dist = Vector3.Distance(agent.Transform.position, data.Target.Position);
+                
+                // If we are further than 3m from the cover point when we stopped...
+                if (dist > 3.0f) 
+                {
+                    Debug.LogWarning($"[Search] Stuck {dist:F1}m away from cover. Triggering Flee.");
+                    brain?.OnMovementStuck();
+                    return ActionRunState.Stop; 
+                }
+
+                // Otherwise, normal arrival.
                 return ActionRunState.Completed;
             }
 

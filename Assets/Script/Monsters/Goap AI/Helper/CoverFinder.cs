@@ -32,7 +32,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             List<Vector3> candidates = new List<Vector3>();
             
             float radius = config.investigateRadius;
-            int rayCount = config.numCoverFinderRayCasts;
+            int rayCount = config.numCoverFinderRayCasts; // Use Config Variable
 
             for (int i = 0; i < rayCount; i++)
             {
@@ -47,27 +47,39 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                     // Is it on NavMesh?
                     if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 5.0f, NavMesh.AllAreas))
                     {
-                        // --- NEW: Check Minimum Distance ---
+                        Vector3 validPoint = navHit.position;
+
+                        // --- EDGE SAFETY CHECK (NEW FIX) ---
+                        // If the point is exactly on the edge of the mesh (near building), nudge it.
+                        if (NavMesh.FindClosestEdge(validPoint, out NavMeshHit edgeHit, NavMesh.AllAreas))
+                        {
+                            if (edgeHit.distance < 1.0f) // Too close to edge
+                            {
+                                // Move 1.5m away from the edge normal
+                                validPoint = edgeHit.position + edgeHit.normal * 1.5f;
+                            }
+                        }
+
+                        // --- DUPLICATE CHECK ---
                         bool isTooClose = false;
                         foreach (Vector3 existingPoint in candidates)
                         {
-                            if (Vector3.Distance(navHit.position, existingPoint) < config.minCoverPointDistance)
+                            if (Vector3.Distance(validPoint, existingPoint) < config.minCoverPointDistance)
                             {
                                 isTooClose = true;
                                 break;
                             }
                         }
 
-                        // Only add if it's far enough from other points
                         if (!isTooClose)
                         {
-                            candidates.Add(navHit.position);
+                            candidates.Add(validPoint);
                         }
                     }
                 }
             }
 
-            // Sort by distance (Visit closest points first)
+            // Sort by distance
             candidates.Sort((a, b) => Vector3.Distance(monsterPos, a).CompareTo(Vector3.Distance(monsterPos, b)));
 
             // Fill Queue

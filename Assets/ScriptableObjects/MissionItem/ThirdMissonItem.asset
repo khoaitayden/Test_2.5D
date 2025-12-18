@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: ThirdMissonItem
   m_EditorClassIdentifier: Assembly-CSharp::MissionItemSO
   itemName: ThirdMissonItem
-  itemSprite: {fileID: -528034578, guid: 6066bf3ac36ed76d5a239b1fbb7ef4fc, type: 3}
+  itemSprite: {fileID: -59640614, guid: 6066bf3ac36ed76d5a239b1fbb7ef4fc, type: 3}
   puzzleLayerIndex: 2

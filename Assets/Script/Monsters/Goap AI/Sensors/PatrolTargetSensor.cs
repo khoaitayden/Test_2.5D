@@ -8,66 +8,75 @@ namespace CrashKonijn.Goap.MonsterGen
     public class PatrolTargetSensor : LocalTargetSensorBase
     {
         private MonsterConfig config;
-        private PatrolHistory patrolHistory;
-        private NavMeshPath pathCache;
 
-        public override void Created() 
-        {
-            pathCache = new NavMeshPath();
-        }
+        public override void Created() { }
+        public override void Update() { }
 
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
-            config = references.GetCachedComponent<MonsterConfig>();
-            
-            // FIX: Use standard GetComponent to ensure we find the one added in Inspector
-            if (patrolHistory == null) 
-                patrolHistory = agent.Transform.GetComponent<PatrolHistory>();
+            if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
-            if (patrolHistory == null)
-            {
-                Debug.LogError("PatrolHistory component missing on Monster! Please add it in Inspector.");
-                return new PositionTarget(agent.Transform.position);
-            }
-
-            // Optimization: If we have a target and are far away, keep it.
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > 5.0f)
+            // 1. Keep existing target if we haven't reached it yet
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 2f)
             {
                 return existingTarget;
             }
 
-            Vector3? p = FindPoint(agent.Transform.position);
-            if (p.HasValue)
+            // 2. Try to find a valid, REACHABLE random point using Config settings
+            Vector3? point = GetRandomPoint(agent.Transform.position);
+            
+            if (point.HasValue)
             {
-                patrolHistory.RecordPatrolPoint(p.Value);
-                return new PositionTarget(p.Value);
+                return new PositionTarget(point.Value);
             }
 
-            return new PositionTarget(agent.Transform.position);
+            // 3. Return null on failure (triggers idle -> retry)
+            return null;
         }
 
-        public override void Update()
+        private Vector3? GetRandomPoint(Vector3 origin)
         {
-        }
+            NavMeshPath path = new NavMeshPath();
 
-        private Vector3? FindPoint(Vector3 origin)
-        {
+            // Try 30 times to find a valid point
             for (int i = 0; i < 10; i++)
             {
-                Vector2 rnd = Random.insideUnitCircle.normalized * Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
-                Vector3 candidate = origin + new Vector3(rnd.x, 0, rnd.y);
+                // A. Generate Random Coordinate
+                Vector2 rndDir = Random.insideUnitCircle.normalized;
+                float rndDist = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
+                Vector3 candidate = origin + new Vector3(rndDir.x, 0, rndDir.y) * rndDist;
 
-                // 1. Check NavMesh
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10.0f, NavMesh.AllAreas))
+                Vector3 finalHitPos = Vector3.zero;
+                bool foundMesh = false;
+
+                // B. PASS 1: Precision Snap (Use Config Variable)
+                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, config.traceNavMeshSnapRadius, NavMesh.AllAreas))
                 {
-                    // 2. Check History
-                    if (patrolHistory.IsTooCloseToRecentPoints(hit.position, config.minDistanceFromRecentPoints)) continue;
+                    finalHitPos = hit.position;
+                    foundMesh = true;
+                }
+                // C. PASS 2: Fallback Snap (Use Config Variable)
+                // If the random point was inside a thick wall/tree, search wider.
+                else if (NavMesh.SamplePosition(candidate, out hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
+                {
+                    finalHitPos = hit.position;
+                    foundMesh = true;
+                }
 
-                    // 3. Check Reachability (Crucial for large agents)
-                    if (NavMesh.CalculatePath(origin, hit.position, NavMesh.AllAreas, pathCache))
+                if (foundMesh)
+                {
+                    // D. Min Distance Check
+                    // Ensure the snapped point didn't get pulled back too close to us
+                    if (Vector3.Distance(origin, finalHitPos) < config.minPatrolDistance) continue;
+
+                    // E. REACHABILITY CHECK (Crucial Fix)
+                    // Ensure we can actually walk there (not inside a locked room)
+                    if (NavMesh.CalculatePath(origin, finalHitPos, NavMesh.AllAreas, path))
                     {
-                        if (pathCache.status == NavMeshPathStatus.PathComplete)
-                            return hit.position;
+                        if (path.status == NavMeshPathStatus.PathComplete)
+                        {
+                            return finalHitPos;
+                        }
                     }
                 }
             }

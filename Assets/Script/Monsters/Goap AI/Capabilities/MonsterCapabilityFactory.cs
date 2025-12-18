@@ -20,32 +20,49 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddAction<AttackPlayerAction>()
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKilledPlayer>(EffectType.Increase)
+                .AddEffect<IsInvestigating>(EffectType.Decrease) 
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) 
                 .SetBaseCost(1)
-                // CRITICAL FIX: Run Perform() immediately so we can track the moving player
-                .SetMoveMode(ActionMoveMode.PerformWhileMoving); 
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 2. Search Surroundings
+            // 2. Flee
+            builder.AddAction<FleeAction>()
+                .SetTarget<PlayerTarget>()
+                .AddEffect<CanPatrol>(EffectType.Increase)
+                .AddEffect<IsFleeing>(EffectType.Decrease) 
+                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
+                .SetBaseCost(2) 
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            // 3. Track Trace
+            builder.AddAction<TrackTraceAction>()
+                .SetTarget<FreshTraceTarget>()
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                .AddEffect<IsInvestigating>(EffectType.Decrease)
+                .AddCondition<IsTrackingTrace>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1)
+                .SetBaseCost(3)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            // 4. Search Surroundings
             builder.AddAction<SearchSurroundingsAction>()
                 .SetTarget<InvestigateTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddEffect<CanPatrol>(EffectType.Increase)     
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(3)
-                // CRITICAL FIX: Run Perform() immediately so we can handle timeouts/stuck checks
+                .SetBaseCost(5)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 3. Go To Last Seen
+            // 5. Go To Last Seen
             builder.AddAction<GoToLastSeenPlayerAreaAction>()
                 .SetTarget<PlayerLastSeenTarget>()
                 .AddEffect<IsAtSuspiciousLocation>(EffectType.Increase)
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddCondition<IsInvestigating>(Comparison.GreaterThanOrEqual, 1) 
                 .AddCondition<IsAtSuspiciousLocation>(Comparison.SmallerThan, 1) 
-                .SetBaseCost(2);
-
-            // 4. Patrol
+                .SetBaseCost(4)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            // 6. Patrol
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
                 .AddEffect<CanPatrol>(EffectType.Increase)
@@ -59,12 +76,16 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<IsAtSuspiciousLocationSensor>().SetKey<IsAtSuspiciousLocation>();
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsInvestigatingSensor>().SetKey<IsInvestigating>();
+            builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
+            
+            // NEW: Register Flee Sensor
+            builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
             
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PlayerLastSeenPosSensor>().SetTarget<PlayerLastSeenTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<InvestigateTargetSensor>().SetTarget<InvestigateTarget>();
-            
+            builder.AddTargetSensor<FreshTraceSensor>().SetTarget<FreshTraceTarget>();
             return builder.Build();
         }
     }

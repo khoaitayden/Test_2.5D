@@ -6,10 +6,10 @@ public class TraceManager : MonoBehaviour
     public static TraceManager Instance { get; private set; }
 
     [Header("Settings")]
-    [SerializeField] private float footstepDuration = 35f;
-    [SerializeField] private float soulTraceDuration = 60f;
-    [SerializeField] private float enviromentNoiseDuration = 30f; // Duration for branches, doors, etc.
-    [SerializeField] private int maxTraceCount = 100;
+    [SerializeField] private float footstepDuration = 25f;
+    [SerializeField] private float soulTraceDuration = 40f;
+    [SerializeField] private float enviromentNoiseDuration = 20f; // Duration for branches, doors, etc.
+    [SerializeField] private int maxTraceCount;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugGizmos = true;
@@ -41,9 +41,6 @@ public class TraceManager : MonoBehaviour
                 break;
             case TraceType.Footstep_Walk: 
                 duration = footstepDuration*1; 
-                break;
-            case TraceType.Footstep_Jump: 
-                duration = footstepDuration*2f; 
                 break;
             
             case TraceType.EnviromentNoiseWeak:
@@ -95,7 +92,6 @@ public class TraceManager : MonoBehaviour
                 // Player Movements
                 case TraceType.Footstep_Run:    Gizmos.color = new Color(1f, 0f, 0f, ratio); break; // Red
                 case TraceType.Footstep_Walk:   Gizmos.color = new Color(1f, 0.92f, 0.016f, ratio); break; // Yellow
-                case TraceType.Footstep_Jump:   Gizmos.color = new Color(0f, 0f, 1f, ratio); break; // Blue
                 case TraceType.Soul_Collection: Gizmos.color = new Color(0f, 1f, 1f, ratio); break; // Cyan
 
                 // NEW: Environment Noises

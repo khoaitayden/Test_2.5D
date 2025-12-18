@@ -9,11 +9,6 @@ public class BeaconController : MonoBehaviour, IInteractable
     [Tooltip("The 4 SpriteRenderers representing the layers of the picture.")]
     [SerializeField] private SpriteRenderer[] pictureLayers;
 
-    [Header("Feedback")]
-    [SerializeField] private string placePrompt = "Place Piece";
-    [SerializeField] private string emptyPrompt = "Need a Core Piece";
-    [SerializeField] private string completedPrompt = "Picture Complete";
-
     // Track which layers are filled
     private bool[] filledLayers; 
 
@@ -85,8 +80,6 @@ public class BeaconController : MonoBehaviour, IInteractable
 
     public string GetInteractionPrompt()
     {
-        // Logic to show prompt based on what player is holding
-        // Ideally we check the player's item here, but for simplicity:
-        return placePrompt;
+        return "lmao";
     }
 }

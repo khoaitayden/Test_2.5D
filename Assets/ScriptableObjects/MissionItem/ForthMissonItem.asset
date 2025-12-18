@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: ForthMissonItem
   m_EditorClassIdentifier: Assembly-CSharp::MissionItemSO
   itemName: ForthMissonItem
-  itemSprite: {fileID: 1080478777, guid: 6066bf3ac36ed76d5a239b1fbb7ef4fc, type: 3}
+  itemSprite: {fileID: 1195956008, guid: 6066bf3ac36ed76d5a239b1fbb7ef4fc, type: 3}
   puzzleLayerIndex: 3
