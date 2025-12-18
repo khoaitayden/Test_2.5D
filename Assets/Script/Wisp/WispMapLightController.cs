@@ -216,30 +216,22 @@ public class WispMapLightController : MonoBehaviour
 
     void UpdateLitObjects()
     {
-        // 1. Get raw candidates via OverlapSphere/Spot
         Collider[] rawColliders = GetObjectsInLight();
         HashSet<Collider> validLitSet = new HashSet<Collider>();
 
-        // 2. Filter candidates via Occlusion Raycast
         if (activeLight != null)
         {
             Vector3 lightPos = activeLight.transform.position;
-            
             foreach (Collider col in rawColliders)
             {
-                if (col == null) continue;
-
-                // Check Line of Sight
-                if (HasLineOfSight(lightPos, col))
+                if (col != null && HasLineOfSight(lightPos, col))
                 {
                     validLitSet.Add(col);
                 }
             }
         }
-
-        // 3. Process Logic (Lit vs Unlit)
         
-        // Handle newly lit objects
+        // Process Logic (Lit vs Unlit)
         foreach (Collider col in validLitSet)
         {
             if (!currentlyLit.Contains(col))
@@ -248,8 +240,13 @@ public class WispMapLightController : MonoBehaviour
             }
             else
             {
-                // Still lit, drain energy
-                DrainEnergyFrom(col);
+                // --- MODIFIED: DRAIN LOGIC ---
+                // Object is still lit. Check if player wants to drain it.
+                if (InputManager.Instance != null && InputManager.Instance.IsInteractHeld)
+                {
+                    DrainEnergyFrom(col);
+                }
+                // -----------------------------
             }
         }
 
