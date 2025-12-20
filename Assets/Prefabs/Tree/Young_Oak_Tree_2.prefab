@@ -77,6 +77,10 @@ PrefabInstance:
       value: Young_Oak_Tree_2
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 796d90c3a2dd6f642b41ebb4d86c78cd, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 796d90c3a2dd6f642b41ebb4d86c78cd, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
