@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-public class ProceduralConeClimber : MonoBehaviour
+public class ProceduralSolidConeClimber : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private NavMeshAgent agent;
@@ -12,13 +12,18 @@ public class ProceduralConeClimber : MonoBehaviour
     public Transform rightHandTarget;
 
     [Header("Cone Vision Settings")]
-    [Range(0, 180)] public float viewAngle = 110f; // Total width of the cone
-    public float minReachDistance = 3.0f; // Don't grab anything closer than this
-    public float maxReachDistance = 7.0f; // Maximum reach range
+    [Range(0, 180)] public float viewAngle = 100f; 
+    public float minReachDistance = 2.5f; 
+    public float maxReachDistance = 7.0f; 
     public LayerMask treeLayer;
 
-    [Header("Movement Trigger")]
-    [Tooltip("If hand is behind this local Z line, force a move.")]
+    [Header("Stability Fix (Look Ahead)")]
+    [Tooltip("The cone will look at a point at least this far along the path.")]
+    public float minLookAheadDistance = 4.0f; 
+    [Tooltip("How fast the cone rotates (lower = smoother, less flicker).")]
+    public float coneRotationSpeed = 5.0f;
+
+    [Header("Trigger Logic")]
     public float dragThreshold = 0.5f; 
     public float stepDuration = 0.3f; 
 
@@ -29,6 +34,9 @@ public class ProceduralConeClimber : MonoBehaviour
     private bool isLeftMoving = false;
     private bool isRightMoving = false;
 
+    // The Stabilized Forward Vector
+    private Vector3 stableForward;
+
     void Start()
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
@@ -37,6 +45,8 @@ public class ProceduralConeClimber : MonoBehaviour
         leftHandRot = leftHandTarget.rotation;
         rightHandPos = rightHandTarget.position;
         rightHandRot = rightHandTarget.rotation;
+
+        stableForward = transform.forward;
 
         DetectInitialTree(leftHandTarget.position, ref leftTreeCollider);
         DetectInitialTree(rightHandTarget.position, ref rightTreeCollider);
@@ -50,20 +60,56 @@ public class ProceduralConeClimber : MonoBehaviour
 
     void LateUpdate()
     {
-        // 1. Calculate the "Path Forward" (Where we are going)
-        Vector3 pathForward = agent.velocity.magnitude > 0.1f ? agent.velocity.normalized : transform.forward;
-        
-        // Look into the turn
-        if (agent.hasPath && agent.path.corners.Length > 1)
-        {
-            Vector3 toCorner = (agent.steeringTarget - transform.position).normalized;
-            pathForward = Vector3.Slerp(pathForward, toCorner, 0.8f);
-        }
+        // 1. CALCULATE ROBUST FORWARD
+        Vector3 targetDir = GetPathLookAheadDirection();
 
-        CheckHand(true, pathForward);  // Right
-        CheckHand(false, pathForward); // Left
+        // 2. SMOOTH ROTATION (Damping)
+        // If the path makes a 90 degree turn, the cone rotates over ~0.5s instead of snapping
+        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * coneRotationSpeed);
+        stableForward.Normalize();
+
+        // 3. LOGIC
+        CheckHand(true, stableForward);  // Right
+        CheckHand(false, stableForward); // Left
 
         UpdateIKPositions();
+    }
+
+    // --- THE FIX: LOOK AHEAD LOGIC ---
+    Vector3 GetPathLookAheadDirection()
+    {
+        // Fallback: If not moving or no path, use body forward
+        if (!agent.hasPath || agent.velocity.magnitude < 0.1f) 
+            return transform.forward;
+
+        Vector3 currentPos = transform.position;
+        Vector3 targetPoint = transform.position + transform.forward * 5f; // Default far point
+        bool foundFarPoint = false;
+
+        // Iterate through the path corners
+        Vector3[] corners = agent.path.corners;
+        
+        // Start from index 1 (Index 0 is current position)
+        for (int i = 1; i < corners.Length; i++)
+        {
+            float dist = Vector3.Distance(currentPos, corners[i]);
+            
+            // If we found a corner that is far enough away to be stable
+            if (dist > minLookAheadDistance)
+            {
+                targetPoint = corners[i];
+                foundFarPoint = true;
+                break; // Stop looking, we found our rabbit
+            }
+        }
+
+        // If all path corners are too close (end of path), just use the last one
+        if (!foundFarPoint && corners.Length > 0)
+        {
+            targetPoint = corners[corners.Length - 1];
+        }
+
+        return (targetPoint - currentPos).normalized;
     }
 
     void CheckHand(bool isRight, Vector3 pathForward)
@@ -73,11 +119,10 @@ public class ProceduralConeClimber : MonoBehaviour
 
         Vector3 currentPos = isRight ? rightHandPos : leftHandPos;
         
-        // Logic: Is the hand behind the "Drag Threshold" relative to the Path?
+        // Use the STABLE forward for calculation
         Vector3 toHand = currentPos - transform.position;
         float forwardDot = Vector3.Dot(toHand, pathForward);
 
-        // If hand is behind the threshold OR too close to body (cramped)
         if (forwardDot < dragThreshold || Vector3.Distance(transform.position, currentPos) < 1.5f)
         {
             FindAndGrab(isRight, pathForward);
@@ -96,8 +141,9 @@ public class ProceduralConeClimber : MonoBehaviour
 
     Collider ScanWithCone(bool isRight, Vector3 pathForward)
     {
-        // 1. Get all trees in the max range
-        Collider[] hits = Physics.OverlapSphere(transform.position, maxReachDistance, treeLayer);
+        // Search center projected along the STABLE path
+        Vector3 searchCenter = transform.position + (pathForward * (maxReachDistance * 0.6f));
+        Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance * 0.8f, treeLayer);
         
         Collider bestCandidate = null;
         float bestScore = float.MinValue;
@@ -111,29 +157,25 @@ public class ProceduralConeClimber : MonoBehaviour
             Vector3 dirToTree = (hit.transform.position - transform.position).normalized;
             float distToTree = Vector3.Distance(transform.position, hit.transform.position);
 
-            // --- FILTER 1: DISTANCE BAND ---
-            if (distToTree < minReachDistance) continue; // Too close (Tapping fix)
+            if (distToTree < minReachDistance) continue; 
 
-            // --- FILTER 2: LANE CHECK ---
+            // Lane Check (Using Stable Vector)
             float sideDot = Vector3.Dot(hit.transform.position - transform.position, pathRight);
             if (isRight)
             {
-                if (sideDot < 0.2f) continue; // Must be on Right side
+                if (sideDot < 0.2f) continue; 
             }
             else
             {
-                if (sideDot > -0.2f) continue; // Must be on Left side
+                if (sideDot > -0.2f) continue; 
             }
 
-            // --- FILTER 3: CONE ANGLE ---
+            // Cone Angle (Using Stable Vector)
             float angle = Vector3.Angle(pathForward, dirToTree);
-            if (angle > viewAngle / 2f) continue; // Outside the cone
+            if (angle > viewAngle / 2f) continue;
 
-            // --- SCORING ---
-            // Preference: High Forward Alignment + Far Distance
+            // Score
             float forwardDot = Vector3.Dot(pathForward, dirToTree);
-            
-            // Formula: Alignment is x10 importance, Distance is x1 importance
             float score = (forwardDot * 10.0f) + distToTree;
 
             if (score > bestScore)
@@ -155,8 +197,6 @@ public class ProceduralConeClimber : MonoBehaviour
 
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
-        
-        // Raycast from slightly up/forward to hit the face of the tree
         Vector3 rayOrigin = transform.position + Vector3.up * 1.5f + transform.forward * 0.5f; 
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
@@ -174,9 +214,8 @@ public class ProceduralConeClimber : MonoBehaviour
         {
             t += Time.deltaTime / stepDuration;
             
-            // Basic Arc
             Vector3 currentPos = Vector3.Lerp(startPos, finalPos, t);
-            currentPos.y += Mathf.Sin(t * Mathf.PI) * 0.5f;
+            currentPos.y += Mathf.Sin(t * Mathf.PI) * 0.6f; // Slightly higher arc
 
             if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, t); }
             else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, t); }
@@ -196,33 +235,21 @@ public class ProceduralConeClimber : MonoBehaviour
         rightHandTarget.rotation = rightHandRot;
     }
 
-    // --- VISUALIZE THE CONE ---
+    // --- DEBUG GIZMOS ---
     void OnDrawGizmos()
     {
         if (agent == null) return;
 
-        // Calculate Path Forward
-        Vector3 pathForward = agent.velocity.magnitude > 0.1f ? agent.velocity.normalized : transform.forward;
-        if (agent.hasPath && agent.path.corners.Length > 1)
-        {
-            Vector3 toCorner = (agent.steeringTarget - transform.position).normalized;
-            pathForward = Vector3.Slerp(pathForward, toCorner, 0.8f);
-        }
-
+        // Draw the STABLE vector (Cyan)
         Gizmos.color = Color.cyan;
-        Gizmos.DrawRay(transform.position, pathForward * maxReachDistance);
+        Gizmos.DrawRay(transform.position, stableForward * maxReachDistance);
 
-        // Draw Cone Boundaries
-        Vector3 rightBoundary = Quaternion.Euler(0, viewAngle / 2, 0) * pathForward;
-        Vector3 leftBoundary = Quaternion.Euler(0, -viewAngle / 2, 0) * pathForward;
-
+        // Draw Cone
+        Vector3 r = Quaternion.Euler(0, viewAngle/2, 0) * stableForward;
+        Vector3 l = Quaternion.Euler(0, -viewAngle/2, 0) * stableForward;
         Gizmos.color = Color.green;
-        Gizmos.DrawRay(transform.position, rightBoundary * maxReachDistance);
+        Gizmos.DrawRay(transform.position, r * maxReachDistance);
         Gizmos.color = Color.red;
-        Gizmos.DrawRay(transform.position, leftBoundary * maxReachDistance);
-
-        // Draw Min Reach
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, minReachDistance);
+        Gizmos.DrawRay(transform.position, l * maxReachDistance);
     }
 }
