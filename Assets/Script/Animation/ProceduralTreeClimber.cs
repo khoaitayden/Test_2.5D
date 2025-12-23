@@ -1,54 +1,36 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
-using CrashKonijn.Goap.MonsterGen.Capabilities;
 
-public class ProceduralGaitClimber : MonoBehaviour
+public class ProceduralConeClimber : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private MonsterMovement movementController;
-    [SerializeField] private Transform visualModel;
     [SerializeField] private NavMeshAgent agent;
 
     [Header("IK Targets")]
     public Transform leftHandTarget;
     public Transform rightHandTarget;
-    public Transform leftElbowHint;
-    public Transform rightElbowHint;
 
-    [Header("Gait Settings")]
-    [Tooltip("The MINIMUM time between hand movements. This is the main fix for jitter.")]
-    public float stepCooldown = 0.4f;
-    [Tooltip("Hand moves when it passes this line (Local Z). 0 is the body's center.")]
-    public float shoulderLineThreshold = 0.0f;
-    [Tooltip("Absolute max distance before an arm is forced to move.")]
-    public float maxArmLength = 3.5f;
-
-    [Header("Reach Physics")]
-    public float handSpeedMultiplier = 4.0f;
-    public float minHandSpeed = 7.0f;
-
-    [Header("Visuals")]
-    public float bodyLag = 0.3f;
-    public float bodySpring = 7f;
-    public float maxForwardLean = 40f;
-
-    [Header("Vision")]
+    [Header("Cone Vision Settings")]
+    [Range(0, 180)] public float viewAngle = 110f; // Total width of the cone
+    public float minReachDistance = 3.0f; // Don't grab anything closer than this
+    public float maxReachDistance = 7.0f; // Maximum reach range
     public LayerMask treeLayer;
-    public float searchRadius = 15.0f;
-    [Range(0, 160)] public float searchAngleWidth = 120f;
+
+    [Header("Movement Trigger")]
+    [Tooltip("If hand is behind this local Z line, force a move.")]
+    public float dragThreshold = 0.5f; 
+    public float stepDuration = 0.3f; 
 
     // --- State ---
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
-    private Collider leftTreeCollider, rightTreeCollider;
-    private bool isHandMoving = false;
-    private bool nextIsRight = true;
-    private float lastStepTime = -1f; // Start at -1 to allow immediate first step
+    private Collider leftTreeCollider, rightTreeCollider; 
+    private bool isLeftMoving = false;
+    private bool isRightMoving = false;
 
     void Start()
     {
-        if (movementController == null) movementController = GetComponent<MonsterMovement>();
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
         leftHandPos = leftHandTarget.position;
@@ -68,153 +50,114 @@ public class ProceduralGaitClimber : MonoBehaviour
 
     void LateUpdate()
     {
-        if (!isHandMoving && agent.velocity.magnitude > 0.1f)
+        // 1. Calculate the "Path Forward" (Where we are going)
+        Vector3 pathForward = agent.velocity.magnitude > 0.1f ? agent.velocity.normalized : transform.forward;
+        
+        // Look into the turn
+        if (agent.hasPath && agent.path.corners.Length > 1)
         {
-            // The single, unified logic check.
-            CheckAndTriggerStep();
+            Vector3 toCorner = (agent.steeringTarget - transform.position).normalized;
+            pathForward = Vector3.Slerp(pathForward, toCorner, 0.8f);
         }
 
-        UpdateBodyPhysics();
-        UpdateDynamicElbows();
+        CheckHand(true, pathForward);  // Right
+        CheckHand(false, pathForward); // Left
+
         UpdateIKPositions();
     }
 
-    // --- UNIFIED LOGIC GATE (THE FIX) ---
-    void CheckAndTriggerStep()
+    void CheckHand(bool isRight, Vector3 pathForward)
     {
-        // 1. COOLDOWN GATEKEEPER (HIGHEST PRIORITY)
-        // If we are on cooldown, nothing below this line can run.
-        if (Time.time < lastStepTime + stepCooldown) return;
+        if (isRight && isRightMoving) return;
+        if (!isRight && isLeftMoving) return;
 
-        // 2. CALCULATE STATE
-        float distRight = Vector3.Distance(transform.position, rightHandPos);
-        float distLeft = Vector3.Distance(transform.position, leftHandPos);
-        Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
+        Vector3 currentPos = isRight ? rightHandPos : leftHandPos;
         
-        // 3. DETERMINE WHICH HAND TO MOVE (IF ANY)
-        bool shouldMoveRight = false;
-        bool shouldMoveLeft = false;
-        
-        // A. Emergency Conditions
-        if (distRight > maxArmLength) shouldMoveRight = true;
-        if (distLeft > maxArmLength) shouldMoveLeft = true;
-        
-        // B. Standard Rhythm Conditions (if no emergency)
-        if (!shouldMoveRight && !shouldMoveLeft)
-        {
-            if (nextIsRight && localRight.z < shoulderLineThreshold) shouldMoveRight = true;
-            else if (!nextIsRight && localLeft.z < shoulderLineThreshold) shouldMoveLeft = true;
-        }
+        // Logic: Is the hand behind the "Drag Threshold" relative to the Path?
+        Vector3 toHand = currentPos - transform.position;
+        float forwardDot = Vector3.Dot(toHand, pathForward);
 
-        // 4. EXECUTE STEP
-        // If both hands are triggered (emergency), move the one furthest behind.
-        if (shouldMoveRight && shouldMoveLeft)
+        // If hand is behind the threshold OR too close to body (cramped)
+        if (forwardDot < dragThreshold || Vector3.Distance(transform.position, currentPos) < 1.5f)
         {
-            if (localRight.z < localLeft.z) // Right is further back
-            {
-                if (AttemptStep(true)) { nextIsRight = false; lastStepTime = Time.time; }
-            }
-            else // Left is further back
-            {
-                if (AttemptStep(false)) { nextIsRight = true; lastStepTime = Time.time; }
-            }
-        }
-        else if (shouldMoveRight)
-        {
-            if (AttemptStep(true)) { nextIsRight = false; lastStepTime = Time.time; }
-        }
-        else if (shouldMoveLeft)
-        {
-            if (AttemptStep(false)) { nextIsRight = true; lastStepTime = Time.time; }
+            FindAndGrab(isRight, pathForward);
         }
     }
-    
-    // (The rest of the script remains the same)
 
-    void UpdateDynamicElbows()
+    void FindAndGrab(bool isRight, Vector3 pathForward)
     {
-        if (leftElbowHint == null || rightElbowHint == null) return;
-        Vector3 leftShoulder = transform.position + (transform.up * 1.5f) - (transform.right * 0.5f);
-        Vector3 rightShoulder = transform.position + (transform.up * 1.5f) + (transform.right * 0.5f);
-        Vector3 midLeft = (leftShoulder + leftHandPos) / 2f;
-        Vector3 leftHintDir = (-transform.right - transform.forward).normalized;
-        leftElbowHint.position = midLeft + (leftHintDir * 1.5f);
-        Vector3 midRight = (rightShoulder + rightHandPos) / 2f;
-        Vector3 rightHintDir = (transform.right - transform.forward).normalized;
-        rightElbowHint.position = midRight + (rightHintDir * 1.5f);
-    }
-    
-    void UpdateBodyPhysics()
-    {
-        if (visualModel == null) return;
-        Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
-        Vector3 targetWorld = handCenter;
-        if (agent.velocity.magnitude > 0.1f)
-            targetWorld -= agent.velocity.normalized * bodyLag;
-        targetWorld.y -= 0.4f;
-        Vector3 targetLocal = transform.InverseTransformPoint(targetWorld);
-        targetLocal = Vector3.ClampMagnitude(targetLocal, 0.9f);
-        visualModel.localPosition = Vector3.Lerp(visualModel.localPosition, targetLocal, Time.deltaTime * bodySpring);
-        float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
-        float pitch = Mathf.Lerp(10f, maxForwardLean, speedRatio);
-        Vector3 moveDir = agent.velocity.normalized;
-        if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        Vector3 lookTarget = (moveDir + (handCenter - transform.position).normalized).normalized;
-        Quaternion targetRot = Quaternion.LookRotation(lookTarget, Vector3.up);
-        targetRot *= Quaternion.Euler(pitch, 0, 0);
-        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, targetRot, Time.deltaTime * 5f);
-    }
-    
-    bool AttemptStep(bool isRightHand)
-    {
-        Collider bestTree = ScanForNextTree(isRightHand);
+        Collider bestTree = ScanWithCone(isRight, pathForward);
+        
         if (bestTree != null)
         {
-            StartCoroutine(ReachForTree(isRightHand, bestTree));
-            return true;
+            StartCoroutine(MoveHandRoutine(isRight, bestTree));
         }
-        return false;
     }
 
-    Collider ScanForNextTree(bool isRightHand)
+    Collider ScanWithCone(bool isRight, Vector3 pathForward)
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, searchRadius, treeLayer);
+        // 1. Get all trees in the max range
+        Collider[] hits = Physics.OverlapSphere(transform.position, maxReachDistance, treeLayer);
+        
         Collider bestCandidate = null;
         float bestScore = float.MinValue;
-        Vector3 steerDir = (agent.steeringTarget - transform.position).normalized;
-        Vector3 searchDir = (agent.velocity.normalized + steerDir).normalized;
-        Vector3 bodyRight = transform.right;
+
+        Vector3 pathRight = Vector3.Cross(Vector3.up, pathForward);
 
         foreach (var hit in hits)
         {
             if (hit == leftTreeCollider || hit == rightTreeCollider) continue;
+
             Vector3 dirToTree = (hit.transform.position - transform.position).normalized;
-            float sideDot = Vector3.Dot(dirToTree, bodyRight);
-            if (isRightHand && sideDot < -0.1f) continue; 
-            else if (!isRightHand && sideDot > 0.1f) continue;
-            if (Vector3.Angle(searchDir, dirToTree) > searchAngleWidth) continue;
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-            float forwardDot = Vector3.Dot(searchDir, dirToTree);
-            if (forwardDot < 0.5f) continue;
-            float idealDist = 4.0f;
-            float distScore = 1.0f - Mathf.Abs(dist - idealDist) / idealDist;
-            float score = (forwardDot * 3.0f) + distScore; 
-            if (score > bestScore) { bestScore = score; bestCandidate = hit; }
+            float distToTree = Vector3.Distance(transform.position, hit.transform.position);
+
+            // --- FILTER 1: DISTANCE BAND ---
+            if (distToTree < minReachDistance) continue; // Too close (Tapping fix)
+
+            // --- FILTER 2: LANE CHECK ---
+            float sideDot = Vector3.Dot(hit.transform.position - transform.position, pathRight);
+            if (isRight)
+            {
+                if (sideDot < 0.2f) continue; // Must be on Right side
+            }
+            else
+            {
+                if (sideDot > -0.2f) continue; // Must be on Left side
+            }
+
+            // --- FILTER 3: CONE ANGLE ---
+            float angle = Vector3.Angle(pathForward, dirToTree);
+            if (angle > viewAngle / 2f) continue; // Outside the cone
+
+            // --- SCORING ---
+            // Preference: High Forward Alignment + Far Distance
+            float forwardDot = Vector3.Dot(pathForward, dirToTree);
+            
+            // Formula: Alignment is x10 importance, Distance is x1 importance
+            float score = (forwardDot * 10.0f) + distToTree;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestCandidate = hit;
+            }
         }
+
         return bestCandidate;
     }
 
-    IEnumerator ReachForTree(bool isRight, Collider targetTree)
+    IEnumerator MoveHandRoutine(bool isRight, Collider targetTree)
     {
-        isHandMoving = true;
-        movementController.AnimationSpeedFactor = 0.9f; 
+        if (isRight) isRightMoving = true; else isLeftMoving = true;
 
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
+
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
-        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f;
+        
+        // Raycast from slightly up/forward to hit the face of the tree
+        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f + transform.forward * 0.5f; 
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
 
@@ -225,40 +168,24 @@ public class ProceduralGaitClimber : MonoBehaviour
         }
 
         Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
-        Vector3 midPoint = (startPos + finalPos) / 2f;
-        Vector3 sideVec = isRight ? transform.right : -transform.right;
-        Vector3 controlPoint = midPoint + Vector3.up * 1.0f + sideVec * 0.8f;
-        float totalDist = Vector3.Distance(startPos, finalPos);
-        if (totalDist < 0.1f) totalDist = 0.1f;
-        float currentDist = 0;
-        
-        while (currentDist < totalDist)
-        {
-            float speed = agent.velocity.magnitude * handSpeedMultiplier;
-            speed = Mathf.Max(speed, minHandSpeed);
-            currentDist += Time.deltaTime * speed;
-            float t = currentDist / totalDist;
-            if(t > 1f) t = 1f;
-            float tSmooth = t * t * (3f - 2f * t);
-            Vector3 currentPos = CalculateBezier(tSmooth, startPos, controlPoint, finalPos);
-            
-            if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, tSmooth); }
-            else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, tSmooth); }
 
+        float t = 0;
+        while (t < 1f)
+        {
+            t += Time.deltaTime / stepDuration;
+            
+            // Basic Arc
+            Vector3 currentPos = Vector3.Lerp(startPos, finalPos, t);
+            currentPos.y += Mathf.Sin(t * Mathf.PI) * 0.5f;
+
+            if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, t); }
+            else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, t); }
+            
             yield return null;
         }
 
-        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; }
-        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; }
-
-        movementController.AnimationSpeedFactor = 1.0f; 
-        isHandMoving = false;
-    }
-
-    Vector3 CalculateBezier(float t, Vector3 p0, Vector3 p1, Vector3 p2)
-    {
-        float u = 1 - t;
-        return (u * u * p0) + (2 * u * t * p1) + (t * t * p2);
+        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; isRightMoving = false; }
+        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; isLeftMoving = false; }
     }
 
     void UpdateIKPositions()
@@ -267,5 +194,35 @@ public class ProceduralGaitClimber : MonoBehaviour
         leftHandTarget.rotation = leftHandRot;
         rightHandTarget.position = rightHandPos;
         rightHandTarget.rotation = rightHandRot;
+    }
+
+    // --- VISUALIZE THE CONE ---
+    void OnDrawGizmos()
+    {
+        if (agent == null) return;
+
+        // Calculate Path Forward
+        Vector3 pathForward = agent.velocity.magnitude > 0.1f ? agent.velocity.normalized : transform.forward;
+        if (agent.hasPath && agent.path.corners.Length > 1)
+        {
+            Vector3 toCorner = (agent.steeringTarget - transform.position).normalized;
+            pathForward = Vector3.Slerp(pathForward, toCorner, 0.8f);
+        }
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawRay(transform.position, pathForward * maxReachDistance);
+
+        // Draw Cone Boundaries
+        Vector3 rightBoundary = Quaternion.Euler(0, viewAngle / 2, 0) * pathForward;
+        Vector3 leftBoundary = Quaternion.Euler(0, -viewAngle / 2, 0) * pathForward;
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawRay(transform.position, rightBoundary * maxReachDistance);
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(transform.position, leftBoundary * maxReachDistance);
+
+        // Draw Min Reach
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, minReachDistance);
     }
 }
