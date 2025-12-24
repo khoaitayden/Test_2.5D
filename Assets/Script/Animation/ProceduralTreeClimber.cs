@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-public class ProceduralIndependentClimber : MonoBehaviour
+public class ProceduralRotationSafeClimber : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private NavMeshAgent agent;
@@ -11,16 +11,17 @@ public class ProceduralIndependentClimber : MonoBehaviour
     public Transform leftHandTarget;
     public Transform rightHandTarget;
 
-    [Header("Shoulder Trigger")]
-    [Tooltip("If a hand is behind this Local Z line, it tries to move.")]
+    [Header("Triggers")]
     public float releaseThreshold = 0.1f; 
-    
+    [Tooltip("Force move if hand angle exceeds this (Fixes Rotation Bug).")]
+    public float maxArmAngle = 100f; 
+
     [Header("Physics")]
     public float handSpeed = 9.0f;
     public float swingArcHeight = 1.0f;
     public float swingOutward = 0.6f;
 
-    [Header("Vision (The Fix)")]
+    [Header("Vision")]
     public LayerMask treeLayer;
     public float minReachDistance = 2.0f; 
     public float maxReachDistance = 8.0f;
@@ -31,7 +32,6 @@ public class ProceduralIndependentClimber : MonoBehaviour
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
     private Collider leftTreeCollider, rightTreeCollider; 
-    
     private bool isHandMoving = false;
     private Vector3 stableForward;
 
@@ -58,14 +58,12 @@ public class ProceduralIndependentClimber : MonoBehaviour
 
     void LateUpdate()
     {
-        // 1. Look Ahead Smoothing
         Vector3 targetDir = GetPathLookAhead();
         stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * 6f).normalized;
 
-        // 2. Check Logic (Only if not already animating)
         if (!isHandMoving && agent.velocity.magnitude > 0.1f)
         {
-            CheckIndependentLogic();
+            CheckRotationSafetyLogic();
         }
 
         UpdateIKPositions();
@@ -78,26 +76,39 @@ public class ProceduralIndependentClimber : MonoBehaviour
         return Vector3.Slerp(transform.forward, toCorner, 0.6f).normalized;
     }
 
-    void CheckIndependentLogic()
+    void CheckRotationSafetyLogic()
     {
-        // 1. Calculate "Depth" for BOTH hands relative to the Forward direction
-        // Positive = In Front, Negative = Behind
+        // 1. Calculate Vectors
         Vector3 toRight = rightHandPos - transform.position;
         Vector3 toLeft = leftHandPos - transform.position;
 
+        // 2. Depth Check (Forward/Back)
         float rightDepth = Vector3.Dot(toRight, stableForward);
         float leftDepth = Vector3.Dot(toLeft, stableForward);
 
-        // 2. Check who needs to move
-        bool rightNeedsMove = rightDepth < releaseThreshold;
-        bool leftNeedsMove = leftDepth < releaseThreshold;
+        // 3. Angle Check (The Rotation Fix)
+        // If angle > 100, the arm is wrenched sideways/backwards
+        float rightAngle = Vector3.Angle(transform.forward, toRight);
+        float leftAngle = Vector3.Angle(transform.forward, toLeft);
 
-        // 3. Prioritize
+        bool rightNeedsMove = (rightDepth < releaseThreshold) || (rightAngle > maxArmAngle);
+        bool leftNeedsMove = (leftDepth < releaseThreshold) || (leftAngle > maxArmAngle);
+
+        // 4. Prioritize: If both need move, who is WORSE?
         if (rightNeedsMove && leftNeedsMove)
         {
-            // Both dragging? Move the one FURTHEST back (Lowest depth)
-            if (rightDepth < leftDepth) AttemptStep(true);
-            else AttemptStep(false);
+            // If Angles are bad, fix the worst angle first
+            if (rightAngle > maxArmAngle || leftAngle > maxArmAngle)
+            {
+                if (rightAngle > leftAngle) AttemptStep(true);
+                else AttemptStep(false);
+            }
+            // Otherwise, fix the one furthest back
+            else
+            {
+                if (rightDepth < leftDepth) AttemptStep(true);
+                else AttemptStep(false);
+            }
         }
         else if (rightNeedsMove)
         {
@@ -129,6 +140,7 @@ public class ProceduralIndependentClimber : MonoBehaviour
         Collider bestCandidate = null;
         float bestScore = float.MinValue;
 
+        // Use StableForward for lanes so we anticipate turns
         Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
 
         foreach (var hit in hits)
@@ -140,22 +152,15 @@ public class ProceduralIndependentClimber : MonoBehaviour
 
             if (dist < minReachDistance) continue;
 
-            // --- RELAXED LANE CHECK ---
-            // Previously: 0.2 (Strict). Now: -0.2 (Loose).
-            // This allows the Right Hand to grab "Center-Left" trees if needed.
+            // Lane Check
             float sideDot = Vector3.Dot(hit.transform.position - transform.position, pathRight);
-            if (isRightHand)
-            {
-                if (sideDot < -0.2f) continue; // Allow slight overlap to left
-            }
-            else
-            {
-                if (sideDot > 0.2f) continue; // Allow slight overlap to right
-            }
+            if (isRightHand && sideDot < -0.2f) continue; 
+            else if (!isRightHand && sideDot > 0.2f) continue; 
 
+            // Vision Cone (Wide)
             if (Vector3.Angle(stableForward, dirToTree) > viewAngle / 2f) continue;
 
-            // Scoring
+            // Score: Forward Dot using STABLE Forward (anticipates turn)
             float forwardDot = Vector3.Dot(stableForward, dirToTree);
             float score = (forwardDot * 10.0f) + (dist * 2.0f);
 
@@ -190,7 +195,6 @@ public class ProceduralIndependentClimber : MonoBehaviour
 
         Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
 
-        // Bezier Arc
         Vector3 midPoint = (startPos + finalPos) / 2f;
         Vector3 sideVec = isRight ? transform.right : -transform.right;
         Vector3 controlPoint = midPoint + (Vector3.up * swingArcHeight) + (sideVec * swingOutward);
@@ -200,7 +204,6 @@ public class ProceduralIndependentClimber : MonoBehaviour
         
         while (currentDist < totalDist)
         {
-            // Adaptive speed: Faster body = Faster hands
             float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 2.5f);
 
             currentDist += Time.deltaTime * dynamicSpeed;
