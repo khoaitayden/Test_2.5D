@@ -12,14 +12,17 @@ public class ProceduralSmoothPredictor : MonoBehaviour
     public Transform rightHandTarget;
 
     [Header("Path Smoothing")]
-    [Tooltip("How far down the path to look for direction")]
+    [Tooltip("How far down the path to look for direction (The 'Rabbit').")]
     public float lookAheadDist = 5f;
-    [Tooltip("How fast the logic vector turns (Lower = Smoother)")]
+    [Tooltip("How fast the logic vector turns (Lower = Smoother).")]
     public float logicTurnSpeed = 4f;
 
     [Header("Release Triggers")]
+    [Tooltip("Trigger step if hand is behind this line relative to path.")]
     public float releaseThreshold = 0.1f;
+    [Tooltip("Force step if arm angle > this (Fixes T-Pose on turns).")]
     public float maxArmAngle = 100f;
+    [Tooltip("Force step if hand crosses center line (Fixes crossing arms).")]
     public float crossBodyThreshold = -0.2f;
 
     [Header("Physics")]
@@ -40,15 +43,15 @@ public class ProceduralSmoothPredictor : MonoBehaviour
     private bool isHandMoving;
     private Vector3 stableForward;
 
-    // Cached values
+    // Cached values for optimization
     private static readonly float MinVelocity = 0.1f;
-    private static readonly float LaneOverlap = 0.3f;
+    private static readonly float LaneOverlap = 0.3f; // Allow slight lane crossing for better reach
     private static readonly float PathAlignWeight = 8f;
     private static readonly float DistanceWeight = 2f;
 
     void Start()
     {
-        agent ??= GetComponent<NavMeshAgent>();
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
         
         leftHandPos = leftHandTarget.position;
         leftHandRot = leftHandTarget.rotation;
@@ -69,23 +72,30 @@ public class ProceduralSmoothPredictor : MonoBehaviour
 
     void LateUpdate()
     {
+        // 1. Update the "Stable Forward" vector (The Rabbit)
         UpdateStableForward();
         
+        // 2. Check Logic if moving
         if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
             CheckAndMoveHands();
         }
         
+        // 3. Apply IK
         UpdateIKTargets();
     }
 
     void UpdateStableForward()
     {
-        Vector3 targetDir = agent.hasPath ? 
-            GetPathDirection() : transform.forward;
+        Vector3 targetDir = transform.forward;
+
+        if (agent.hasPath)
+        {
+            targetDir = GetPathDirection();
+        }
         
-        stableForward = Vector3.Slerp(stableForward, targetDir, 
-            Time.deltaTime * logicTurnSpeed).normalized;
+        // Smoothly rotate the logic vector to prevent snapping
+        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * logicTurnSpeed).normalized;
     }
 
     Vector3 GetPathDirection()
@@ -94,6 +104,7 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         return (rabbitPoint - transform.position).normalized;
     }
 
+    // Finds a point X meters along the path corners
     Vector3 GetPointOnPath(float distToLook)
     {
         Vector3[] corners = agent.path.corners;
@@ -128,9 +139,11 @@ public class ProceduralSmoothPredictor : MonoBehaviour
 
         if (rightStressed && leftStressed)
         {
-            // Move the hand that's further behind
+            // If both need to move, move the one furthest behind the "Stable Forward" line
             float rightDepth = Vector3.Dot(rightHandPos - transform.position, stableForward);
             float leftDepth = Vector3.Dot(leftHandPos - transform.position, stableForward);
+            
+            // Lower depth = further back
             AttemptStep(rightDepth < leftDepth);
         }
         else if (rightStressed) AttemptStep(true);
@@ -142,11 +155,11 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         Vector3 handPos = isRight ? rightHandPos : leftHandPos;
         Vector3 toHand = handPos - transform.position;
 
-        // Angle stress
+        // 1. Angle stress (Fixes T-Pose on turns)
         if (Vector3.Angle(stableForward, toHand) > maxArmAngle)
             return true;
 
-        // Cross-body stress
+        // 2. Cross-body stress (Fixes arms crossing)
         Vector3 stableRight = Vector3.Cross(Vector3.up, stableForward);
         float sideDist = Vector3.Dot(toHand, stableRight);
         
@@ -156,7 +169,7 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         
         if (crossingBody) return true;
 
-        // Depth check
+        // 3. Depth check (Standard walking trigger)
         float depth = Vector3.Dot(toHand, stableForward);
         return depth < releaseThreshold;
     }
@@ -175,6 +188,7 @@ public class ProceduralSmoothPredictor : MonoBehaviour
 
     Collider FindBestTree(bool isRightHand)
     {
+        // Search ahead of the monster along the stable path
         Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.6f);
         Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
         
@@ -192,11 +206,12 @@ public class ProceduralSmoothPredictor : MonoBehaviour
             Vector3 toTree = tree.transform.position - transform.position;
             float dist = toTree.magnitude;
             
+            // Min distance check (prevents cramping)
             if (dist < minReachDistance) continue;
 
             Vector3 dirToTree = toTree / dist; // Normalized
 
-            // Lane filtering
+            // Lane filtering (Rotated by Stable Forward)
             float sideDot = Vector3.Dot(toTree, pathRight);
             if ((isRightHand && sideDot < -LaneOverlap) || 
                 (!isRightHand && sideDot > LaneOverlap))
@@ -206,7 +221,7 @@ public class ProceduralSmoothPredictor : MonoBehaviour
             if (Vector3.Angle(stableForward, dirToTree) > halfViewAngle)
                 continue;
 
-            // Score calculation
+            // Score calculation: Prioritize alignment with path + distance
             float pathAlign = Vector3.Dot(stableForward, dirToTree);
             float score = pathAlign * PathAlignWeight + dist * DistanceWeight;
 
@@ -227,12 +242,13 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
 
-        // Calculate target position
+        // Calculate target position on tree surface
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
 
+        // Raycast to find exact surface point
         Ray ray = new Ray(transform.position + Vector3.up * 1.5f, dirToTree);
         if (targetTree.Raycast(ray, out RaycastHit hit, 20f))
         {
@@ -242,7 +258,7 @@ public class ProceduralSmoothPredictor : MonoBehaviour
 
         Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
 
-        // Calculate bezier control point
+        // Calculate bezier control point for the arc
         Vector3 midPoint = (startPos + finalPos) * 0.5f;
         Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
         Vector3 controlPoint = midPoint + Vector3.up * swingArcHeight + sideOffset;
@@ -253,13 +269,14 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         
         while (elapsed < totalDist)
         {
+            // Adaptive speed: Faster body = Faster hands
             float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3f);
             elapsed += Time.deltaTime * dynamicSpeed;
             
             float t = Mathf.Clamp01(elapsed / totalDist);
-            float smoothT = t * t * (3f - 2f * t); // Smoothstep
+            float smoothT = t * t * (3f - 2f * t); // Smoothstep easing
             
-            // Quadratic bezier
+            // Quadratic bezier formula
             float u = 1f - smoothT;
             Vector3 pos = u * u * startPos + 
                          2f * u * smoothT * controlPoint + 
@@ -306,11 +323,11 @@ public class ProceduralSmoothPredictor : MonoBehaviour
     {
         if (agent == null || !Application.isPlaying) return;
         
-        // Stable forward direction
+        // Visualize Stable forward direction
         Gizmos.color = Color.cyan;
         Gizmos.DrawRay(transform.position, stableForward * 5f);
         
-        // Look-ahead point
+        // Visualize Look-ahead point
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position + stableForward * lookAheadDist, 0.5f);
     }
