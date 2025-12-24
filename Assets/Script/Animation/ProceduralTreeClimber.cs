@@ -11,112 +11,106 @@ public class ProceduralSmoothPredictor : MonoBehaviour
     public Transform leftHandTarget;
     public Transform rightHandTarget;
 
-    [Header("Path Smoothing (The Fix)")]
-    [Tooltip("How far down the path to look for the direction.")]
-    public float lookAheadDist = 5.0f; 
-    [Tooltip("How fast the logic vector turns (Lower = Smoother).")]
-    public float logicTurnSpeed = 4.0f;
+    [Header("Path Smoothing")]
+    [Tooltip("How far down the path to look for direction")]
+    public float lookAheadDist = 5f;
+    [Tooltip("How fast the logic vector turns (Lower = Smoother)")]
+    public float logicTurnSpeed = 4f;
 
-    [Header("Triggers")]
-    public float releaseThreshold = 0.1f; 
+    [Header("Release Triggers")]
+    public float releaseThreshold = 0.1f;
     public float maxArmAngle = 100f;
     public float crossBodyThreshold = -0.2f;
 
     [Header("Physics")]
-    public float handSpeed = 10.0f;
+    public float handSpeed = 10f;
     public float swingArcHeight = 1.2f;
     public float swingOutward = 0.7f;
 
     [Header("Vision")]
     public LayerMask treeLayer;
-    public float minReachDistance = 2.5f; 
-    public float maxReachDistance = 8.0f;
-    public float searchRadius = 15.0f;
+    public float minReachDistance = 2.5f;
+    public float maxReachDistance = 8f;
     [Range(0, 180)] public float viewAngle = 140f;
 
-    // --- State ---
+    // State
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
-    private Collider leftTreeCollider, rightTreeCollider; 
-    private bool isHandMoving = false;
-    
-    // The Stabilized Logic Vector
+    private Collider leftTreeCollider, rightTreeCollider;
+    private bool isHandMoving;
     private Vector3 stableForward;
+
+    // Cached values
+    private static readonly float MinVelocity = 0.1f;
+    private static readonly float LaneOverlap = 0.3f;
+    private static readonly float PathAlignWeight = 8f;
+    private static readonly float DistanceWeight = 2f;
 
     void Start()
     {
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-
+        agent ??= GetComponent<NavMeshAgent>();
+        
         leftHandPos = leftHandTarget.position;
         leftHandRot = leftHandTarget.rotation;
         rightHandPos = rightHandTarget.position;
         rightHandRot = rightHandTarget.rotation;
-
+        
         stableForward = transform.forward;
-
-        DetectInitialTree(leftHandTarget.position, ref leftTreeCollider);
-        DetectInitialTree(rightHandTarget.position, ref rightTreeCollider);
+        
+        DetectInitialTree(leftHandPos, ref leftTreeCollider);
+        DetectInitialTree(rightHandPos, ref rightTreeCollider);
     }
 
     void DetectInitialTree(Vector3 pos, ref Collider treeRef)
     {
-        Collider[] hits = Physics.OverlapSphere(pos, 1.0f, treeLayer);
+        Collider[] hits = Physics.OverlapSphere(pos, 1f, treeLayer);
         if (hits.Length > 0) treeRef = hits[0];
     }
 
     void LateUpdate()
     {
-        // 1. Update the Smooth Direction
         UpdateStableForward();
-
-        // 2. Logic
-        if (!isHandMoving && agent.velocity.magnitude > 0.1f)
+        
+        if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
-            CheckRotationLogic();
+            CheckAndMoveHands();
         }
-
-        UpdateIKPositions();
+        
+        UpdateIKTargets();
     }
 
-    // --- THE SMOOTHING LOGIC ---
     void UpdateStableForward()
     {
-        Vector3 targetDir = transform.forward;
-
-        // If we have a path, find the "Rabbit" point
-        if (agent.hasPath)
-        {
-            Vector3 rabbitPoint = GetPointOnPath(lookAheadDist);
-            targetDir = (rabbitPoint - transform.position).normalized;
-        }
-
-        // Smoothly rotate current logic vector towards target
-        // Slerp prevents snapping
-        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * logicTurnSpeed).normalized;
+        Vector3 targetDir = agent.hasPath ? 
+            GetPathDirection() : transform.forward;
+        
+        stableForward = Vector3.Slerp(stableForward, targetDir, 
+            Time.deltaTime * logicTurnSpeed).normalized;
     }
 
-    // Walks along the path corners to find a point X meters away
+    Vector3 GetPathDirection()
+    {
+        Vector3 rabbitPoint = GetPointOnPath(lookAheadDist);
+        return (rabbitPoint - transform.position).normalized;
+    }
+
     Vector3 GetPointOnPath(float distToLook)
     {
         Vector3[] corners = agent.path.corners;
-        if (corners.Length < 2) return transform.position + transform.forward * distToLook;
+        if (corners.Length < 2)
+            return transform.position + transform.forward * distToLook;
 
         Vector3 currentPos = transform.position;
         float distCovered = 0f;
 
         for (int i = 0; i < corners.Length - 1; i++)
         {
-            Vector3 segStart = corners[i];
+            Vector3 segStart = (i == 0) ? currentPos : corners[i];
             Vector3 segEnd = corners[i + 1];
-            
-            // If checking first segment, start from agent pos, not corner 0
-            if (i == 0) segStart = currentPos;
-
             float segDist = Vector3.Distance(segStart, segEnd);
 
             if (distCovered + segDist >= distToLook)
             {
-                // The target is on this segment
                 float remaining = distToLook - distCovered;
                 return Vector3.MoveTowards(segStart, segEnd, remaining);
             }
@@ -124,127 +118,123 @@ public class ProceduralSmoothPredictor : MonoBehaviour
             distCovered += segDist;
         }
 
-        // If path is shorter than look distance, return the very end
         return corners[corners.Length - 1];
     }
 
-    void CheckRotationLogic()
+    void CheckAndMoveHands()
     {
-        // Use STABLE forward for all calculations, not body forward
-        bool rightNeedsMove = CheckHandStress(true);
-        bool leftNeedsMove = CheckHandStress(false);
+        bool rightStressed = IsHandStressed(true);
+        bool leftStressed = IsHandStressed(false);
 
-        if (rightNeedsMove && leftNeedsMove)
+        if (rightStressed && leftStressed)
         {
-            float rightDot = Vector3.Dot(rightHandPos - transform.position, stableForward);
-            float leftDot = Vector3.Dot(leftHandPos - transform.position, stableForward);
-
-            // Move the one furthest back relative to the PATH
-            if (rightDot < leftDot) AttemptStep(true);
-            else AttemptStep(false);
+            // Move the hand that's further behind
+            float rightDepth = Vector3.Dot(rightHandPos - transform.position, stableForward);
+            float leftDepth = Vector3.Dot(leftHandPos - transform.position, stableForward);
+            AttemptStep(rightDepth < leftDepth);
         }
-        else if (rightNeedsMove) AttemptStep(true);
-        else if (leftNeedsMove) AttemptStep(false);
+        else if (rightStressed) AttemptStep(true);
+        else if (leftStressed) AttemptStep(false);
     }
 
-    bool CheckHandStress(bool isRight)
+    bool IsHandStressed(bool isRight)
     {
         Vector3 handPos = isRight ? rightHandPos : leftHandPos;
         Vector3 toHand = handPos - transform.position;
 
-        // 1. Angle Stress (Using Stable Forward)
-        if (Vector3.Angle(stableForward, toHand) > maxArmAngle) return true;
+        // Angle stress
+        if (Vector3.Angle(stableForward, toHand) > maxArmAngle)
+            return true;
 
-        // 2. Cross Body Stress (Using Stable Local Space)
-        // We act as if the body is aligned with StableForward to check crossing
+        // Cross-body stress
         Vector3 stableRight = Vector3.Cross(Vector3.up, stableForward);
         float sideDist = Vector3.Dot(toHand, stableRight);
+        
+        bool crossingBody = isRight ? 
+            sideDist < crossBodyThreshold : 
+            sideDist > -crossBodyThreshold;
+        
+        if (crossingBody) return true;
 
-        if (isRight && sideDist < crossBodyThreshold) return true; 
-        if (!isRight && sideDist > -crossBodyThreshold) return true;
-
-        // 3. Depth Check
+        // Depth check
         float depth = Vector3.Dot(toHand, stableForward);
-        if (depth < releaseThreshold) return true;
-
-        return false;
+        return depth < releaseThreshold;
     }
 
     bool AttemptStep(bool isRightHand)
     {
-        Collider bestTree = ScanForTree(isRightHand);
+        Collider targetTree = FindBestTree(isRightHand);
         
-        if (bestTree != null)
+        if (targetTree != null)
         {
-            StartCoroutine(SwingHandRoutine(isRightHand, bestTree));
+            StartCoroutine(SwingHand(isRightHand, targetTree));
             return true;
         }
         return false;
     }
 
-    Collider ScanForTree(bool isRightHand)
+    Collider FindBestTree(bool isRightHand)
     {
-        Vector3 searchCenter = transform.position + (stableForward * (maxReachDistance * 0.6f));
+        Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.6f);
         Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
         
-        Collider bestCandidate = null;
+        if (hits.Length == 0) return null;
+
+        Collider bestTree = null;
         float bestScore = float.MinValue;
-
         Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
+        float halfViewAngle = viewAngle * 0.5f;
 
-        foreach (var hit in hits)
+        foreach (var tree in hits)
         {
-            if (hit == leftTreeCollider || hit == rightTreeCollider) continue;
+            if (tree == leftTreeCollider || tree == rightTreeCollider) continue;
 
-            Vector3 dirToTree = (hit.transform.position - transform.position).normalized;
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-
+            Vector3 toTree = tree.transform.position - transform.position;
+            float dist = toTree.magnitude;
+            
             if (dist < minReachDistance) continue;
 
-            // Lane Check (Rotated by Stable Forward)
-            float sideDot = Vector3.Dot(hit.transform.position - transform.position, pathRight);
-            
-            if (isRightHand)
-            {
-                if (sideDot < -0.3f) continue; // Allow slight overlap
-            }
-            else
-            {
-                if (sideDot > 0.3f) continue; 
-            }
+            Vector3 dirToTree = toTree / dist; // Normalized
 
-            // Angle Check
-            if (Vector3.Angle(stableForward, dirToTree) > viewAngle / 2f) continue;
+            // Lane filtering
+            float sideDot = Vector3.Dot(toTree, pathRight);
+            if ((isRightHand && sideDot < -LaneOverlap) || 
+                (!isRightHand && sideDot > LaneOverlap))
+                continue;
 
-            // Score: Alignment with Path + Turn + Distance
+            // View angle check
+            if (Vector3.Angle(stableForward, dirToTree) > halfViewAngle)
+                continue;
+
+            // Score calculation
             float pathAlign = Vector3.Dot(stableForward, dirToTree);
-            
-            float score = (pathAlign * 8.0f) + (dist * 2.0f);
+            float score = pathAlign * PathAlignWeight + dist * DistanceWeight;
 
             if (score > bestScore)
             {
                 bestScore = score;
-                bestCandidate = hit;
+                bestTree = tree;
             }
         }
 
-        return bestCandidate;
+        return bestTree;
     }
 
-    IEnumerator SwingHandRoutine(bool isRight, Collider targetTree)
+    IEnumerator SwingHand(bool isRight, Collider targetTree)
     {
         isHandMoving = true;
 
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
 
+        // Calculate target position
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
-        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f; 
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
 
-        if (targetTree.Raycast(new Ray(rayOrigin, dirToTree), out RaycastHit hit, 20f))
+        Ray ray = new Ray(transform.position + Vector3.up * 1.5f, dirToTree);
+        if (targetTree.Raycast(ray, out RaycastHit hit, 20f))
         {
             finalPos = hit.point;
             surfaceNormal = hit.normal;
@@ -252,44 +242,59 @@ public class ProceduralSmoothPredictor : MonoBehaviour
 
         Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
 
-        Vector3 midPoint = (startPos + finalPos) / 2f;
-        Vector3 sideVec = isRight ? transform.right : -transform.right;
-        Vector3 controlPoint = midPoint + (Vector3.up * swingArcHeight) + (sideVec * swingOutward);
+        // Calculate bezier control point
+        Vector3 midPoint = (startPos + finalPos) * 0.5f;
+        Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
+        Vector3 controlPoint = midPoint + Vector3.up * swingArcHeight + sideOffset;
 
+        // Animate along bezier curve
         float totalDist = Vector3.Distance(startPos, finalPos);
-        float currentDist = 0;
+        float elapsed = 0f;
         
-        while (currentDist < totalDist)
+        while (elapsed < totalDist)
         {
-            float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3.0f);
-
-            currentDist += Time.deltaTime * dynamicSpeed;
-            float t = Mathf.Clamp01(currentDist / totalDist);
-            float tCurved = t * t * (3f - 2f * t); 
-
-            Vector3 p0 = startPos;
-            Vector3 p1 = controlPoint;
-            Vector3 p2 = finalPos;
+            float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3f);
+            elapsed += Time.deltaTime * dynamicSpeed;
             
-            float u = 1 - tCurved;
-            float tt = tCurved * tCurved;
-            float uu = u * u;
+            float t = Mathf.Clamp01(elapsed / totalDist);
+            float smoothT = t * t * (3f - 2f * t); // Smoothstep
             
-            Vector3 currentPos = (uu * p0) + (2 * u * tCurved * p1) + (tt * p2);
+            // Quadratic bezier
+            float u = 1f - smoothT;
+            Vector3 pos = u * u * startPos + 
+                         2f * u * smoothT * controlPoint + 
+                         smoothT * smoothT * finalPos;
 
-            if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, tCurved); }
-            else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, tCurved); }
+            if (isRight)
+            {
+                rightHandPos = pos;
+                rightHandRot = Quaternion.Slerp(startRot, finalRot, smoothT);
+            }
+            else
+            {
+                leftHandPos = pos;
+                leftHandRot = Quaternion.Slerp(startRot, finalRot, smoothT);
+            }
 
             yield return null;
         }
 
-        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; }
-        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; }
+        // Finalize
+        if (isRight)
+        {
+            rightTreeCollider = targetTree;
+            rightHandPos = finalPos;
+        }
+        else
+        {
+            leftTreeCollider = targetTree;
+            leftHandPos = finalPos;
+        }
 
         isHandMoving = false;
     }
 
-    void UpdateIKPositions()
+    void UpdateIKTargets()
     {
         leftHandTarget.position = leftHandPos;
         leftHandTarget.rotation = leftHandRot;
@@ -297,15 +302,15 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         rightHandTarget.rotation = rightHandRot;
     }
 
-    // DEBUG: Visualize the Smooth Logic Vector
     void OnDrawGizmos()
     {
-        if (agent == null) return;
+        if (agent == null || !Application.isPlaying) return;
         
+        // Stable forward direction
         Gizmos.color = Color.cyan;
-        Gizmos.DrawRay(transform.position, stableForward * 5.0f);
+        Gizmos.DrawRay(transform.position, stableForward * 5f);
         
-        // Visualize the "Rabbit" Point
+        // Look-ahead point
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position + stableForward * lookAheadDist, 0.5f);
     }
