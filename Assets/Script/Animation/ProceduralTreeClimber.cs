@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-public class ProceduralSolidConeClimber : MonoBehaviour
+public class ProceduralIndependentClimber : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private NavMeshAgent agent;
@@ -11,30 +11,28 @@ public class ProceduralSolidConeClimber : MonoBehaviour
     public Transform leftHandTarget;
     public Transform rightHandTarget;
 
-    [Header("Cone Vision Settings")]
-    [Range(0, 180)] public float viewAngle = 100f; 
-    public float minReachDistance = 2.5f; 
-    public float maxReachDistance = 7.0f; 
+    [Header("Shoulder Trigger")]
+    [Tooltip("If a hand is behind this Local Z line, it tries to move.")]
+    public float releaseThreshold = 0.1f; 
+    
+    [Header("Physics")]
+    public float handSpeed = 9.0f;
+    public float swingArcHeight = 1.0f;
+    public float swingOutward = 0.6f;
+
+    [Header("Vision (The Fix)")]
     public LayerMask treeLayer;
-
-    [Header("Stability Fix (Look Ahead)")]
-    [Tooltip("The cone will look at a point at least this far along the path.")]
-    public float minLookAheadDistance = 4.0f; 
-    [Tooltip("How fast the cone rotates (lower = smoother, less flicker).")]
-    public float coneRotationSpeed = 5.0f;
-
-    [Header("Trigger Logic")]
-    public float dragThreshold = 0.5f; 
-    public float stepDuration = 0.3f; 
+    public float minReachDistance = 2.0f; 
+    public float maxReachDistance = 8.0f;
+    public float searchRadius = 15.0f;
+    [Range(0, 180)] public float viewAngle = 140f;
 
     // --- State ---
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
     private Collider leftTreeCollider, rightTreeCollider; 
-    private bool isLeftMoving = false;
-    private bool isRightMoving = false;
-
-    // The Stabilized Forward Vector
+    
+    private bool isHandMoving = false;
     private Vector3 stableForward;
 
     void Start()
@@ -60,123 +58,106 @@ public class ProceduralSolidConeClimber : MonoBehaviour
 
     void LateUpdate()
     {
-        // 1. CALCULATE ROBUST FORWARD
-        Vector3 targetDir = GetPathLookAheadDirection();
+        // 1. Look Ahead Smoothing
+        Vector3 targetDir = GetPathLookAhead();
+        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * 6f).normalized;
 
-        // 2. SMOOTH ROTATION (Damping)
-        // If the path makes a 90 degree turn, the cone rotates over ~0.5s instead of snapping
-        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * coneRotationSpeed);
-        stableForward.Normalize();
-
-        // 3. LOGIC
-        CheckHand(true, stableForward);  // Right
-        CheckHand(false, stableForward); // Left
+        // 2. Check Logic (Only if not already animating)
+        if (!isHandMoving && agent.velocity.magnitude > 0.1f)
+        {
+            CheckIndependentLogic();
+        }
 
         UpdateIKPositions();
     }
 
-    // --- THE FIX: LOOK AHEAD LOGIC ---
-    Vector3 GetPathLookAheadDirection()
+    Vector3 GetPathLookAhead()
     {
-        // Fallback: If not moving or no path, use body forward
-        if (!agent.hasPath || agent.velocity.magnitude < 0.1f) 
-            return transform.forward;
-
-        Vector3 currentPos = transform.position;
-        Vector3 targetPoint = transform.position + transform.forward * 5f; // Default far point
-        bool foundFarPoint = false;
-
-        // Iterate through the path corners
-        Vector3[] corners = agent.path.corners;
-        
-        // Start from index 1 (Index 0 is current position)
-        for (int i = 1; i < corners.Length; i++)
-        {
-            float dist = Vector3.Distance(currentPos, corners[i]);
-            
-            // If we found a corner that is far enough away to be stable
-            if (dist > minLookAheadDistance)
-            {
-                targetPoint = corners[i];
-                foundFarPoint = true;
-                break; // Stop looking, we found our rabbit
-            }
-        }
-
-        // If all path corners are too close (end of path), just use the last one
-        if (!foundFarPoint && corners.Length > 0)
-        {
-            targetPoint = corners[corners.Length - 1];
-        }
-
-        return (targetPoint - currentPos).normalized;
+        if (!agent.hasPath || agent.path.corners.Length < 2) return transform.forward;
+        Vector3 toCorner = (agent.steeringTarget - transform.position).normalized;
+        return Vector3.Slerp(transform.forward, toCorner, 0.6f).normalized;
     }
 
-    void CheckHand(bool isRight, Vector3 pathForward)
+    void CheckIndependentLogic()
     {
-        if (isRight && isRightMoving) return;
-        if (!isRight && isLeftMoving) return;
+        // 1. Calculate "Depth" for BOTH hands relative to the Forward direction
+        // Positive = In Front, Negative = Behind
+        Vector3 toRight = rightHandPos - transform.position;
+        Vector3 toLeft = leftHandPos - transform.position;
 
-        Vector3 currentPos = isRight ? rightHandPos : leftHandPos;
-        
-        // Use the STABLE forward for calculation
-        Vector3 toHand = currentPos - transform.position;
-        float forwardDot = Vector3.Dot(toHand, pathForward);
+        float rightDepth = Vector3.Dot(toRight, stableForward);
+        float leftDepth = Vector3.Dot(toLeft, stableForward);
 
-        if (forwardDot < dragThreshold || Vector3.Distance(transform.position, currentPos) < 1.5f)
+        // 2. Check who needs to move
+        bool rightNeedsMove = rightDepth < releaseThreshold;
+        bool leftNeedsMove = leftDepth < releaseThreshold;
+
+        // 3. Prioritize
+        if (rightNeedsMove && leftNeedsMove)
         {
-            FindAndGrab(isRight, pathForward);
+            // Both dragging? Move the one FURTHEST back (Lowest depth)
+            if (rightDepth < leftDepth) AttemptStep(true);
+            else AttemptStep(false);
+        }
+        else if (rightNeedsMove)
+        {
+            AttemptStep(true);
+        }
+        else if (leftNeedsMove)
+        {
+            AttemptStep(false);
         }
     }
 
-    void FindAndGrab(bool isRight, Vector3 pathForward)
+    bool AttemptStep(bool isRightHand)
     {
-        Collider bestTree = ScanWithCone(isRight, pathForward);
+        Collider bestTree = ScanForTree(isRightHand);
         
         if (bestTree != null)
         {
-            StartCoroutine(MoveHandRoutine(isRight, bestTree));
+            StartCoroutine(SwingHandRoutine(isRightHand, bestTree));
+            return true;
         }
+        return false;
     }
 
-    Collider ScanWithCone(bool isRight, Vector3 pathForward)
+    Collider ScanForTree(bool isRightHand)
     {
-        // Search center projected along the STABLE path
-        Vector3 searchCenter = transform.position + (pathForward * (maxReachDistance * 0.6f));
-        Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance * 0.8f, treeLayer);
+        Vector3 searchCenter = transform.position + (stableForward * (maxReachDistance * 0.6f));
+        Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
         
         Collider bestCandidate = null;
         float bestScore = float.MinValue;
 
-        Vector3 pathRight = Vector3.Cross(Vector3.up, pathForward);
+        Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
 
         foreach (var hit in hits)
         {
             if (hit == leftTreeCollider || hit == rightTreeCollider) continue;
 
             Vector3 dirToTree = (hit.transform.position - transform.position).normalized;
-            float distToTree = Vector3.Distance(transform.position, hit.transform.position);
+            float dist = Vector3.Distance(transform.position, hit.transform.position);
 
-            if (distToTree < minReachDistance) continue; 
+            if (dist < minReachDistance) continue;
 
-            // Lane Check (Using Stable Vector)
+            // --- RELAXED LANE CHECK ---
+            // Previously: 0.2 (Strict). Now: -0.2 (Loose).
+            // This allows the Right Hand to grab "Center-Left" trees if needed.
             float sideDot = Vector3.Dot(hit.transform.position - transform.position, pathRight);
-            if (isRight)
+            if (isRightHand)
             {
-                if (sideDot < 0.2f) continue; 
+                if (sideDot < -0.2f) continue; // Allow slight overlap to left
             }
             else
             {
-                if (sideDot > -0.2f) continue; 
+                if (sideDot > 0.2f) continue; // Allow slight overlap to right
             }
 
-            // Cone Angle (Using Stable Vector)
-            float angle = Vector3.Angle(pathForward, dirToTree);
-            if (angle > viewAngle / 2f) continue;
+            if (Vector3.Angle(stableForward, dirToTree) > viewAngle / 2f) continue;
 
-            // Score
-            float forwardDot = Vector3.Dot(pathForward, dirToTree);
-            float score = (forwardDot * 10.0f) + distToTree;
+            // Scoring
+            float forwardDot = Vector3.Dot(stableForward, dirToTree);
+            float score = (forwardDot * 10.0f) + (dist * 2.0f);
 
             if (score > bestScore)
             {
@@ -188,16 +169,16 @@ public class ProceduralSolidConeClimber : MonoBehaviour
         return bestCandidate;
     }
 
-    IEnumerator MoveHandRoutine(bool isRight, Collider targetTree)
+    IEnumerator SwingHandRoutine(bool isRight, Collider targetTree)
     {
-        if (isRight) isRightMoving = true; else isLeftMoving = true;
+        isHandMoving = true;
 
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
 
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
-        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f + transform.forward * 0.5f; 
+        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f; 
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
 
@@ -209,22 +190,44 @@ public class ProceduralSolidConeClimber : MonoBehaviour
 
         Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
 
-        float t = 0;
-        while (t < 1f)
-        {
-            t += Time.deltaTime / stepDuration;
-            
-            Vector3 currentPos = Vector3.Lerp(startPos, finalPos, t);
-            currentPos.y += Mathf.Sin(t * Mathf.PI) * 0.6f; // Slightly higher arc
+        // Bezier Arc
+        Vector3 midPoint = (startPos + finalPos) / 2f;
+        Vector3 sideVec = isRight ? transform.right : -transform.right;
+        Vector3 controlPoint = midPoint + (Vector3.up * swingArcHeight) + (sideVec * swingOutward);
 
-            if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, t); }
-            else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, t); }
+        float totalDist = Vector3.Distance(startPos, finalPos);
+        float currentDist = 0;
+        
+        while (currentDist < totalDist)
+        {
+            // Adaptive speed: Faster body = Faster hands
+            float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 2.5f);
+
+            currentDist += Time.deltaTime * dynamicSpeed;
+            float t = Mathf.Clamp01(currentDist / totalDist);
+
+            float tCurved = t * t * (3f - 2f * t); 
+
+            Vector3 p0 = startPos;
+            Vector3 p1 = controlPoint;
+            Vector3 p2 = finalPos;
             
+            float u = 1 - tCurved;
+            float tt = tCurved * tCurved;
+            float uu = u * u;
+            
+            Vector3 currentPos = (uu * p0) + (2 * u * tCurved * p1) + (tt * p2);
+
+            if (isRight) { rightHandPos = currentPos; rightHandRot = Quaternion.Slerp(startRot, finalRot, tCurved); }
+            else         { leftHandPos = currentPos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, tCurved); }
+
             yield return null;
         }
 
-        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; isRightMoving = false; }
-        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; isLeftMoving = false; }
+        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; }
+        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; }
+
+        isHandMoving = false;
     }
 
     void UpdateIKPositions()
@@ -233,23 +236,5 @@ public class ProceduralSolidConeClimber : MonoBehaviour
         leftHandTarget.rotation = leftHandRot;
         rightHandTarget.position = rightHandPos;
         rightHandTarget.rotation = rightHandRot;
-    }
-
-    // --- DEBUG GIZMOS ---
-    void OnDrawGizmos()
-    {
-        if (agent == null) return;
-
-        // Draw the STABLE vector (Cyan)
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawRay(transform.position, stableForward * maxReachDistance);
-
-        // Draw Cone
-        Vector3 r = Quaternion.Euler(0, viewAngle/2, 0) * stableForward;
-        Vector3 l = Quaternion.Euler(0, -viewAngle/2, 0) * stableForward;
-        Gizmos.color = Color.green;
-        Gizmos.DrawRay(transform.position, r * maxReachDistance);
-        Gizmos.color = Color.red;
-        Gizmos.DrawRay(transform.position, l * maxReachDistance);
     }
 }
