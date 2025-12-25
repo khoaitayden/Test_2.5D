@@ -15,11 +15,7 @@ public class InteractionManager : MonoBehaviour
     }
 
     public void ReportInteraction(GameObject subject, string actionCode)
-    {
-        // Example Usage:
-        // if (actionCode == "DoorOpened" && subject.name == "BossDoor") 
-        //     PlayBossMusic();
-        
+    {  
         Debug.Log($"Interaction Event: {subject.name} -> {actionCode}");
         OnObjectInteracted?.Invoke(subject, actionCode);
     }

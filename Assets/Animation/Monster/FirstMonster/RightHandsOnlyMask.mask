@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!319 &31900000
+AvatarMask:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: RightHandsOnlyMask
+  m_Mask: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  m_Elements:
+  - m_Path: 
+    m_Weight: 1
+  - m_Path: Arm
+    m_Weight: 0
+  - m_Path: Armature Body
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Neck Body
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Neck Body/Neck Body_end
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerDown.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerDown.L/FingerDownJoint1.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerDown.L/FingerDownJoint1.L/FingerDownJoint2.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerDown.L/FingerDownJoint1.L/FingerDownJoint2.L/FingerDownJoint3.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerDown.L/FingerDownJoint1.L/FingerDownJoint2.L/FingerDownJoint3.L/FingerDownJoint3.L_end
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerMiddle.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerMiddle.L/FingerMiddleJoint1.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerMiddle.L/FingerMiddleJoint1.L/FingerMiddleJoint2.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerMiddle.L/FingerMiddleJoint1.L/FingerMiddleJoint2.L/FingerMiddleJoint3.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerMiddle.L/FingerMiddleJoint1.L/FingerMiddleJoint2.L/FingerMiddleJoint3.L/FingerMiddleJoint3.L_end
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerUp.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerUp.L/FingerUpJoint1.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerUp.L/FingerUpJoint1.L/FingerUpJoint2.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerUp.L/FingerUpJoint1.L/FingerUpJoint2.L/FingerUpJoint3.L
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.L/Joint1.L/Joint2.L/Joint3.L/Hand.L/FingerUp.L/FingerUpJoint1.L/FingerUpJoint2.L/FingerUpJoint3.L/FingerUpJoint3.L_end
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R
+    m_Weight: 0
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerDown.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerDown.R/FingerDownJoint1.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerDown.R/FingerDownJoint1.R/FingerDownJoint2.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerDown.R/FingerDownJoint1.R/FingerDownJoint2.R/FingerDownJoint3.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerDown.R/FingerDownJoint1.R/FingerDownJoint2.R/FingerDownJoint3.R/FingerDownJoint3.R_end
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerMiddle.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerMiddle.R/FingerMiddleJoint1.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerMiddle.R/FingerMiddleJoint1.R/FingerMiddleJoint2.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerMiddle.R/FingerMiddleJoint1.R/FingerMiddleJoint2.R/FingerMiddleJoint3.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerMiddle.R/FingerMiddleJoint1.R/FingerMiddleJoint2.R/FingerMiddleJoint3.R/FingerMiddleJoint3.R_end
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerUp.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerUp.R/FingerUpJoint1.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerUp.R/FingerUpJoint1.R/FingerUpJoint2.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerUp.R/FingerUpJoint1.R/FingerUpJoint2.R/FingerUpJoint3.R
+    m_Weight: 1
+  - m_Path: Armature Body/Down Body/Up Body/Shoulder.R/Joint1.R/Joint2.R/Joint3.R/Hand.R/FingerUp.R/FingerUpJoint1.R/FingerUpJoint2.R/FingerUpJoint3.R/FingerUpJoint3.R_end
+    m_Weight: 1
+  - m_Path: Body
+    m_Weight: 0
+  - m_Path: Head
+    m_Weight: 0

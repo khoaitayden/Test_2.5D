@@ -9,7 +9,6 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
-        private MonsterTouchSensor touchSensor;
         private MonsterBrain brain; // Added
 
         public override void Created() { }
@@ -19,7 +18,6 @@ namespace CrashKonijn.Goap.MonsterGen
             // Cache components
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfig>();
-            touchSensor = agent.GetComponent<MonsterTouchSensor>();
             brain = agent.GetComponent<MonsterBrain>(); // Fetch Brain here
 
             data.startTime = Time.time;
@@ -43,12 +41,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // 1. Success
-            if (touchSensor.IsTouchingPlayer)
-            {
-                return ActionRunState.Completed;
-            }
-
             // 2. Timeout / Failure
             if (Time.time > data.startTime + config.maxChaseTime)
             {
