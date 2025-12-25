@@ -19,23 +19,23 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float lookAheadDist = 5f;
     [SerializeField] private float logicTurnSpeed = 4f;
 
-    [Header("Rhythm & Speed (The Pull Feel)")]
-    [Tooltip("Speed multiplier while reaching (Slow).")]
+    [Header("Rhythm & Speed")]
     [SerializeField] private float reachSpeedFactor = 0.3f; 
-    [Tooltip("Speed multiplier immediately after grab (Fast/Surge).")]
     [SerializeField] private float pullSpeedFactor = 2.2f; 
-    [Tooltip("How fast speed returns to normal (1.0).")]
     [SerializeField] private float speedDecay = 2.0f;
 
-    [Header("Visual Physics (Bob & Sway)")]
-    [Tooltip("How much the body drops down when reaching.")]
-    [SerializeField] private float dropAmount = 0.6f;
-    [Tooltip("How much the body lifts up when pulling.")]
-    [SerializeField] private float liftAmount = 0.2f;
+    [Header("Visual Physics")]
+    [SerializeField] private float dropAmount = 0.6f; // "Sag" when reaching
+    [SerializeField] private float liftAmount = 0.2f; // "Lift" when pulling
     [SerializeField] private float bodyLag = 0.4f;
     [SerializeField] private float bodySmoothTime = 0.15f;
     [SerializeField] private float maxForwardLean = 45f;
     [SerializeField] private float bodyTwistAmount = 15f;
+
+    [Header("Player Grabbing")]
+    [SerializeField] private LayerMask playerLayer;
+    [SerializeField] private float playerGrabHeight = 1.5f; 
+    [SerializeField] private bool singleHandOnly = true;
 
     [Header("Hand Settings")]
     [SerializeField] private float handSpeed = 10f;
@@ -60,10 +60,14 @@ public class ProceduralMonsterController : MonoBehaviour
     private bool isHandMoving;
     private Vector3 stableForward;
     
+    // Player State
+    private Transform heldPlayerRight = null;
+    private Transform heldPlayerLeft = null;
+
     // Physics State
     private Vector3 bodyVelocity; 
     private int leftGripHash, rightGripHash;
-    private float currentVerticalForce = 0f; // Tracks visual bob
+    private float currentSurge = 0f;
 
     // Constants
     private const float MinVelocity = 0.1f;
@@ -104,124 +108,59 @@ public class ProceduralMonsterController : MonoBehaviour
     {
         UpdateStableForward();
         
-        // 1. Logic Check
         if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
             CheckAndMoveHands();
         }
 
-        // 2. Decay Speed (Return to normal after a surge)
-        // If speed > 1, decay fast. If speed < 1 (stuck/slow), decay slow.
-        float targetSpeed = 1.0f;
-        movementController.AnimationSpeedFactor = Mathf.MoveTowards(
-            movementController.AnimationSpeedFactor, 
-            targetSpeed, 
-            Time.deltaTime * speedDecay
-        );
-        
-        // 3. Physics & Visuals
+        UpdatePlayerHold();
+        UpdateSpeedDecay();
         UpdateBodyPhysics();
         UpdateIKTargets();
     }
 
-    void UpdateStableForward()
+    void UpdateSpeedDecay()
     {
-        Vector3 targetDir = agent.hasPath ? GetPathDirection() : transform.forward;
-        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * logicTurnSpeed).normalized;
-    }
-
-    void UpdateBodyPhysics()
-    {
-        if (visualModel == null) return;
-
-        // --- POSITION (Lag + Bob) ---
-        Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
-        Vector3 targetWorldPos = handCenter;
-
-        // 1. Drag (Horizontal)
-        if (agent.velocity.magnitude > 0.1f)
-        {
-            targetWorldPos -= agent.velocity.normalized * bodyLag;
-        }
-
-        // 2. Bob (Vertical) - Based on Speed Factor
-        // If Speed < 1 (Reaching), we sink. 
-        // If Speed > 1 (Pulling), we lift.
-        float speedFactor = movementController.AnimationSpeedFactor;
-        
-        // Map speed (0.3 to 2.2) to height (-0.6 to 0.2)
-        // Using LerpInverse to find where we are in the surge cycle
-        float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
-        
-        // Ease the vertical movement
-        float targetY = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
-        
-        targetWorldPos.y += targetY;
-
-        // 3. Apply
-        Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
-        targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
-
-        visualModel.localPosition = Vector3.SmoothDamp(
-            visualModel.localPosition, 
-            targetLocalPos, 
-            ref bodyVelocity, 
-            bodySmoothTime
+        // Smoothly return speed to 1.0 after a surge
+        movementController.AnimationSpeedFactor = Mathf.MoveTowards(
+            movementController.AnimationSpeedFactor, 
+            1.0f, 
+            Time.deltaTime * speedDecay
         );
-
-        // --- ROTATION ---
-        float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
-        float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
-
-        Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
-        Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        
-        float targetYaw = 0f;
-        if (localRight.z < localLeft.z) targetYaw = bodyTwistAmount; 
-        else targetYaw = -bodyTwistAmount; 
-
-        Vector3 moveDir = agent.velocity;
-        if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        
-        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
-        Quaternion offsetRot = Quaternion.Euler(targetPitch, targetYaw, 0);
-
-        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * 6f);
     }
 
-    Vector3 GetPathDirection()
+    void UpdatePlayerHold()
     {
-        Vector3 rabbitPoint = GetPointOnPath(lookAheadDist);
-        return (rabbitPoint - transform.position).normalized;
-    }
-
-    Vector3 GetPointOnPath(float distToLook)
-    {
-        Vector3[] corners = agent.path.corners;
-        if (corners.Length < 2) return transform.position + transform.forward * distToLook;
-
-        Vector3 currentPos = transform.position;
-        float distCovered = 0f;
-
-        for (int i = 0; i < corners.Length - 1; i++)
+        if (heldPlayerRight != null)
         {
-            Vector3 segStart = (i == 0) ? currentPos : corners[i];
-            Vector3 segEnd = corners[i + 1];
-            float segDist = Vector3.Distance(segStart, segEnd);
-
-            if (distCovered + segDist >= distToLook)
-            {
-                return Vector3.MoveTowards(segStart, segEnd, distToLook - distCovered);
-            }
-            distCovered += segDist;
+            rightHandPos = heldPlayerRight.position + Vector3.up * playerGrabHeight;
+            rightHandRot = Quaternion.LookRotation(heldPlayerRight.forward, Vector3.up);
         }
-        return corners[corners.Length - 1];
+        if (heldPlayerLeft != null)
+        {
+            leftHandPos = heldPlayerLeft.position + Vector3.up * playerGrabHeight;
+            leftHandRot = Quaternion.LookRotation(heldPlayerLeft.forward, Vector3.up);
+        }
     }
 
     void CheckAndMoveHands()
     {
-        bool rightStressed = IsHandStressed(true);
-        bool leftStressed = IsHandStressed(false);
+        // 1. Check Player Grab First
+        bool canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
+        bool canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
+
+        if (singleHandOnly && (heldPlayerRight != null || heldPlayerLeft != null))
+        {
+            canGrabRight = false;
+            canGrabLeft = false;
+        }
+
+        if (canGrabRight) { StartCoroutine(SwingHand(true, null, ScanForPlayer(true))); return; }
+        if (canGrabLeft) { StartCoroutine(SwingHand(false, null, ScanForPlayer(false))); return; }
+
+        // 2. Check Trees (Only if hand is free)
+        bool rightStressed = (heldPlayerRight == null) && IsHandStressed(true);
+        bool leftStressed = (heldPlayerLeft == null) && IsHandStressed(false);
 
         if (rightStressed && leftStressed)
         {
@@ -233,21 +172,28 @@ public class ProceduralMonsterController : MonoBehaviour
         else if (leftStressed) AttemptStep(false);
     }
 
-    bool IsHandStressed(bool isRight)
+    Transform ScanForPlayer(bool isRightHand)
     {
-        Vector3 handPos = isRight ? rightHandPos : leftHandPos;
-        Vector3 toHand = handPos - transform.position;
+        Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.5f);
+        Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, playerLayer);
 
-        if (Vector3.Angle(stableForward, toHand) > maxArmAngle) return true;
+        foreach(var hit in hits)
+        {
+            Vector3 toTarget = hit.transform.position - transform.position;
+            Vector3 dir = toTarget.normalized;
+            
+            // Basic Cone Logic
+            Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
+            float sideDot = Vector3.Dot(toTarget, pathRight);
+            
+            if (isRightHand && sideDot < -0.1f) continue;
+            if (!isRightHand && sideDot > 0.1f) continue;
 
-        Vector3 stableRight = Vector3.Cross(Vector3.up, stableForward);
-        float sideDist = Vector3.Dot(toHand, stableRight);
-        
-        if (isRight && sideDist < crossBodyThreshold) return true;
-        if (!isRight && sideDist > -crossBodyThreshold) return true;
+            if (Vector3.Angle(stableForward, dir) > viewAngle / 2f) continue;
 
-        float depth = Vector3.Dot(toHand, stableForward);
-        return depth < releaseThreshold;
+            return hit.transform;
+        }
+        return null;
     }
 
     bool AttemptStep(bool isRightHand)
@@ -255,7 +201,7 @@ public class ProceduralMonsterController : MonoBehaviour
         Collider targetTree = FindBestTree(isRightHand);
         if (targetTree != null)
         {
-            StartCoroutine(SwingHand(isRightHand, targetTree));
+            StartCoroutine(SwingHand(isRightHand, targetTree, null));
             return true;
         }
         return false;
@@ -266,8 +212,6 @@ public class ProceduralMonsterController : MonoBehaviour
         Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.6f);
         Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
         
-        if (hits.Length == 0) return null;
-
         Collider bestTree = null;
         float bestScore = float.MinValue;
         Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
@@ -283,10 +227,9 @@ public class ProceduralMonsterController : MonoBehaviour
             if (dist < minReachDistance) continue;
 
             Vector3 dirToTree = toTree / dist; 
-
             float sideDot = Vector3.Dot(toTree, pathRight);
+            
             if ((isRightHand && sideDot < -LaneOverlap) || (!isRightHand && sideDot > LaneOverlap)) continue;
-
             if (Vector3.Angle(stableForward, dirToTree) > halfViewAngle) continue;
 
             float pathAlign = Vector3.Dot(stableForward, dirToTree);
@@ -301,26 +244,37 @@ public class ProceduralMonsterController : MonoBehaviour
         return bestTree;
     }
 
-    IEnumerator SwingHand(bool isRight, Collider targetTree)
+    IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer)
     {
         isHandMoving = true;
 
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
 
-        Vector3 targetCenter = targetTree.bounds.center;
-        Vector3 dirToTree = (targetCenter - transform.position).normalized;
-        Vector3 finalPos = targetCenter;
-        Vector3 surfaceNormal = -dirToTree;
+        Vector3 finalPos = Vector3.zero;
+        Quaternion finalRot = Quaternion.identity;
 
-        Ray ray = new Ray(transform.position + Vector3.up * 1.5f, dirToTree);
-        if (targetTree.Raycast(ray, out RaycastHit hit, 20f))
+        // --- SETUP TARGET ---
+        if (targetPlayer != null)
         {
-            finalPos = hit.point;
-            surfaceNormal = hit.normal;
+            finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+            finalRot = Quaternion.LookRotation((finalPos - transform.position).normalized, Vector3.up);
         }
+        else
+        {
+            Vector3 targetCenter = targetTree.bounds.center;
+            Vector3 dirToTree = (targetCenter - transform.position).normalized;
+            finalPos = targetCenter;
+            Vector3 surfaceNormal = -dirToTree;
 
-        Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, transform.up);
+            Ray ray = new Ray(transform.position + Vector3.up * 1.5f, dirToTree);
+            if (targetTree.Raycast(ray, out RaycastHit hit, 20f))
+            {
+                finalPos = hit.point;
+                surfaceNormal = hit.normal;
+            }
+            finalRot = Quaternion.LookRotation(-surfaceNormal, transform.up);
+        }
 
         Vector3 midPoint = (startPos + finalPos) * 0.5f;
         Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
@@ -337,18 +291,19 @@ public class ProceduralMonsterController : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / totalDist);
             float smoothT = t * t * (3f - 2f * t); 
 
-            // --- 1. SLOW DOWN AGENT (Reaching Phase) ---
-            // While hand is in air, slow down the body to simulate effort/reach
-            // Smoothly lerp towards 'reachSpeedFactor' (e.g., 0.3)
+            // Physics: Slow down while reaching
             movementController.AnimationSpeedFactor = Mathf.Lerp(movementController.AnimationSpeedFactor, reachSpeedFactor, Time.deltaTime * 10f);
 
-            // Grip Anim
+            // Anim: Grip
             float gripVal = 0f;
             if (t < 0.2f) gripVal = 1f - (t / 0.2f);
             else if (t > 0.8f) gripVal = (t - 0.8f) / 0.2f;
             animator.SetFloat(currentGripHash, gripVal);
 
-            // Bezier
+            // Move
+            // If target is player, update finalPos to track them
+            if (targetPlayer != null) finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+
             float u = 1f - smoothT;
             Vector3 pos = u * u * startPos + 2f * u * smoothT * controlPoint + smoothT * smoothT * finalPos;
 
@@ -359,17 +314,108 @@ public class ProceduralMonsterController : MonoBehaviour
             yield return null;
         }
 
-        // Finalize
         animator.SetFloat(currentGripHash, 1f);
 
-        if (isRight) { rightTreeCollider = targetTree; rightHandPos = finalPos; rightHandRot = finalRot; }
-        else         { leftTreeCollider = targetTree;  leftHandPos = finalPos; leftHandRot = finalRot; }
+        if (isRight)
+        {
+            if (targetPlayer != null) { heldPlayerRight = targetPlayer; rightTreeCollider = null; }
+            else { rightTreeCollider = targetTree; rightHandPos = finalPos; rightHandRot = finalRot; }
+        }
+        else
+        {
+            if (targetPlayer != null) { heldPlayerLeft = targetPlayer; leftTreeCollider = null; }
+            else { leftTreeCollider = targetTree; leftHandPos = finalPos; leftHandRot = finalRot; }
+        }
 
-        // --- 2. SURGE AGENT (Pull Phase) ---
-        // Impact happened. Boost speed instantly to 'pullSpeedFactor' (e.g., 2.2)
+        // Physics: Trigger Surge
         movementController.AnimationSpeedFactor = pullSpeedFactor;
+        currentSurge = 1.0f; // Visual surge trigger
 
         isHandMoving = false;
+    }
+
+    // --- BOILERPLATE & HELPERS ---
+
+    void UpdateStableForward()
+    {
+        Vector3 targetDir = agent.hasPath ? GetPathDirection() : transform.forward;
+        stableForward = Vector3.Slerp(stableForward, targetDir, Time.deltaTime * logicTurnSpeed).normalized;
+    }
+
+    Vector3 GetPathDirection()
+    {
+        Vector3[] corners = agent.path.corners;
+        if (corners.Length < 2) return transform.position + transform.forward * lookAheadDist;
+        Vector3 currentPos = transform.position;
+        float distCovered = 0f;
+        for (int i = 0; i < corners.Length - 1; i++) {
+            Vector3 segStart = (i == 0) ? currentPos : corners[i];
+            Vector3 segEnd = corners[i + 1];
+            float segDist = Vector3.Distance(segStart, segEnd);
+            if (distCovered + segDist >= lookAheadDist) return (Vector3.MoveTowards(segStart, segEnd, lookAheadDist - distCovered) - transform.position).normalized;
+            distCovered += segDist;
+        }
+        return corners[corners.Length - 1] - transform.position;
+    }
+
+    bool IsHandStressed(bool isRight)
+    {
+        Vector3 handPos = isRight ? rightHandPos : leftHandPos;
+        Vector3 toHand = handPos - transform.position;
+        if (Vector3.Angle(stableForward, toHand) > maxArmAngle) return true;
+        Vector3 stableRight = Vector3.Cross(Vector3.up, stableForward);
+        float sideDist = Vector3.Dot(toHand, stableRight);
+        if (isRight && sideDist < crossBodyThreshold) return true;
+        if (!isRight && sideDist > -crossBodyThreshold) return true;
+        float depth = Vector3.Dot(toHand, stableForward);
+        return depth < releaseThreshold;
+    }
+
+    void UpdateBodyPhysics()
+    {
+        if (visualModel == null) return;
+
+        // 1. POSITION (Lag + Surge + Bob)
+        Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
+        Vector3 targetWorldPos = handCenter;
+
+        // Lag
+        if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
+        
+        // Surge (Decay the pulse)
+        currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 3f);
+        targetWorldPos += transform.forward * currentSurge;
+
+        // Bob (Sag vs Lift)
+        float speedFactor = movementController.AnimationSpeedFactor;
+        // Map speed factor to height range
+        float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
+        float bobY = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        
+        targetWorldPos.y += bobY;
+
+        // Apply Position
+        Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
+        targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
+        visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
+
+        // 2. ROTATION (Lean + Twist)
+        float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
+        float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
+
+        Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
+        Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
+        
+        float targetYaw = 0f;
+        if (localRight.z < localLeft.z) targetYaw = bodyTwistAmount; else targetYaw = -bodyTwistAmount; 
+
+        Vector3 moveDir = agent.velocity;
+        if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
+        
+        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
+        Quaternion offsetRot = Quaternion.Euler(targetPitch, targetYaw, 0);
+
+        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * 6f);
     }
 
     void UpdateIKTargets()
