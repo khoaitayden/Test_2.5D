@@ -2,39 +2,46 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-public class ProceduralSmoothPredictor : MonoBehaviour
+class ProceduralSmoothPredictor : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private NavMeshAgent agent;
-
     [Header("IK Targets")]
-    public Transform leftHandTarget;
-    public Transform rightHandTarget;
+    [SerializeField] Transform leftHandTarget;
+    [SerializeField] Transform rightHandTarget;
 
     [Header("Path Smoothing")]
     [Tooltip("How far down the path to look for direction (The 'Rabbit').")]
-    public float lookAheadDist = 5f;
+    [SerializeField] float lookAheadDist = 5f;
     [Tooltip("How fast the logic vector turns (Lower = Smoother).")]
-    public float logicTurnSpeed = 4f;
+    [SerializeField] float logicTurnSpeed = 4f;
 
     [Header("Release Triggers")]
     [Tooltip("Trigger step if hand is behind this line relative to path.")]
-    public float releaseThreshold = 0.1f;
+    [SerializeField] float releaseThreshold = 0.1f;
     [Tooltip("Force step if arm angle > this (Fixes T-Pose on turns).")]
-    public float maxArmAngle = 100f;
+    [SerializeField] float maxArmAngle = 100f;
     [Tooltip("Force step if hand crosses center line (Fixes crossing arms).")]
-    public float crossBodyThreshold = -0.2f;
+    [SerializeField] float crossBodyThreshold = -0.2f;
 
     [Header("Physics")]
-    public float handSpeed = 10f;
-    public float swingArcHeight = 1.2f;
-    public float swingOutward = 0.7f;
+    [SerializeField] float handSpeed = 10f;
+    [SerializeField] float swingArcHeight = 1.2f;
+    [SerializeField] float swingOutward = 0.7f;
 
     [Header("Vision")]
-    public LayerMask treeLayer;
-    public float minReachDistance = 2.5f;
-    public float maxReachDistance = 8f;
-    [Range(0, 180)] public float viewAngle = 140f;
+    [SerializeField] LayerMask treeLayer;
+    [SerializeField] float minReachDistance = 2.5f;
+    [SerializeField] float maxReachDistance = 8f;
+    [Range(0, 180)] [SerializeField] float viewAngle = 140f;
+    [Header("Animation")]
+    [SerializeField] private Animator animator;
+    [Tooltip("How fast the hand opens/closes relative to the swing duration.")]
+    [SerializeField] float gripSpeed = 5.0f; // Higher = Snappier fingers
+
+    // Hashes for performance
+    private int leftGripHash;
+    private int rightGripHash;
 
     // State
     private Vector3 leftHandPos, rightHandPos;
@@ -53,6 +60,13 @@ public class ProceduralSmoothPredictor : MonoBehaviour
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+        leftGripHash = Animator.StringToHash("LeftGrip");
+        rightGripHash = Animator.StringToHash("RightGrip");
+
+        // Force hands closed at start
+        animator.SetFloat(leftGripHash, 1f);
+        animator.SetFloat(rightGripHash, 1f);
         leftHandPos = leftHandTarget.position;
         leftHandRot = leftHandTarget.rotation;
         rightHandPos = rightHandTarget.position;
@@ -242,46 +256,61 @@ public class ProceduralSmoothPredictor : MonoBehaviour
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
 
-        // Calculate target position on tree surface
+        // --- CALC TARGET ---
         Vector3 targetCenter = targetTree.bounds.center;
         Vector3 dirToTree = (targetCenter - transform.position).normalized;
+        
+        // Raycast from a consistent height relative to the monster
+        Vector3 rayOrigin = transform.position + Vector3.up * 1.5f; 
         Vector3 finalPos = targetCenter;
         Vector3 surfaceNormal = -dirToTree;
 
-        // Raycast to find exact surface point
-        Ray ray = new Ray(transform.position + Vector3.up * 1.5f, dirToTree);
-        if (targetTree.Raycast(ray, out RaycastHit hit, 20f))
+        if (targetTree.Raycast(new Ray(rayOrigin, dirToTree), out RaycastHit hit, 20f))
         {
             finalPos = hit.point;
             surfaceNormal = hit.normal;
         }
 
-        Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, Vector3.up);
+        // --- FIX 1: USE BODY UP VECTOR ---
+        // Using Vector3.up causes wrist flips on steep trees. 
+        // Using transform.up keeps the hand aligned with the monster's spine.
+        Quaternion finalRot = Quaternion.LookRotation(-surfaceNormal, transform.up);
 
-        // Calculate bezier control point for the arc
+        // --- BEZIER SETUP ---
         Vector3 midPoint = (startPos + finalPos) * 0.5f;
         Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
         Vector3 controlPoint = midPoint + Vector3.up * swingArcHeight + sideOffset;
 
-        // Animate along bezier curve
         float totalDist = Vector3.Distance(startPos, finalPos);
         float elapsed = 0f;
         
-        while (elapsed < totalDist)
+        int currentGripHash = isRight ? rightGripHash : leftGripHash;
+
+        // Loop until we physically pass the duration
+        while (elapsed <= totalDist)
         {
-            // Adaptive speed: Faster body = Faster hands
             float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3f);
+            
+            // Increment
             elapsed += Time.deltaTime * dynamicSpeed;
             
+            // Normalized T (0 to 1)
             float t = Mathf.Clamp01(elapsed / totalDist);
-            float smoothT = t * t * (3f - 2f * t); // Smoothstep easing
-            
-            // Quadratic bezier formula
+            float smoothT = t * t * (3f - 2f * t); 
+
+            // --- ANIMATOR GRIP ---
+            float gripValue = 0f; 
+            if (t < 0.2f) gripValue = 1f - (t / 0.2f);
+            else if (t > 0.8f) gripValue = (t - 0.8f) / 0.2f;
+            animator.SetFloat(currentGripHash, gripValue);
+
+            // --- POSITION & ROTATION ---
             float u = 1f - smoothT;
             Vector3 pos = u * u * startPos + 
                          2f * u * smoothT * controlPoint + 
                          smoothT * smoothT * finalPos;
 
+            // Apply immediately
             if (isRight)
             {
                 rightHandPos = pos;
@@ -293,19 +322,28 @@ public class ProceduralSmoothPredictor : MonoBehaviour
                 leftHandRot = Quaternion.Slerp(startRot, finalRot, smoothT);
             }
 
+            // --- FIX 2: FORCE FINISH ---
+            // If we hit 1.0, break the loop naturally. 
+            // This ensures the last frame rendered IS the final position.
+            if (t >= 1.0f) break;
+
             yield return null;
         }
 
-        // Finalize
+        // Final Anchor
+        animator.SetFloat(currentGripHash, 1f);
+
         if (isRight)
         {
             rightTreeCollider = targetTree;
             rightHandPos = finalPos;
+            rightHandRot = finalRot;
         }
         else
         {
             leftTreeCollider = targetTree;
             leftHandPos = finalPos;
+            leftHandRot = finalRot;
         }
 
         isHandMoving = false;
