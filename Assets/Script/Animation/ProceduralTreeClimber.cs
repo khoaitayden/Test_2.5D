@@ -7,37 +7,37 @@ class ProceduralSmoothPredictor : MonoBehaviour
     [Header("Dependencies")]
     [SerializeField] private NavMeshAgent agent;
     [Header("IK Targets")]
-    [SerializeField] Transform leftHandTarget;
-    [SerializeField] Transform rightHandTarget;
+    [SerializeField] private Transform leftHandTarget;
+    [SerializeField] private Transform rightHandTarget;
 
     [Header("Path Smoothing")]
     [Tooltip("How far down the path to look for direction (The 'Rabbit').")]
-    [SerializeField] float lookAheadDist = 5f;
+    [SerializeField] private float lookAheadDist = 5f;
     [Tooltip("How fast the logic vector turns (Lower = Smoother).")]
-    [SerializeField] float logicTurnSpeed = 4f;
+    [SerializeField] private float logicTurnSpeed = 4f;
 
     [Header("Release Triggers")]
     [Tooltip("Trigger step if hand is behind this line relative to path.")]
-    [SerializeField] float releaseThreshold = 0.1f;
+    [SerializeField] private float releaseThreshold = 0.1f;
     [Tooltip("Force step if arm angle > this (Fixes T-Pose on turns).")]
-    [SerializeField] float maxArmAngle = 100f;
+    [SerializeField] private float maxArmAngle = 100f;
     [Tooltip("Force step if hand crosses center line (Fixes crossing arms).")]
-    [SerializeField] float crossBodyThreshold = -0.2f;
+    [SerializeField] private float crossBodyThreshold = -0.2f;
 
     [Header("Physics")]
-    [SerializeField] float handSpeed = 10f;
-    [SerializeField] float swingArcHeight = 1.2f;
-    [SerializeField] float swingOutward = 0.7f;
+    [SerializeField] private float handSpeed = 10f;
+    [SerializeField] private float swingArcHeight = 1.2f;
+    [SerializeField] private float swingOutward = 0.7f;
 
     [Header("Vision")]
-    [SerializeField] LayerMask treeLayer;
-    [SerializeField] float minReachDistance = 2.5f;
-    [SerializeField] float maxReachDistance = 8f;
-    [Range(0, 180)] [SerializeField] float viewAngle = 140f;
+    [SerializeField] private LayerMask treeLayer;
+    [SerializeField] private float minReachDistance = 2.5f;
+    [SerializeField] private float maxReachDistance = 8f;
+    [Range(0, 180)] [SerializeField] private float viewAngle = 140f;
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [Tooltip("How fast the hand opens/closes relative to the swing duration.")]
-    [SerializeField] float gripSpeed = 5.0f; // Higher = Snappier fingers
+    [SerializeField] private float gripSpeed = 5.0f; // Higher = Snappier fingers
 
     // Hashes for performance
     private int leftGripHash;
