@@ -19,14 +19,21 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float lookAheadDist = 5f;
     [SerializeField] private float logicTurnSpeed = 4f;
 
+    [Header("Turn Logic (The Smooth Fix)")]
+    [SerializeField] private float sharpTurnThreshold = 75f;
+    [SerializeField] private float turnPauseTime = 0.5f;
+    [SerializeField] private float turnCooldown = 1.5f;
+    [Tooltip("Speed during a sharp turn (0.1 = Slow Crawl, 0.0 = Stop).")]
+    [SerializeField] private float turnCrawlSpeed = 0.15f; 
+
     [Header("Rhythm & Speed")]
     [SerializeField] private float reachSpeedFactor = 0.3f; 
     [SerializeField] private float pullSpeedFactor = 2.2f; 
     [SerializeField] private float speedDecay = 2.0f;
 
     [Header("Visual Physics")]
-    [SerializeField] private float dropAmount = 0.6f; // "Sag" when reaching
-    [SerializeField] private float liftAmount = 0.2f; // "Lift" when pulling
+    [SerializeField] private float dropAmount = 0.6f;
+    [SerializeField] private float liftAmount = 0.2f;
     [SerializeField] private float bodyLag = 0.4f;
     [SerializeField] private float bodySmoothTime = 0.15f;
     [SerializeField] private float maxForwardLean = 45f;
@@ -54,6 +61,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [Range(0, 180)] [SerializeField] private float viewAngle = 140f;
 
     // --- State ---
+    // We treat these as "Target World Positions"
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
     private Collider leftTreeCollider, rightTreeCollider;
@@ -68,6 +76,10 @@ public class ProceduralMonsterController : MonoBehaviour
     private Vector3 bodyVelocity; 
     private int leftGripHash, rightGripHash;
     private float currentSurge = 0f;
+
+    // Turn Logic State
+    private float currentTurnTimer = 0f;
+    private float lastTurnTimestamp = 0f;
 
     // Constants
     private const float MinVelocity = 0.1f;
@@ -84,6 +96,7 @@ public class ProceduralMonsterController : MonoBehaviour
         leftGripHash = Animator.StringToHash("LeftGrip");
         rightGripHash = Animator.StringToHash("RightGrip");
 
+        // Detach logic from hierarchy position to prevent double-transform jitter
         leftHandPos = leftHandTarget.position;
         leftHandRot = leftHandTarget.rotation;
         rightHandPos = rightHandTarget.position;
@@ -106,7 +119,29 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void LateUpdate()
     {
+        // ERROR FIX: Stop execution if object is destroying
+        if (this == null || gameObject == null || agent == null) return;
+
         UpdateStableForward();
+
+        // --- TURN PAUSE LOGIC ---
+        CheckSharpTurn();
+
+        if (currentTurnTimer > 0)
+        {
+            currentTurnTimer -= Time.deltaTime;
+            
+            // FIX: Don't stop completely. Crawl to allow rotation.
+            movementController.AnimationSpeedFactor = turnCrawlSpeed;
+            
+            currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 10f);
+
+            UpdateBodyPhysics();
+            UpdatePlayerHold();
+            UpdateIKTargets(); // Keep hands pinned
+            return; 
+        }
+        // ------------------------
         
         if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
@@ -119,9 +154,24 @@ public class ProceduralMonsterController : MonoBehaviour
         UpdateIKTargets();
     }
 
+    void CheckSharpTurn()
+    {
+        if (currentTurnTimer > 0) return;
+        if (Time.time < lastTurnTimestamp + turnCooldown) return;
+        if (!agent.hasPath || agent.velocity.sqrMagnitude < 0.5f) return;
+
+        Vector3 toSteering = (agent.steeringTarget - transform.position).normalized;
+        float angle = Vector3.Angle(transform.forward, toSteering);
+
+        if (angle > sharpTurnThreshold) // e.g. > 75 degrees
+        {
+            currentTurnTimer = turnPauseTime;
+            lastTurnTimestamp = Time.time;
+        }
+    }
+
     void UpdateSpeedDecay()
     {
-        // Smoothly return speed to 1.0 after a surge
         movementController.AnimationSpeedFactor = Mathf.MoveTowards(
             movementController.AnimationSpeedFactor, 
             1.0f, 
@@ -131,6 +181,7 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void UpdatePlayerHold()
     {
+        // If holding a player, we must update the position every frame
         if (heldPlayerRight != null)
         {
             rightHandPos = heldPlayerRight.position + Vector3.up * playerGrabHeight;
@@ -145,7 +196,7 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void CheckAndMoveHands()
     {
-        // 1. Check Player Grab First
+        // 1. Priority: Grab Player
         bool canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
         bool canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
 
@@ -158,7 +209,8 @@ public class ProceduralMonsterController : MonoBehaviour
         if (canGrabRight) { StartCoroutine(SwingHand(true, null, ScanForPlayer(true))); return; }
         if (canGrabLeft) { StartCoroutine(SwingHand(false, null, ScanForPlayer(false))); return; }
 
-        // 2. Check Trees (Only if hand is free)
+        // 2. Standard: Climb Trees
+        // Don't move a hand if it's busy holding a player
         bool rightStressed = (heldPlayerRight == null) && IsHandStressed(true);
         bool leftStressed = (heldPlayerLeft == null) && IsHandStressed(false);
 
@@ -182,7 +234,6 @@ public class ProceduralMonsterController : MonoBehaviour
             Vector3 toTarget = hit.transform.position - transform.position;
             Vector3 dir = toTarget.normalized;
             
-            // Basic Cone Logic
             Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
             float sideDot = Vector3.Dot(toTarget, pathRight);
             
@@ -212,6 +263,8 @@ public class ProceduralMonsterController : MonoBehaviour
         Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.6f);
         Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
         
+        if (hits.Length == 0) return null;
+
         Collider bestTree = null;
         float bestScore = float.MinValue;
         Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
@@ -254,7 +307,6 @@ public class ProceduralMonsterController : MonoBehaviour
         Vector3 finalPos = Vector3.zero;
         Quaternion finalRot = Quaternion.identity;
 
-        // --- SETUP TARGET ---
         if (targetPlayer != null)
         {
             finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
@@ -291,17 +343,13 @@ public class ProceduralMonsterController : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / totalDist);
             float smoothT = t * t * (3f - 2f * t); 
 
-            // Physics: Slow down while reaching
             movementController.AnimationSpeedFactor = Mathf.Lerp(movementController.AnimationSpeedFactor, reachSpeedFactor, Time.deltaTime * 10f);
 
-            // Anim: Grip
             float gripVal = 0f;
             if (t < 0.2f) gripVal = 1f - (t / 0.2f);
             else if (t > 0.8f) gripVal = (t - 0.8f) / 0.2f;
             animator.SetFloat(currentGripHash, gripVal);
 
-            // Move
-            // If target is player, update finalPos to track them
             if (targetPlayer != null) finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
 
             float u = 1f - smoothT;
@@ -327,14 +375,11 @@ public class ProceduralMonsterController : MonoBehaviour
             else { leftTreeCollider = targetTree; leftHandPos = finalPos; leftHandRot = finalRot; }
         }
 
-        // Physics: Trigger Surge
         movementController.AnimationSpeedFactor = pullSpeedFactor;
-        currentSurge = 1.0f; // Visual surge trigger
+        currentSurge = 1.0f; 
 
         isHandMoving = false;
     }
-
-    // --- BOILERPLATE & HELPERS ---
 
     void UpdateStableForward()
     {
@@ -374,55 +419,57 @@ public class ProceduralMonsterController : MonoBehaviour
     void UpdateBodyPhysics()
     {
         if (visualModel == null) return;
-
-        // 1. POSITION (Lag + Surge + Bob)
         Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
         Vector3 targetWorldPos = handCenter;
-
-        // Lag
+        
         if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
         
-        // Surge (Decay the pulse)
         currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 3f);
         targetWorldPos += transform.forward * currentSurge;
-
-        // Bob (Sag vs Lift)
+        
         float speedFactor = movementController.AnimationSpeedFactor;
-        // Map speed factor to height range
         float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
         float bobY = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
         
         targetWorldPos.y += bobY;
 
-        // Apply Position
         Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
         targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
         visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
-
-        // 2. ROTATION (Lean + Twist)
+        
         float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
         float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
-
         Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
         Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        
         float targetYaw = 0f;
         if (localRight.z < localLeft.z) targetYaw = bodyTwistAmount; else targetYaw = -bodyTwistAmount; 
-
         Vector3 moveDir = agent.velocity;
         if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        
         Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
         Quaternion offsetRot = Quaternion.Euler(targetPitch, targetYaw, 0);
-
         visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * 6f);
     }
 
+    // Jiggle Fix: Apply positions at the very end
     void UpdateIKTargets()
     {
-        leftHandTarget.position = leftHandPos;
-        leftHandTarget.rotation = leftHandRot;
-        rightHandTarget.position = rightHandPos;
-        rightHandTarget.rotation = rightHandRot;
+        if (leftHandTarget != null) 
+        {
+            leftHandTarget.position = leftHandPos;
+            leftHandTarget.rotation = leftHandRot;
+        }
+        if (rightHandTarget != null)
+        {
+            rightHandTarget.position = rightHandPos;
+            rightHandTarget.rotation = rightHandRot;
+        }
+    }
+    void OnDrawGizmos()
+    {
+        // Error Fix: Safety check
+        if (this == null || gameObject == null || agent == null) return;
+        
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawRay(transform.position, stableForward * 5f);
     }
 }
