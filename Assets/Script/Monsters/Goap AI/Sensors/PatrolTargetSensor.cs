@@ -16,14 +16,13 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
-            // 1. Keep existing target if we haven't reached it yet
-            // This prevents switching targets mid-walk
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 2f)
+            // 1. Keep existing target logic
+            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 3f)
             {
                 return existingTarget;
             }
 
-            // 2. Try to find a valid, REACHABLE random point
+            // 2. Find new point
             Vector3? point = GetRandomPoint(agent.Transform.position);
             
             if (point.HasValue)
@@ -31,6 +30,9 @@ namespace CrashKonijn.Goap.MonsterGen
                 return new PositionTarget(point.Value);
             }
 
+            // DO NOT return null here if we just failed once. 
+            // Returning null causes an immediate re-plan which can look glitchy.
+            // However, GOAP handles null by idling, which is better than loop-teleporting.
             return null;
         }
 
@@ -38,24 +40,37 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             NavMeshPath path = new NavMeshPath();
 
-            // Try 30 times to find a valid point
             for (int i = 0; i < 30; i++)
             {
-                // A. Random Point in Donut Shape (Min/Max Distance)
+                // A. Random Point
                 Vector2 rndDir = Random.insideUnitCircle.normalized;
                 float rndDist = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
                 Vector3 candidate = origin + new Vector3(rndDir.x, 0, rndDir.y) * rndDist;
 
-                // B. Snap to NavMesh
-                // Use the fallback radius to handle rough terrain better
-                if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
-                {
-                    // C. Distance Check (Verify we didn't snap back too close to feet)
-                    if (Vector3.Distance(origin, hit.position) < config.minPatrolDistance) continue;
+                NavMeshHit hit;
+                bool found = false;
 
-                    // D. REACHABILITY CHECK (THIS FIXES THE WALL ISSUE)
-                    // We calculate the path. If it's 'PathPartial', it means the point is 
-                    // inside a closed building or disconnected area. We skip it.
+                // B. Snapping Strategy
+                // Pass 1: Tight Snap (5.0f is better than using the massive fallback)
+                if (NavMesh.SamplePosition(candidate, out hit, 5.0f, NavMesh.AllAreas))
+                {
+                    found = true;
+                }
+                // Pass 2: Wide Snap (Only if tight failed)
+                else if (NavMesh.SamplePosition(candidate, out hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
+                {
+                    found = true;
+                }
+
+                if (found)
+                {
+                    float finalDistance = Vector3.Distance(origin, hit.position);
+                    
+                    // We enforce at least 50% of the minimum patrol distance
+                    if (finalDistance < config.minPatrolDistance * 0.5f) continue;
+                    // --- CRITICAL FIX END ---
+
+                    // D. Path Calculation
                     if (NavMesh.CalculatePath(origin, hit.position, NavMesh.AllAreas, path))
                     {
                         if (path.status == NavMeshPathStatus.PathComplete)
