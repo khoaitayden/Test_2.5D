@@ -18,23 +18,21 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         private bool isChaseMode;
         private Transform chaseTarget;
         private float pathSetTime;
+        private MonsterConfig config;
         
         // Store the speed requested by GOAP so we can modify it
         private float targetSpeed; 
-
+    
         private void Awake()
         {
             if (agent == null) agent = GetComponent<NavMeshAgent>();
+            config = GetComponent<MonsterConfig>();
             agent.autoBraking = false; 
             agent.autoRepath = true;
         }
 
         private void Update()
         {
-            // --- NEW: Apply Rhythm ---
-            // We multiply the GOAP desired speed by the Animation Factor (0 to 1)
-            // If the climber says "Reach", factor is 0, agent stops.
-            // If climber says "Pull", factor is 1, agent moves.
             agent.speed = targetSpeed * AnimationSpeedFactor;
 
             // Chase Logic
@@ -57,37 +55,63 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
         }
 
-        public bool MoveTo(Vector3 position, float speed)
+        public bool MoveTo(Vector3 targetPos, float speed)
         {
             isChaseMode = false;
             chaseTarget = null;
             standStillTimer = 0f;
             pathSetTime = Time.time;
-
-            targetSpeed = speed; // Store desired speed
+            targetSpeed = speed;
             agent.isStopped = false;
-            
-            // Reset factor so we start moving immediately
-            AnimationSpeedFactor = 1.0f; 
+            AnimationSpeedFactor = 1.0f;
 
-            if (NavMesh.SamplePosition(position, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+            // Get Settings from Config or use Defaults
+            float snapRadius = config.traceNavMeshSnapRadius;
+            float fallbackRadius = config.traceNavMeshFallbackRadius;
+
+            NavMeshHit hit;
+            Vector3 finalDestination = Vector3.zero;
+            bool foundValidPoint = false;
+
+            // 1. Try Precise Snap
+            if (NavMesh.SamplePosition(targetPos, out hit, snapRadius, NavMesh.AllAreas))
             {
-                NavMeshPath path = new NavMeshPath();
-                agent.CalculatePath(hit.position, path);
-
-                if (path.status == NavMeshPathStatus.PathPartial)
-                {
-                    if (path.corners.Length > 0)
-                    {
-                        agent.SetDestination(path.corners[path.corners.Length - 1]);
-                        return true;
-                    }
-                }
-                return agent.SetDestination(hit.position);
+                finalDestination = hit.position;
+                foundValidPoint = true;
+            }
+            // 2. Try Fallback Snap (Wider search)
+            else if (NavMesh.SamplePosition(targetPos, out hit, fallbackRadius, NavMesh.AllAreas))
+            {
+                finalDestination = hit.position;
+                foundValidPoint = true;
             }
 
-            agent.ResetPath();
-            return false;
+            if (!foundValidPoint)
+            {
+                agent.ResetPath();
+                return false; // Point is off the map
+            }
+
+            // 3. CHECK REACHABILITY (Prevent Spinning)
+            NavMeshPath path = new NavMeshPath();
+            agent.CalculatePath(finalDestination, path);
+
+            if (path.status == NavMeshPathStatus.PathInvalid)
+            {
+                agent.ResetPath();
+                return false;
+            }
+
+            if (path.status == NavMeshPathStatus.PathPartial)
+            {
+                if (path.corners.Length > 0)
+                {
+                    finalDestination = path.corners[path.corners.Length - 1];
+                }
+            }
+
+            // 6. Execute
+            return agent.SetDestination(finalDestination);
         }
 
         public void Chase(Transform target, float speed)
@@ -101,7 +125,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             pathSetTime = Time.time;
 
             targetSpeed = speed; // Store desired speed
-            agent.stoppingDistance = 0.5f; 
             agent.isStopped = false;
             agent.SetDestination(target.position);
         }
@@ -123,7 +146,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             if (agent.pathStatus == NavMeshPathStatus.PathPartial)
             {
-                if (agent.remainingDistance < 1.0f) return true;
+                if (agent.remainingDistance < 2.0f) return true;
             }
 
             return false;
