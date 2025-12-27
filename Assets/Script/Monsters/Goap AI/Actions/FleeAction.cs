@@ -31,7 +31,7 @@ namespace CrashKonijn.Goap.MonsterGen
             Vector3 fleePos = agent.Transform.position + awayDir * config.fleeRunDistance; 
 
             // Move fast
-            movement.MoveTo(fleePos, config.chaseSpeed, config.stoppingDistance);
+            movement.MoveTo(fleePos, config.chaseSpeed);
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)

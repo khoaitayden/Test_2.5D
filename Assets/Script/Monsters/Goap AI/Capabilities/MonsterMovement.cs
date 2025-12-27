@@ -57,7 +57,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
         }
 
-        public bool MoveTo(Vector3 position, float speed, float stopDist)
+        public bool MoveTo(Vector3 position, float speed)
         {
             isChaseMode = false;
             chaseTarget = null;
@@ -65,7 +65,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             pathSetTime = Time.time;
 
             targetSpeed = speed; // Store desired speed
-            agent.stoppingDistance = stopDist; 
             agent.isStopped = false;
             
             // Reset factor so we start moving immediately

@@ -17,9 +17,6 @@ public class MonsterConfig : MonoBehaviour
     public float investigateSpeed;
     public float chaseSpeed;
     
-    [Tooltip("How close monster needs to be to consider destination 'reached'")]
-    public float stoppingDistance;
-    
     [Header("Vision")]
     public int numOfRayCast = 5;
     public float viewRadius = 60f;

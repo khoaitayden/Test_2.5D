@@ -17,7 +17,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
             // 1. Keep existing target logic
-            if (existingTarget != null && Vector3.Distance(agent.Transform.position, existingTarget.Position) > config.stoppingDistance * 3f)
+            if (existingTarget != null)
             {
                 return existingTarget;
             }

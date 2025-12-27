@@ -70,7 +70,7 @@ namespace CrashKonijn.Goap.MonsterGen
         private void UpdateDestination(Vector3 pos)
         {
             currentDestination = pos;
-            movement.MoveTo(pos, config.investigateSpeed, config.stoppingDistance);
+            movement.MoveTo(pos, config.investigateSpeed);
         }
 
         // --- INTERNAL SCAN LOGIC ---

@@ -36,7 +36,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (data.Target != null)
             {
                 // FIX: Use MoveTo with explicit params (Using slower search speed)
-                movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
+                movement.MoveTo(data.Target.Position, config.investigateSpeed);
             }
         }
 
