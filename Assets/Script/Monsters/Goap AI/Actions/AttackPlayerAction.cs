@@ -20,6 +20,8 @@ namespace CrashKonijn.Goap.MonsterGen
             config = agent.GetComponent<MonsterConfig>();
             brain = agent.GetComponent<MonsterBrain>(); // Fetch Brain here
 
+            
+            brain.IsAttacking = true;
             data.startTime = Time.time;
 
             Transform targetTransform = null;
@@ -56,6 +58,8 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
+            if (brain != null) brain.IsAttacking = false;
+
         }
 
         public class Data : IActionData

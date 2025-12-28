@@ -10,6 +10,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private Transform visualModel;
     [SerializeField] private Animator animator;
     [SerializeField] private MonsterMovement movementController;
+    [SerializeField] private MonsterBrain brain;
 
     [Header("IK Targets")]
     [SerializeField] private Transform leftHandTarget;
@@ -42,6 +43,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private LayerMask playerLayer;
     [SerializeField] private float playerGrabHeight = 1.5f; 
     [SerializeField] private bool singleHandOnly = true;
+    [SerializeField] private float grabGracePeriod = 1.0f;
 
     [Header("Hand Settings")]
     [SerializeField] private float handSpeed = 10f;
@@ -58,6 +60,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float minReachDistance = 2.5f;
     [SerializeField] private float maxReachDistance = 8f;
     [Range(0, 180)] [SerializeField] private float viewAngle = 140f;
+    
 
     // --- State ---
     private Vector3 leftHandPos, rightHandPos;
@@ -95,7 +98,7 @@ public class ProceduralMonsterController : MonoBehaviour
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (movementController == null) movementController = GetComponent<MonsterMovement>();
-
+        if (brain == null) brain = GetComponent<MonsterBrain>(); 
         leftGripHash = Animator.StringToHash("LeftGrip");
         rightGripHash = Animator.StringToHash("RightGrip");
 
@@ -191,9 +194,34 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void CheckAndMoveHands()
     {
-        bool canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
-        bool canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
+        // --- LOGIC GATE: SHOULD WE GRAB PLAYER? ---
+        bool allowedToGrabPlayer = false;
 
+        // Condition 1 & 2: Is Attacking (Implies Player is in vision/action)
+        if (brain.IsAttacking) 
+        {
+            allowedToGrabPlayer = true;
+        }
+        // Condition 3: Player just disappeared (Grace Period)
+        else if (Time.time - brain.LastTimeSeenPlayer < grabGracePeriod)
+        {
+            // Only allow if we actually saw them recently (prevent grab at start of game)
+            if (brain.LastTimeSeenPlayer > 0) allowedToGrabPlayer = true;
+        }
+
+        // --- EXECUTION ---
+        
+        bool canGrabRight = false;
+        bool canGrabLeft = false;
+
+        // Only scan for player if the Logic Gate passed
+        if (allowedToGrabPlayer)
+        {
+            canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
+            canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
+        }
+
+        // (Rest of the function is the same as before...)
         if (singleHandOnly && (heldPlayerRight != null || heldPlayerLeft != null))
         {
             canGrabRight = false;
@@ -203,6 +231,7 @@ public class ProceduralMonsterController : MonoBehaviour
         if (canGrabRight) { StartCoroutine(SwingHand(true, null, ScanForPlayer(true))); return; }
         if (canGrabLeft) { StartCoroutine(SwingHand(false, null, ScanForPlayer(false))); return; }
 
+        // Tree Logic...
         bool rightStressed = (heldPlayerRight == null) && IsHandStressed(true);
         bool leftStressed = (heldPlayerLeft == null) && IsHandStressed(false);
 
@@ -215,9 +244,6 @@ public class ProceduralMonsterController : MonoBehaviour
         else if (rightStressed) AttemptStep(true);
         else if (leftStressed) AttemptStep(false);
     }
-
-    // ... (ScanForPlayer, AttemptStep, FindBestTree, SwingHand are unchanged from previous working version) ...
-    // Included below for completeness/copy-paste ease
     Transform ScanForPlayer(bool isRightHand)
     {
         Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.5f);
