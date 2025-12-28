@@ -60,6 +60,10 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float minReachDistance = 2.5f;
     [SerializeField] private float maxReachDistance = 8f;
     [Range(0, 180)] [SerializeField] private float viewAngle = 140f;
+
+    [Header("Rotation smoothing")]
+    public float minRotationSpeed = 2.0f; // For sharp turns
+    public float maxRotationSpeed = 8.0f; 
     
 
     // --- State ---
@@ -77,6 +81,7 @@ public class ProceduralMonsterController : MonoBehaviour
     private Vector3 bodyVelocity; 
     private int leftGripHash, rightGripHash;
     private float currentSurge = 0f;
+    private float currentBobY = 0f;
 
     // Jiggle Fixes
     private float currentYaw = 0f; // Smoothed rotation
@@ -385,44 +390,65 @@ public class ProceduralMonsterController : MonoBehaviour
     {
         if (visualModel == null) return;
 
-        // Position Logic (Same as before)
+        // --- 1. POSITION ---
         Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
         Vector3 targetWorldPos = handCenter;
-        if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
+
+        // Lag
+        if (agent.velocity.magnitude > 0.1f) 
+            targetWorldPos -= agent.velocity.normalized * bodyLag;
+        
+        // Surge
         currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 3f);
         targetWorldPos += transform.forward * currentSurge;
+
+        // --- FIX: SMOOTH BOBBING ---
         float speedFactor = movementController.AnimationSpeedFactor;
         float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
-        targetWorldPos.y += Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        
+        // Calculate TARGET bob
+        float targetBob = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        
+        // Smoothly interpolate currentBobY instead of snapping
+        // This removes the "Hiccup"
+        currentBobY = Mathf.Lerp(currentBobY, targetBob, Time.deltaTime * 5f);
+        
+        targetWorldPos.y += currentBobY;
+
+        // Apply Position
         Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
         targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
-        visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
+        visualModel.localPosition = Vector3.SmoothDamp(
+            visualModel.localPosition, 
+            targetLocalPos, 
+            ref bodyVelocity, 
+            bodySmoothTime
+        );
 
-        // --- THE JIGGLE FIX: ROTATION HYSTERESIS ---
+        // --- 2. ROTATION (The Sharp Turn Fix) ---
         float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
         float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
 
         Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
         Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
         
-        // Hysteresis: Only flip the twist if the difference is significant (> 0.2)
-        // This stops the 1-frame flickering when hands are parallel
-        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true;
-        else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
-        // If they are within 0.2 of each other, keep previous state (Memory)
-
-        targetYaw = isLeaningRight ? bodyTwistAmount : -bodyTwistAmount;
-        
-        // Smooth the Yaw value itself first
-        currentYaw = Mathf.Lerp(currentYaw, targetYaw, Time.deltaTime * 3f);
+        float targetYaw = 0f;
+        if (localRight.z < localLeft.z) targetYaw = bodyTwistAmount; 
+        else targetYaw = -bodyTwistAmount; 
 
         Vector3 moveDir = agent.velocity;
         if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
         
-        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
-        Quaternion offsetRot = Quaternion.Euler(targetPitch, currentYaw, 0);
+        // Calculate Angle Difference
+        float angleDiff = Vector3.Angle(visualModel.forward, moveDir);
+        
+        // DYNAMIC ROTATION SPEED
+        float rotationSpeed = Mathf.Lerp(maxRotationSpeed, minRotationSpeed, angleDiff / 90f);
 
-        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * 6f);
+        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
+        Quaternion offsetRot = Quaternion.Euler(targetPitch, targetYaw, 0);
+
+        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * rotationSpeed);
     }
 
     void UpdateIKTargets()
