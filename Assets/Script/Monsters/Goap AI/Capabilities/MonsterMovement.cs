@@ -9,8 +9,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         [SerializeField] private NavMeshAgent agent;
         [SerializeField] private float stuckTimeout = 1.0f;
 
-        // --- NEW: Connection to Climber ---
-        // This allows the animation to throttle the speed
         public float AnimationSpeedFactor { get; set; } = 1.0f; 
 
         // State
@@ -20,7 +18,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         private float pathSetTime;
         private MonsterConfig config;
         
-        // Store the speed requested by GOAP so we can modify it
         private float targetSpeed; 
     
         private void Awake()
@@ -43,7 +40,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
 
             // Stuck Logic
-            // Note: We check if factor > 0.1 to avoid detecting "Stuck" when we are just pausing for animation
             if (agent.hasPath && !agent.isStopped && AnimationSpeedFactor > 0.1f)
             {
                 if (agent.velocity.sqrMagnitude < 0.1f) standStillTimer += Time.deltaTime;
@@ -65,34 +61,40 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             agent.isStopped = false;
             AnimationSpeedFactor = 1.0f;
 
-            // Get Settings from Config or use Defaults
-            float snapRadius = config.traceNavMeshSnapRadius;
-            float fallbackRadius = config.traceNavMeshFallbackRadius;
-
-            NavMeshHit hit;
-            Vector3 finalDestination = Vector3.zero;
+            Vector3 finalDestination = targetPos;
             bool foundValidPoint = false;
 
-            // 1. Try Precise Snap
-            if (NavMesh.SamplePosition(targetPos, out hit, snapRadius, NavMesh.AllAreas))
+            // --- 1. FIND VALID NAVMESH POINT (Iterative Fallback) ---
+            // Try increasing radii to ensure we find SOMETHING valid.
+            // 5m -> Snap Radius -> Fallback Radius -> 50m Panic Search
+            float[] searchRadii = new float[] { 
+                5.0f, 
+                config != null ? config.traceNavMeshSnapRadius : 10f, 
+                config != null ? config.traceNavMeshFallbackRadius : 20f,
+                50.0f 
+            };
+
+            NavMeshHit hit;
+            for (int i = 0; i < searchRadii.Length; i++)
             {
-                finalDestination = hit.position;
-                foundValidPoint = true;
-            }
-            // 2. Try Fallback Snap (Wider search)
-            else if (NavMesh.SamplePosition(targetPos, out hit, fallbackRadius, NavMesh.AllAreas))
-            {
-                finalDestination = hit.position;
-                foundValidPoint = true;
+                if (NavMesh.SamplePosition(targetPos, out hit, searchRadii[i], NavMesh.AllAreas))
+                {
+                    finalDestination = hit.position;
+                    foundValidPoint = true;
+                    break;
+                }
             }
 
             if (!foundValidPoint)
             {
+                // Panic: Point is completely off the map (e.g. infinite void)
+                // Just stay here or return failure.
+                Debug.LogWarning("[MonsterMovement] Target is completely unreachable/off-mesh.");
                 agent.ResetPath();
-                return false; // Point is off the map
+                return false; 
             }
 
-            // 3. CHECK REACHABILITY (Prevent Spinning)
+            // --- 2. CHECK REACHABILITY (Wall Hugging) ---
             NavMeshPath path = new NavMeshPath();
             agent.CalculatePath(finalDestination, path);
 
@@ -102,15 +104,23 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 return false;
             }
 
+            // If path is PARTIAL (blocked by wall/door), go to the last reachable point
             if (path.status == NavMeshPathStatus.PathPartial)
             {
+                // The corners array contains the path points. The last one is the furthest reachable point.
                 if (path.corners.Length > 0)
                 {
                     finalDestination = path.corners[path.corners.Length - 1];
                 }
             }
 
-            // 6. Execute
+            // --- 3. EXECUTE ---
+            // Optional: Don't move if we are already practically there (prevents spinning)
+            if (Vector3.Distance(transform.position, finalDestination) < 1.0f)
+            {
+                return false;
+            }
+
             return agent.SetDestination(finalDestination);
         }
 
@@ -144,6 +154,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             if (standStillTimer > stuckTimeout) return true;
             if (agent.remainingDistance <= agent.stoppingDistance) return true;
 
+            // Important: If we hit a wall (Partial Path), we count that as "Arrived"
+            // This prevents the monster from running into the wall forever.
             if (agent.pathStatus == NavMeshPathStatus.PathPartial)
             {
                 if (agent.remainingDistance < 2.0f) return true;
