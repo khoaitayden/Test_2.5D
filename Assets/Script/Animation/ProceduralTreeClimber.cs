@@ -20,11 +20,14 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float lookAheadDist = 5f;
     [SerializeField] private float logicTurnSpeed = 4f;
 
-    [Header("Turn Logic")]
-    [SerializeField] private float sharpTurnThreshold = 75f;
+    [Header("Turn Logic (The Fix)")]
+    [Tooltip("Angle to trigger a sharp turn state.")]
+    [SerializeField] private float sharpTurnThreshold = 65f; // Lowered slightly to catch turns earlier
+    [Tooltip("Stricter angle check specifically during turns.")]
+    [SerializeField] private float turnStressAngle = 60f; 
     [SerializeField] private float turnPauseTime = 0.5f;
-    [SerializeField] private float turnCooldown = 1.5f;
-    [SerializeField] private float turnCrawlSpeed = 0.15f; 
+    [SerializeField] private float turnCooldown = 1.0f;
+    [SerializeField] private float turnCrawlSpeed = 0.1f; 
 
     [Header("Rhythm & Speed")]
     [SerializeField] private float reachSpeedFactor = 0.3f; 
@@ -39,10 +42,8 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float maxForwardLean = 45f;
     [SerializeField] private float bodyTwistAmount = 15f;
     
-    // NO MAGIC NUMBERS: Physics Smoothing Settings
     [SerializeField] private float surgeDecaySpeed = 3.0f;
     [SerializeField] private float bobSmoothingSpeed = 5.0f;
-    [SerializeField] private float bodyRotationSmoothSpeed = 6.0f;
 
     [Header("Player Grabbing")]
     [SerializeField] private LayerMask playerLayer;
@@ -54,11 +55,10 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float handSpeed = 10f;
     [SerializeField] private float swingArcHeight = 1.2f;
     [SerializeField] private float swingOutward = 0.7f;
-    [SerializeField] private float gripSpeed = 10f; // Speed for finger animation
 
     [Header("Triggers")]
     [SerializeField] private float releaseThreshold = 0.1f;
-    [SerializeField] private float maxArmAngle = 100f;
+    [SerializeField] private float maxArmAngle = 100f; // Normal walking angle limit
     [SerializeField] private float crossBodyThreshold = -0.2f;
 
     [Header("Vision")]
@@ -139,18 +139,22 @@ public class ProceduralMonsterController : MonoBehaviour
 
         UpdateStableForward();
 
-        // --- Turn Pause Logic ---
+        // --- Turn Pause & Switch Logic ---
         CheckSharpTurn();
         if (currentTurnTimer > 0)
         {
             currentTurnTimer -= Time.deltaTime;
             
-            // Allow crawling while turning
+            // 1. Slow down
             movementController.AnimationSpeedFactor = turnCrawlSpeed;
-            
-            // Kill surge so we don't slide sideways
             currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 10f);
             
+            // 2. FORCE HAND SWITCH during turn
+            if (!isHandMoving)
+            {
+                ForceHandSwitchDuringTurn();
+            }
+
             UpdateBodyPhysics();
             UpdatePlayerHold();
             UpdateIKTargets();
@@ -185,6 +189,32 @@ public class ProceduralMonsterController : MonoBehaviour
         }
     }
 
+    // --- NEW: LOGIC TO FIX ROTATION STUCK HANDS ---
+    void ForceHandSwitchDuringTurn()
+    {
+        // 1. Calculate turn direction
+        Vector3 toSteering = (agent.steeringTarget - transform.position).normalized;
+        Vector3 cross = Vector3.Cross(transform.forward, toSteering);
+        bool turningRight = cross.y > 0;
+
+        // 2. Identify the "Outer Hand" (The one that gets left behind)
+        // Turning Right -> Left hand is outer.
+        // Turning Left -> Right hand is outer.
+        bool targetIsRight = !turningRight; 
+
+        // 3. Check Angle Stress specifically for the outer hand
+        Vector3 handPos = targetIsRight ? rightHandPos : leftHandPos;
+        Vector3 toHand = handPos - transform.position;
+        float angle = Vector3.Angle(transform.forward, toHand);
+
+        // If the angle is bad (even slightly), FORCE MOVE immediately
+        // We use a tighter threshold (turnStressAngle) than normal walking
+        if (angle > turnStressAngle)
+        {
+            AttemptStep(targetIsRight);
+        }
+    }
+
     void UpdateSpeedDecay()
     {
         movementController.AnimationSpeedFactor = Mathf.MoveTowards(
@@ -212,10 +242,7 @@ public class ProceduralMonsterController : MonoBehaviour
     {
         bool allowedToGrabPlayer = false;
 
-        if (brain.IsAttacking) 
-        {
-            allowedToGrabPlayer = true;
-        }
+        if (brain.IsAttacking) allowedToGrabPlayer = true;
         else if (Time.time - brain.LastTimeSeenPlayer < grabGracePeriod)
         {
             if (brain.LastTimeSeenPlayer > 0) allowedToGrabPlayer = true;
@@ -392,79 +419,42 @@ public class ProceduralMonsterController : MonoBehaviour
     void UpdateBodyPhysics()
     {
         if (visualModel == null) return;
-
-        // --- 1. POSITION ---
         Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
         Vector3 targetWorldPos = handCenter;
-
-        // Lag
-        if (agent.velocity.magnitude > 0.1f) 
-            targetWorldPos -= agent.velocity.normalized * bodyLag;
-        
-        // Surge (Decay using variable)
+        if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
         currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * surgeDecaySpeed);
         targetWorldPos += transform.forward * currentSurge;
-
-        // --- FIX: SMOOTH BOBBING ---
         float speedFactor = movementController.AnimationSpeedFactor;
         float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
-        
-        // Calculate TARGET bob
         float targetBob = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
-        
-        // Smoothly interpolate currentBobY (Variable)
         currentBobY = Mathf.Lerp(currentBobY, targetBob, Time.deltaTime * bobSmoothingSpeed);
-        
         targetWorldPos.y += currentBobY;
-
-        // Apply Position
         Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
         targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
-        visualModel.localPosition = Vector3.SmoothDamp(
-            visualModel.localPosition, 
-            targetLocalPos, 
-            ref bodyVelocity, 
-            bodySmoothTime
-        );
-
-        // --- 2. ROTATION ---
+        visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
         float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
         float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
-
         Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
         Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        
-        // Hysteresis for Jiggle Fix
-        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true;
-        else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
-
+        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true; else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
         targetYaw = isLeaningRight ? bodyTwistAmount : -bodyTwistAmount;
         currentYaw = Mathf.Lerp(currentYaw, targetYaw, Time.deltaTime * 3f);
-
         Vector3 moveDir = agent.velocity;
         if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        
-        // Dynamic Rotation Speed based on angle
         float angleDiff = Vector3.Angle(visualModel.forward, moveDir);
         float rotationSpeed = Mathf.Lerp(maxRotationSpeed, minRotationSpeed, angleDiff / 90f);
-
         Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
         Quaternion offsetRot = Quaternion.Euler(targetPitch, currentYaw, 0);
-
         visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * rotationSpeed);
     }
 
     void UpdateIKTargets()
     {
-        // FIX: Hard Set the position. Do NOT use Lerp here.
-        // This stops the jiggle because the target is locked perfectly to the tree.
-        if (leftHandTarget != null) 
-        {
+        if (leftHandTarget != null) {
             leftHandTarget.position = leftHandPos;
             leftHandTarget.rotation = leftHandRot;
         }
-        if (rightHandTarget != null)
-        {
+        if (rightHandTarget != null) {
             rightHandTarget.position = rightHandPos;
             rightHandTarget.rotation = rightHandRot;
         }
