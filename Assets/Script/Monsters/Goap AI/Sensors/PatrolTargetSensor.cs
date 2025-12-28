@@ -16,13 +16,21 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
 
-            // 1. Keep existing target logic (prevents switching every frame)
+            // --- THE FIX IS HERE ---
+            // If we have a target, BUT we are already standing on it (within stopping distance),
+            // we MUST discard it and find a new one.
             if (existingTarget != null)
             {
-                return existingTarget;
+                float dist = Vector3.Distance(agent.Transform.position, existingTarget.Position);
+                // If we are far enough away, keep walking to it.
+                // If we are close (dist < 1.0f), we treat it as "Done" and generate a new one.
+                if (dist > 1.0f) 
+                {
+                    return existingTarget;
+                }
             }
 
-            // 2. Pick a new spot
+            // 2. Find new point
             Vector3? point = GetRandomPoint(agent.Transform.position);
             
             if (point.HasValue)
@@ -35,17 +43,22 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private Vector3? GetRandomPoint(Vector3 origin)
         {
-            // Try 10 times to pick a valid spot on the map
+            // Try 10 times
             for (int i = 0; i < 10; i++)
             {
-                // A. Random Point Math (Donut Shape)
                 Vector2 rndDir = Random.insideUnitCircle.normalized;
                 float rndDist = Random.Range(config.minPatrolDistance, config.maxPatrolDistance);
                 Vector3 candidate = origin + new Vector3(rndDir.x, 0, rndDir.y) * rndDist;
-                
+
+                // Simple NavMesh check with Wide Radius
                 if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
                 {
-                    return hit.position;
+                    // --- SAFETY CHECK ---
+                    // Verify the point we found isn't right next to us (e.g. snapped back to our feet)
+                    if (Vector3.Distance(origin, hit.position) > 5.0f)
+                    {
+                        return hit.position;
+                    }
                 }
             }
             return null;
