@@ -104,12 +104,7 @@ public class ProceduralMonsterController : MonoBehaviour
     private const float DistanceWeight = 2f;
 
     void Start()
-    {
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-        if (animator == null) animator = GetComponentInChildren<Animator>();
-        if (movementController == null) movementController = GetComponent<MonsterMovement>();
-        if (brain == null) brain = GetComponent<MonsterBrain>(); 
-        
+    {   
         leftGripHash = Animator.StringToHash("LeftGrip");
         rightGripHash = Animator.StringToHash("RightGrip");
 

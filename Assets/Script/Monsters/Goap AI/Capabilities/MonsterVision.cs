@@ -10,7 +10,8 @@ public class MonsterVision : MonoBehaviour
     
     [Header("Debug Read-Only")]
     [SerializeField] private bool canSeePlayerNow; 
-    
+    [Header("References")]
+    [SerializeField] private Transform headBone;
     private MonsterBrain brain;
     private float scanTimer;
     private float timeSinceLastSeen;
@@ -55,14 +56,14 @@ public class MonsterVision : MonoBehaviour
         }
     }
 
-    private Transform ScanForPlayer()
+     private Transform ScanForPlayer()
     {
-        // 1. Define Eyes Position (Up 1.5f for a better "Head" view, 0.5f might be too low/waist)
-        Vector3 eyesPosition = transform.position + Vector3.up * 1.2f;
+        // 1. USE HEAD POSITION INSTEAD OF TRANSFORM.POSITION
+        Vector3 eyesPosition = headBone != null ? headBone.position : transform.position + Vector3.up * 1.5f;
+        Vector3 eyesForward = headBone != null ? headBone.forward : transform.forward;
 
-        // 2. Overlap Check (Broad Phase)
         int count = Physics.OverlapSphereNonAlloc(
-            transform.position, // Check from feet is fine for radius
+            transform.position, // Keep Sphere origin at root (feet) for general range
             config.viewRadius,
             _overlapBuffer,
             config.playerLayerMask
@@ -71,22 +72,23 @@ public class MonsterVision : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Transform target = _overlapBuffer[i].transform;
+            Vector3 targetPosition = target.position + Vector3.up * 1.0f; // Look at player chest
             
-            // Target Center: Aim for the chest/center, not the feet pivot
-            Vector3 targetCenter = target.position + Vector3.up * 1.0f;
-
-            Vector3 dirToTarget = (targetCenter - eyesPosition).normalized;
+            Vector3 toTarget = targetPosition - eyesPosition;
             
-            // 3. Angle Check (Is player inside the Vision Cone?)
-            if (Vector3.Angle(transform.forward, dirToTarget) < config.ViewAngle / 2f)
+            // 2. CHECK ANGLE RELATIVE TO HEAD DIRECTION
+            // This allows the monster to see "Sideways" if the head is turned!
+            if (Vector3.Angle(eyesForward, toTarget) > config.ViewAngle / 2f)
             {
-                float dist = Vector3.Distance(eyesPosition, targetCenter);
+                continue; 
+            }
 
-                // 4. Raycast Fan Check (Detail Phase)
-                if (CanHitTargetWithRays(eyesPosition, targetCenter, dist))
-                {
-                    return target;
-                }
+            float dist = toTarget.magnitude;
+
+            // 3. RAYCAST FROM HEAD
+            if (CanHitTargetWithRays(eyesPosition, targetPosition, dist))
+            {
+                return target;
             }
         }
 
@@ -146,5 +148,32 @@ public class MonsterVision : MonoBehaviour
         }
 
         return false;
+    }
+    private void OnDrawGizmosSelected()
+    {
+    #if UNITY_EDITOR
+        // Use Head Bone if available, otherwise fallback to Transform
+        Transform viewSource = headBone != null ? headBone : transform;
+        Vector3 origin = viewSource.position;
+        Vector3 forward = viewSource.forward;
+
+        UnityEditor.Handles.color = new Color(1, 1, 0, 0.3f); // Yellow transparent
+
+        // Calculate Cone Edges relative to HEAD rotation
+        Vector3 leftEdgeDirection = Quaternion.Euler(0, -config.ViewAngle / 2, 0) * forward;
+        Vector3 rightEdgeDirection = Quaternion.Euler(0, config.ViewAngle / 2, 0) * forward;
+
+        Vector3 leftPoint = origin + leftEdgeDirection * config.viewRadius;
+        Vector3 rightPoint = origin + rightEdgeDirection * config.viewRadius;
+
+        // Draw Lines
+        UnityEditor.Handles.DrawLine(origin, leftPoint);
+        UnityEditor.Handles.DrawLine(origin, rightPoint);
+
+        // Draw Arc
+        // Note: Vector3.up here assumes the head rotates around Y primarily. 
+        // If your head tilts (X/Z), you might want to use viewSource.up
+        UnityEditor.Handles.DrawWireArc(origin, Vector3.up, leftEdgeDirection, config.ViewAngle, config.viewRadius);
+    #endif
     }
 }
