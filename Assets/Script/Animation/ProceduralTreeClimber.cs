@@ -235,32 +235,71 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void CheckAndMoveHands()
     {
+        // --- 1. LOGIC GATE: ARE WE ALLOWED TO GRAB? ---
         bool allowedToGrabPlayer = false;
 
-        if (brain.IsAttacking) allowedToGrabPlayer = true;
+        if (brain.IsAttacking) 
+        {
+            allowedToGrabPlayer = true;
+        }
         else if (Time.time - brain.LastTimeSeenPlayer < grabGracePeriod)
         {
             if (brain.LastTimeSeenPlayer > 0) allowedToGrabPlayer = true;
         }
 
+        // STATE LEAK FIX: If not allowed, but still holding, force release.
+        if (!allowedToGrabPlayer)
+        {
+            if (heldPlayerRight != null) heldPlayerRight = null;
+            if (heldPlayerLeft != null) heldPlayerLeft = null;
+        }
+
+        // --- 2. PLAYER GRAB ATTEMPT ---
         bool canGrabRight = false;
         bool canGrabLeft = false;
 
+        // Only scan for player if the logic gate passed
         if (allowedToGrabPlayer)
         {
             canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
             canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
         }
 
+        // (Code from here is new/updated)
+        
+        // Don't grab if a single hand is already holding (if configured)
         if (singleHandOnly && (heldPlayerRight != null || heldPlayerLeft != null))
         {
             canGrabRight = false;
             canGrabLeft = false;
         }
+        
+        // --- TURN ORDER FIX: ENFORCE ALTERNATING GRABS ---
+        // If both hands are valid targets, only allow the one whose turn it is.
+        if (canGrabRight && canGrabLeft)
+        {
+            if (isLeaningRight) // Assuming isLeaningRight tracks the "next" hand to move
+                canGrabLeft = false;
+            else
+                canGrabRight = false;
+        }
 
-        if (canGrabRight) { StartCoroutine(SwingHand(true, null, ScanForPlayer(true))); return; }
-        if (canGrabLeft) { StartCoroutine(SwingHand(false, null, ScanForPlayer(false))); return; }
+        // Execute Player Grab if possible
+        if (canGrabRight) 
+        {
+            StartCoroutine(SwingHand(true, null, ScanForPlayer(true)));
+            isLeaningRight = !isLeaningRight; // Swap turn
+            return; 
+        }
+        if (canGrabLeft) 
+        {
+            StartCoroutine(SwingHand(false, null, ScanForPlayer(false)));
+            isLeaningRight = !isLeaningRight; // Swap turn
+            return;
+        }
 
+        // --- 3. STANDARD TREE CLIMBING (If player grab failed/invalid) ---
+        // Don't move a hand if it's currently holding a player
         bool rightStressed = (heldPlayerRight == null) && IsHandStressed(true);
         bool leftStressed = (heldPlayerLeft == null) && IsHandStressed(false);
 
@@ -321,16 +360,24 @@ public class ProceduralMonsterController : MonoBehaviour
         return bestTree;
     }
 
-    IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer) {
+    IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer)
+    {
         isHandMoving = true;
+
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
+
         Vector3 finalPos = Vector3.zero;
         Quaternion finalRot = Quaternion.identity;
-        if (targetPlayer != null) {
+
+        // --- SETUP TARGET ---
+        if (targetPlayer != null)
+        {
             finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
             finalRot = Quaternion.LookRotation((finalPos - transform.position).normalized, Vector3.up);
-        } else {
+        }
+        else
+        {
             Vector3 targetCenter = targetTree.bounds.center;
             Vector3 dirToTree = (targetCenter - transform.position).normalized;
             finalPos = targetCenter;
@@ -339,40 +386,77 @@ public class ProceduralMonsterController : MonoBehaviour
             if (targetTree.Raycast(ray, out RaycastHit hit, 20f)) { finalPos = hit.point; surfaceNormal = hit.normal; }
             finalRot = Quaternion.LookRotation(-surfaceNormal, transform.up);
         }
+
         Vector3 midPoint = (startPos + finalPos) * 0.5f;
         Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
         Vector3 controlPoint = midPoint + Vector3.up * swingArcHeight + sideOffset;
+
         float totalDist = Vector3.Distance(startPos, finalPos);
         float elapsed = 0f;
         int currentGripHash = isRight ? rightGripHash : leftGripHash;
-        while (elapsed <= totalDist) {
+        
+        while (elapsed <= totalDist)
+        {
             float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3f);
             elapsed += Time.deltaTime * dynamicSpeed;
             float t = Mathf.Clamp01(elapsed / totalDist);
-            float smoothT = t * t * (3f - 2f * t); 
+            float smoothT = t * t * (3f - 2f * t);
+
+            // Physics: Slow down agent while reaching
             movementController.AnimationSpeedFactor = Mathf.Lerp(movementController.AnimationSpeedFactor, reachSpeedFactor, Time.deltaTime * 10f);
+            
+            // Grip Animation
             float gripVal = 0f;
             if (t < 0.2f) gripVal = 1f - (t / 0.2f);
             else if (t > 0.8f) gripVal = (t - 0.8f) / 0.2f;
             animator.SetFloat(currentGripHash, gripVal);
-            if (targetPlayer != null) finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+
+            // --- GRAB FAIL & TRACKING LOGIC ---
+            if (targetPlayer != null)
+            {
+                // Update finalPos to chase the moving player
+                finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+
+                // If player gets too far away, ABORT.
+                // Add +2m buffer to max reach distance
+                if (Vector3.Distance(transform.position, finalPos) > maxReachDistance + 2.0f)
+                {
+                    // Open hand and exit
+                    animator.SetFloat(currentGripHash, 0f);
+                    isHandMoving = false;
+                    yield break; // ABORT GRAB
+                }
+            }
+            
+            // Bezier Move
             float u = 1f - smoothT;
             Vector3 pos = u * u * startPos + 2f * u * smoothT * controlPoint + smoothT * smoothT * finalPos;
+
             if (isRight) { rightHandPos = pos; rightHandRot = Quaternion.Slerp(startRot, finalRot, smoothT); }
             else         { leftHandPos = pos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, smoothT); }
+
             if (t >= 1.0f) break;
             yield return null;
         }
+
+        // --- FINALIZE & LOCK ---
         animator.SetFloat(currentGripHash, 1f);
-        if (isRight) {
+
+        if (isRight)
+        {
             if (targetPlayer != null) { heldPlayerRight = targetPlayer; rightTreeCollider = null; }
             else { rightTreeCollider = targetTree; rightHandPos = finalPos; rightHandRot = finalRot; }
-        } else {
+        }
+        else
+        {
             if (targetPlayer != null) { heldPlayerLeft = targetPlayer; leftTreeCollider = null; }
             else { leftTreeCollider = targetTree; leftHandPos = finalPos; leftHandRot = finalRot; }
         }
+
+        // Physics: Trigger Surge
         movementController.AnimationSpeedFactor = pullSpeedFactor;
-        currentSurge = 1.0f; 
+        currentSurge = 1.0f;
+
         isHandMoving = false;
     }
 
