@@ -47,4 +47,13 @@ public class MonsterConfig : MonoBehaviour
     
     [Tooltip("How far the monster tries to run away when fleeing")]
     public float fleeRunDistance = 20.0f; 
+
+
+    [Header("Stalking Behavior")]
+    [Tooltip("Monster will approach this close before starting to orbit.")]
+    public float idealStalkingRange = 15f;
+    public float minStalkRange = 8f;
+    public float maxStalkRange = 25f;
+    public float minStalkSpeed = 2f;
+    public float maxStalkSpeed = 6f;
 }

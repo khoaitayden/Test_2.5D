@@ -48,7 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce1e465c42dc5f24392a8867cd1a7ef5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tombstonecontroller
-  energyRange: {x: 0.4, y: 0.7}
+  energyRange: {x: 0.4, y: 0.8}
   spriteRenderer: {fileID: 9174580218717002390}
   tombstoneSprites:
   - {fileID: -2020022695, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
@@ -61,7 +61,7 @@ MonoBehaviour:
   - {fileID: 871994168, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   - {fileID: -251498489, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   maxEnergy: 0.5
-  rechargeDelay: 10
+  rechargeDelay: 15
   regainRate: 0.1
   energyIndicatorLight: {fileID: 1161283004597510785}
   wispSoul: {fileID: 5884447155509154794}
@@ -1175,7 +1175,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 2
+      scalar: 1
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -5159,4 +5159,4 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   checkRadius: 0.01
-  energyPerParticle: 0.1
+  energyPerParticle: 0.2
