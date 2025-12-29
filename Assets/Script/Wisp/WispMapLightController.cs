@@ -14,8 +14,10 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private float visionLightFarClip = 100f;
     [SerializeField] private float focusLightFarClip = 60f;
     [SerializeField] private float offLightFarClip = 15f;
-    [Header("Engery Setting")]
-    [SerializeField] private float energyThresholdBeforeCollect=0.8f;
+    
+    [Header("Energy Setting")]
+    [SerializeField] private float energyThresholdBeforeCollect = 0.8f;
+    
     [Header("Lights")]
     [SerializeField] private Light pointLight;
     [SerializeField] private Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
@@ -37,30 +39,23 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private float floatSpeed = 2f;
     [SerializeField] private float smoothTime = 0.3f;
 
-    // Original settings
+    // --- Private State Variables ---
     private float origPointI, origPointR;
     private float origVisionI, origVisionR;
     private float origFocusI, origFocusR;
-
     private Vector3 pointVel = Vector3.zero;
     private Vector3 visionVel = Vector3.zero;
     private Vector3 focusVel = Vector3.zero;
-
     private enum LightMode { Point, Vision, Focus }
     private LightMode currentMode = LightMode.Point;
     private Light activeLight;
-
-    // Set of objects currently considered "Lit"
-    private HashSet<Collider> currentlyLit = new HashSet<Collider>();
     private TombstoneController _currentTargetTombstone;
-
     private bool isSystemPoweredOn = true;
     public bool IsLightActive { get; private set; } = true;
 
     void Start()
     {
-        if (Camera.main != null)
-            mainCameraTransform = Camera.main.transform;
+        if (Camera.main != null) mainCameraTransform = Camera.main.transform;
 
         CacheOriginalSettings();
         ApplyLightMode();
@@ -87,21 +82,114 @@ public class WispMapLightController : MonoBehaviour
         {
             ApplyGlobalLightEnergy();
         }
-
-        UpdateLitObjects();
+        
+        UpdateTombstoneTargeting();
     }
 
     void LateUpdate()
     {
         if (player == null || mainCameraTransform == null) return;
-
-        Vector3 basePos = player.position;
         float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
-
         UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
         UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
+
+    // --- MASTER LOGIC METHOD ---
+    private void UpdateTombstoneTargeting()
+    {
+        // 1. Find all potential targets in the light
+        HashSet<TombstoneController> potentialTargets = GetVisibleTombstones();
+
+        // 2. Find the single best target from that list (the closest one to the PLAYER)
+        TombstoneController bestTarget = FindClosestTombstoneToPlayer(potentialTargets);
+
+        // 3. Manage State: Is the best target different from our current target?
+        if (bestTarget != _currentTargetTombstone)
+        {
+            // Deactivate the old target
+            if (_currentTargetTombstone != null)
+            {
+                _currentTargetTombstone.OnUnlit();
+            }
+
+            // Activate the new target
+            _currentTargetTombstone = bestTarget;
+            if (_currentTargetTombstone != null)
+            {
+                _currentTargetTombstone.OnLit();
+            }
+        }
+        
+        // 4. Drain Logic: Only drain if there is a valid target
+        if (_currentTargetTombstone != null)
+        {
+            // Check if player needs energy
+            if (LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy < energyThresholdBeforeCollect)
+            {
+                // Tell the active target to drain (this just starts particles)
+                _currentTargetTombstone.DrainEnergy(Time.deltaTime);
+            }
+            else
+            {
+                // Player is full, tell the target to stop particles even if lit
+                _currentTargetTombstone.OnUnlit();
+            }
+        }
+    }
+
+    private HashSet<TombstoneController> GetVisibleTombstones()
+    {
+        HashSet<TombstoneController> visibleTombstones = new HashSet<TombstoneController>();
+        if (activeLight == null) return visibleTombstones;
+
+        Collider[] rawColliders = GetObjectsInLight();
+        Vector3 lightPos = activeLight.transform.position;
+        
+        foreach (Collider col in rawColliders)
+        {
+            if (col == null) continue;
+            
+            if (HasLineOfSight(lightPos, col))
+            {
+                TombstoneController tombstone = col.GetComponent<TombstoneController>();
+                if (tombstone != null)
+                {
+                    visibleTombstones.Add(tombstone);
+                }
+            }
+        }
+        return visibleTombstones;
+    }
+
+    private TombstoneController FindClosestTombstoneToPlayer(HashSet<TombstoneController> tombstones)
+    {
+        TombstoneController closest = null;
+        float closestDistSqr = float.MaxValue;
+
+        Vector3 playerPos = player.position;
+
+        foreach (TombstoneController tombstone in tombstones)
+        {
+            float distSqr = (tombstone.transform.position - playerPos).sqrMagnitude;
+            if (distSqr < closestDistSqr)
+            {
+                closestDistSqr = distSqr;
+                closest = tombstone;
+            }
+        }
+        return closest;
+    }
+
+    private bool HasLineOfSight(Vector3 origin, Collider target)
+    {
+        Vector3 targetCenter = target.bounds.center;
+        Vector3 direction = targetCenter - origin;
+        float distance = direction.magnitude;
+        return !Physics.Raycast(origin, direction, distance, obstructionLayer);
+    }
+
+    // --- System & Boilerplate Methods ---
 
     void CycleLightMode()
     {
@@ -175,119 +263,12 @@ public class WispMapLightController : MonoBehaviour
         activeLight = null;
         IsLightActive = false;
         UpdateCameraClip(offLightFarClip);
-    }
-
-    void UpdateLitObjects()
-    {
-        HashSet<Collider> validLitColliders = GetValidLitColliders();
-        TombstoneController closestTombstone = FindClosestTombstone(validLitColliders);
-
-        if (_currentTargetTombstone != closestTombstone)
+        // Ensure we stop targeting when the light goes off
+        if (_currentTargetTombstone != null)
         {
-            if (_currentTargetTombstone != null) _currentTargetTombstone.OnUnlit();
-            _currentTargetTombstone = closestTombstone;
+            _currentTargetTombstone.OnUnlit();
+            _currentTargetTombstone = null;
         }
-        ProcessAllLitObjects(validLitColliders);
-    }
-
-    private HashSet<Collider> GetValidLitColliders()
-    {
-        Collider[] rawColliders = GetObjectsInLight();
-        HashSet<Collider> validLitSet = new HashSet<Collider>();
-        if (activeLight != null)
-        {
-            Vector3 lightPos = activeLight.transform.position;
-            foreach (Collider col in rawColliders)
-            {
-                if (col != null && HasLineOfSight(lightPos, col)) validLitSet.Add(col);
-            }
-        }
-        return validLitSet;
-    }
-
-    private TombstoneController FindClosestTombstone(HashSet<Collider> litColliders)
-    {
-        TombstoneController closest = null;
-        float closestDistSqr = float.MaxValue;
-        Vector3 lightPos = activeLight != null ? activeLight.transform.position : transform.position;
-        foreach (Collider col in litColliders)
-        {
-            TombstoneController tombstone = col.GetComponent<TombstoneController>();
-            if (tombstone != null)
-            {
-                float distSqr = (col.transform.position - lightPos).sqrMagnitude;
-                if (distSqr < closestDistSqr)
-                {
-                    closestDistSqr = distSqr;
-                    closest = tombstone;
-                }
-            }
-        }
-        return closest;
-    }
-
-    // --- MODIFIED METHOD ---
-    private void ProcessAllLitObjects(HashSet<Collider> validLitSet)
-    {
-        // Handle newly lit objects
-        foreach (Collider col in validLitSet)
-        {
-            if (!currentlyLit.Contains(col))
-            {
-                NotifyLit(col, true);
-            }
-            else
-            {
-                TombstoneController tomb = col.GetComponent<TombstoneController>();
-                if (tomb != null && tomb == _currentTargetTombstone)
-                {
-                    // --- NEW LOGIC: Check player energy before draining ---
-                    if (LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy < energyThresholdBeforeCollect)
-                    {
-                        // Player needs energy, so drain the tombstone
-                        DrainEnergyFrom(tomb);
-                    }
-                    else
-                    {
-                        // Player is full, tell the tombstone to stop sending particles
-                        tomb.OnUnlit();
-                    }
-                    // --- END OF NEW LOGIC ---
-                }
-            }
-        }
-
-        // Handle objects that are no longer lit
-        foreach (Collider col in currentlyLit)
-        {
-            if (!validLitSet.Contains(col)) NotifyLit(col, false);
-        }
-        currentlyLit = validLitSet;
-    }
-
-    private bool HasLineOfSight(Vector3 origin, Collider target)
-    {
-        Vector3 targetCenter = target.bounds.center;
-        Vector3 direction = targetCenter - origin;
-        float distance = direction.magnitude;
-        return !Physics.Raycast(origin, direction, distance, obstructionLayer);
-    }
-
-    void NotifyLit(Collider col, bool isLit)
-    {
-        if (col == null) return;
-        ILitObject litObj = col.GetComponent<ILitObject>();
-        if (litObj != null)
-        {
-            if (isLit) litObj.OnLit();
-            else litObj.OnUnlit();
-        }
-    }
-
-    void DrainEnergyFrom(TombstoneController tomb)
-    {
-        if (tomb == null) return;
-        tomb.DrainEnergy(Time.deltaTime);
     }
 
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
