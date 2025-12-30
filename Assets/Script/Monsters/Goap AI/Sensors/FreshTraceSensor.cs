@@ -1,7 +1,6 @@
 using CrashKonijn.Agent.Core;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -20,66 +19,61 @@ namespace CrashKonijn.Goap.MonsterGen
             if (TraceManager.Instance == null) return null;
 
             var traces = TraceManager.Instance.GetTraces();
-            Vector3 agentPos = agent.Transform.position;
-            Vector3 agentForward = agent.Transform.forward;
+            Vector3 eyes = agent.Transform.position;
+            Vector3 facing = agent.Transform.forward;
+            float timeFloor = brain.HandledNoiseTimestamp;
             
             GameTrace bestTrace = null;
-            float bestTime = -1f;
 
-            float handledTime = brain.HandledNoiseTimestamp;
-            
-            foreach (var trace in traces)
+            foreach (var t in traces)
             {
-                if (trace.IsExpired) continue;
-                if (trace.Timestamp <= handledTime) continue; // Already handled
+                // 1. Filter: Must be unhandled and valid
+                if (t.IsExpired || t.Timestamp <= timeFloor) continue;
 
-                bool isValid = false;
+                bool isDetected = false;
 
-                // A. HEARING CHECK (Loud)
-                bool isLoud = trace.Type == TraceType.Soul_Collection || 
-                              trace.Type == TraceType.EnviromentNoiseStrong ||
-                              trace.Type == TraceType.EnviromentNoiseMedium;
-                
-                if (isLoud && Vector3.Distance(agentPos, trace.Position) <= config.hearingRange)
+                // 2. Hearing Check
+                if (IsLoud(t.Type))
                 {
-                    isValid = true;
+                    if (Vector3.Distance(eyes, t.Position) <= config.hearingRange)
+                        isDetected = true;
                 }
-
-                // B. VISION CHECK (Footsteps)
-                bool isFootstep = trace.Type == TraceType.Footstep_Walk || 
-                                  trace.Type == TraceType.Footstep_Run;
-
-                if (isFootstep && Vector3.Distance(agentPos, trace.Position) <= config.viewRadius)
+                // 3. Vision Check
+                else 
                 {
-                    Vector3 dirToTrace = (trace.Position - agentPos).normalized;
-                    // Check if inside Vision Cone angle
-                    if (Vector3.Angle(agentForward, dirToTrace) < config.ViewAngle / 2f)
+                    // Check Distance first (Cheap)
+                    if (Vector3.Distance(eyes, t.Position) <= config.viewRadius)
                     {
-                        isValid = true; 
+                        // Check Angle (Expensive)
+                        Vector3 dir = (t.Position - eyes).normalized;
+                        if (Vector3.Angle(facing, dir) < config.ViewAngle / 2f)
+                            isDetected = true;
                     }
                 }
 
-                if (!isValid) continue;
+                if (!isDetected) continue;
 
-                // Pick NEWEST
-                if (trace.Timestamp > bestTime)
+                // 4. Comparison: Newer is better
+                if (bestTrace == null || t.Timestamp > bestTrace.Timestamp)
                 {
-                    bestTime = trace.Timestamp;
-                    bestTrace = trace;
+                    bestTrace = t;
                 }
             }
 
             if (bestTrace != null)
             {
-                // Snap to NavMesh
-                if (NavMesh.SamplePosition(bestTrace.Position, out NavMeshHit hit, config.traceNavMeshSnapRadius, NavMesh.AllAreas))
-                {
-                    return new PositionTarget(hit.position);
-                }
+                // Return Raw Position. MoveTo() will handle safety snapping.
                 return new PositionTarget(bestTrace.Position);
             }
 
             return null;
+        }
+
+        private bool IsLoud(TraceType t)
+        {
+            return t == TraceType.Soul_Collection || 
+                   t == TraceType.EnviromentNoiseStrong || 
+                   t == TraceType.EnviromentNoiseMedium;
         }
     }
 }

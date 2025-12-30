@@ -17,9 +17,6 @@ public class MonsterConfig : MonoBehaviour
     public float investigateSpeed;
     public float chaseSpeed;
     
-    [Tooltip("How close monster needs to be to consider destination 'reached'")]
-    public float stoppingDistance;
-    
     [Header("Vision")]
     public int numOfRayCast = 5;
     public float viewRadius = 60f;
@@ -50,24 +47,13 @@ public class MonsterConfig : MonoBehaviour
     
     [Tooltip("How far the monster tries to run away when fleeing")]
     public float fleeRunDistance = 20.0f; 
-    private void OnDrawGizmosSelected()
-    {
-    #if UNITY_EDITOR
-            // Vision Cone
-            Handles.color = new Color(1, 1, 0, 0.5f);
-            Vector3 origin = transform.position;
-            Vector3 forward = transform.forward;
-            Vector3 leftEdgeDirection = Quaternion.Euler(0, -ViewAngle / 2, 0) * forward;
-            Vector3 leftPoint = origin + leftEdgeDirection * viewRadius;
-            Vector3 rightEdgeDirection = Quaternion.Euler(0, ViewAngle / 2, 0) * forward;
-            Vector3 rightPoint = origin + rightEdgeDirection * viewRadius;
-            Handles.DrawLine(origin, leftPoint);
-            Handles.DrawLine(origin, rightPoint);
-            Handles.DrawWireArc(origin, Vector3.up, leftEdgeDirection, ViewAngle, viewRadius);
-            
-            // Hearing Range
-            Handles.color = new Color(0, 0, 1, 0.3f);
-            Handles.DrawWireDisc(origin, Vector3.up, hearingRange);
-    #endif
-    }
+
+
+    [Header("Stalking Behavior")]
+    [Tooltip("Monster will approach this close before starting to orbit.")]
+    public float idealStalkingRange = 15f;
+    public float minStalkRange = 8f;
+    public float maxStalkRange = 25f;
+    public float minStalkSpeed = 2f;
+    public float maxStalkSpeed = 6f;
 }

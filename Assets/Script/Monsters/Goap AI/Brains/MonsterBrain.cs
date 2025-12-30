@@ -13,7 +13,8 @@ public class MonsterBrain : MonoBehaviour
     public bool IsInvestigating { get; private set; }
     public bool IsFleeing { get; private set; }
     public float HandledNoiseTimestamp { get; private set; } = -1f;
-
+    public float LastTimeSeenPlayer { get; private set; }
+    public bool IsAttacking { get; set; }
     private GoapActionProvider provider;
     
     private void Awake()
@@ -55,6 +56,10 @@ public class MonsterBrain : MonoBehaviour
         IsPlayerVisible = true;
         CurrentPlayerTarget = player;
         LastKnownPlayerPosition = player.position;
+        
+        // NEW: Keep updating timestamp while looking at player
+        LastTimeSeenPlayer = Time.time; 
+        
         if (IsInvestigating) IsInvestigating = false;
         UpdateGOAPState();
     }
@@ -64,6 +69,10 @@ public class MonsterBrain : MonoBehaviour
         if (IsPlayerVisible)
         {
             IsPlayerVisible = false;
+            
+            // NEW: Record exact moment we lost them
+            LastTimeSeenPlayer = Time.time;
+            
             IsInvestigating = true; 
             CurrentPlayerTarget = null;
         }

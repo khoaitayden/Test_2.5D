@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-// If this namespace errors, try "using Cinemachine;" instead
 using Unity.Cinemachine;
 
 public class WispMapLightController : MonoBehaviour
@@ -12,16 +11,18 @@ public class WispMapLightController : MonoBehaviour
     [Header("Cinemachine Settings")]
     [SerializeField] private CinemachineCamera virtualCamera;
     [SerializeField] private float pointLightFarClip = 40f;
-    [SerializeField] private float visionLightFarClip = 100f;
+    // Removed VisionLightFarClip
     [SerializeField] private float focusLightFarClip = 60f;
     [SerializeField] private float offLightFarClip = 15f;
-
+    
+    [Header("Energy Setting")]
+    [SerializeField] private float energyThresholdBeforeCollect = 0.8f;
+    
     [Header("Lights")]
     [SerializeField] private Light pointLight;
     [SerializeField] private Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
 
-    [SerializeField] private Light visionLight;
-    [SerializeField] private Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
+    // Removed Vision Light Variables
 
     [SerializeField] private Light focusLight;
     [SerializeField] private Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
@@ -30,41 +31,38 @@ public class WispMapLightController : MonoBehaviour
     [Tooltip("Layers that trigger the 'Lit' effect (e.g., Monsters, Interactables)")]
     public LayerMask detectionLayer = -1;
     [Tooltip("Layers that block light (e.g., Default, Ground, Walls). DO NOT include the detection layer here.")]
-    public LayerMask obstructionLayer = 1; 
+    public LayerMask obstructionLayer = 1;
 
     [Header("Floating & Movement")]
     [SerializeField] private float floatStrength = 0.2f;
     [SerializeField] private float floatSpeed = 2f;
     [SerializeField] private float smoothTime = 0.3f;
 
-    // Original settings
+    // --- Private State Variables ---
     private float origPointI, origPointR;
-    private float origVisionI, origVisionR;
+    // Removed origVision vars
     private float origFocusI, origFocusR;
-
-    private Vector3 pointVel = Vector3.zero;
-    private Vector3 visionVel = Vector3.zero;
-    private Vector3 focusVel = Vector3.zero;
-
-    private enum LightMode { Point, Vision, Focus }
-    private LightMode currentMode = LightMode.Point;
-    private Light activeLight;
     
-    // Set of objects currently considered "Lit"
-    private HashSet<Collider> currentlyLit = new HashSet<Collider>();
-
-    // New flag for Manual Toggle
+    private Vector3 pointVel = Vector3.zero;
+    // Removed visionVel
+    private Vector3 focusVel = Vector3.zero;
+    
+    // Updated Enum to only have Point and Focus
+    private enum LightMode { Point, Focus }
+    private LightMode currentMode = LightMode.Point;
+    
+    private Light activeLight;
+    private TombstoneController _currentTargetTombstone;
     private bool isSystemPoweredOn = true;
     public bool IsLightActive { get; private set; } = true;
+
     void Start()
     {
-        if (Camera.main != null)
-            mainCameraTransform = Camera.main.transform;
+        if (Camera.main != null) mainCameraTransform = Camera.main.transform;
 
         CacheOriginalSettings();
         ApplyLightMode();
 
-        // Subscribe to Input
         if (InputManager.Instance != null)
         {
             InputManager.Instance.OnWispCycleTriggered += CycleLightMode;
@@ -87,81 +85,139 @@ public class WispMapLightController : MonoBehaviour
         {
             ApplyGlobalLightEnergy();
         }
-
-        UpdateLitObjects();
+        
+        UpdateTombstoneTargeting();
     }
 
     void LateUpdate()
     {
         if (player == null || mainCameraTransform == null) return;
-
-        Vector3 basePos = player.position;
         float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
-
+        
         UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
-        UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
+        // Removed Vision Update
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
 
-    // --- Input Event Handlers ---
+    // --- MASTER LOGIC METHOD ---
+    private void UpdateTombstoneTargeting()
+    {
+        HashSet<TombstoneController> potentialTargets = GetVisibleTombstones();
+        TombstoneController bestTarget = FindClosestTombstoneToPlayer(potentialTargets);
+
+        if (bestTarget != _currentTargetTombstone)
+        {
+            if (_currentTargetTombstone != null)
+            {
+                _currentTargetTombstone.OnUnlit();
+            }
+
+            _currentTargetTombstone = bestTarget;
+            if (_currentTargetTombstone != null)
+            {
+                _currentTargetTombstone.OnLit();
+            }
+        }
+        
+        if (_currentTargetTombstone != null)
+        {
+            if (LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy < energyThresholdBeforeCollect)
+            {
+                _currentTargetTombstone.DrainEnergy(Time.deltaTime);
+            }
+            else
+            {
+                _currentTargetTombstone.OnUnlit();
+            }
+        }
+    }
+
+    private HashSet<TombstoneController> GetVisibleTombstones()
+    {
+        HashSet<TombstoneController> visibleTombstones = new HashSet<TombstoneController>();
+        if (activeLight == null) return visibleTombstones;
+
+        Collider[] rawColliders = GetObjectsInLight();
+        Vector3 lightPos = activeLight.transform.position;
+        
+        foreach (Collider col in rawColliders)
+        {
+            if (col == null) continue;
+            
+            if (HasLineOfSight(lightPos, col))
+            {
+                TombstoneController tombstone = col.GetComponent<TombstoneController>();
+                if (tombstone != null)
+                {
+                    visibleTombstones.Add(tombstone);
+                }
+            }
+        }
+        return visibleTombstones;
+    }
+
+    private TombstoneController FindClosestTombstoneToPlayer(HashSet<TombstoneController> tombstones)
+    {
+        TombstoneController closest = null;
+        float closestDistSqr = float.MaxValue;
+
+        Vector3 playerPos = player.position;
+
+        foreach (TombstoneController tombstone in tombstones)
+        {
+            float distSqr = (tombstone.transform.position - playerPos).sqrMagnitude;
+            if (distSqr < closestDistSqr)
+            {
+                closestDistSqr = distSqr;
+                closest = tombstone;
+            }
+        }
+        return closest;
+    }
+
+    private bool HasLineOfSight(Vector3 origin, Collider target)
+    {
+        Vector3 targetCenter = target.bounds.center;
+        Vector3 direction = targetCenter - origin;
+        float distance = direction.magnitude;
+        return !Physics.Raycast(origin, direction, distance, obstructionLayer);
+    }
+
+    // --- System & Boilerplate Methods ---
 
     void CycleLightMode()
     {
         if (!isSystemPoweredOn) return;
-
-        currentMode = (LightMode)(((int)currentMode + 1) % 3);
+        // Modulo 2 since we only have Point and Focus now
+        currentMode = (LightMode)(((int)currentMode + 1) % 2);
         ApplyLightMode();
     }
 
     void TogglePower()
     {
         isSystemPoweredOn = !isSystemPoweredOn;
-
         if (isSystemPoweredOn)
         {
-            // Turning ON
-            if (LightEnergyManager.Instance != null)
-                LightEnergyManager.Instance.SetDrainPaused(false);
-            
-            ApplyLightMode(); 
-            // We only set IsLightActive if energy > 0, which ApplyLightMode handles via ApplyGlobalLightEnergy
+            if (LightEnergyManager.Instance != null) LightEnergyManager.Instance.SetDrainPaused(false);
+            ApplyLightMode();
         }
         else
         {
-            // Turning OFF
-            if (LightEnergyManager.Instance != null)
-                LightEnergyManager.Instance.SetDrainPaused(true);
-            
-            TurnOffAllLights(); // This will set IsLightActive to false
+            if (LightEnergyManager.Instance != null) LightEnergyManager.Instance.SetDrainPaused(true);
+            TurnOffAllLights();
         }
     }
-
-    // --- Core Logic ---
 
     void ApplyGlobalLightEnergy()
     {
         if (LightEnergyManager.Instance == null) return;
-
         float energy = LightEnergyManager.Instance.GetIntensityFactor();
-        
-        if (energy <= 0f)
-        {
-            TurnOffAllLights(); // This will set IsLightActive to false
-            return;
-        }
-
-        // --- NEW ---
-        // If we have energy and system is on, light is active
-        IsLightActive = isSystemPoweredOn; 
-        // ---------
-
+        if (energy <= 0f) { TurnOffAllLights(); return; }
+        IsLightActive = isSystemPoweredOn;
         float effectiveRange = energy;
         float effectiveIntensity = Mathf.Sqrt(Mathf.Clamp01(energy));
-
         ApplyDimmedSettings(effectiveRange, effectiveIntensity);
     }
-
-    // --- Camera Helper ---
 
     void UpdateCameraClip(float farClipValue)
     {
@@ -173,24 +229,17 @@ public class WispMapLightController : MonoBehaviour
         }
     }
 
-    // --- Light Management ---
-
     void ApplyLightMode()
     {
         if (!isSystemPoweredOn) return;
-
-        TurnOffAllLights(); // Reset active light
-
+        TurnOffAllLights();
         switch (currentMode)
         {
             case LightMode.Point:
                 if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
                 UpdateCameraClip(pointLightFarClip);
                 break;
-            case LightMode.Vision:
-                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
-                UpdateCameraClip(visionLightFarClip);
-                break;
+            // Removed Vision Case
             case LightMode.Focus:
                 if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
                 UpdateCameraClip(focusLightFarClip);
@@ -201,115 +250,24 @@ public class WispMapLightController : MonoBehaviour
     void TurnOffAllLights()
     {
         if (pointLight != null) pointLight.enabled = false;
-        if (visionLight != null) visionLight.enabled = false;
+        // Removed Vision disable
         if (focusLight != null) focusLight.enabled = false;
         activeLight = null;
-
-        // --- NEW ---
         IsLightActive = false;
-        // ---------
-
         UpdateCameraClip(offLightFarClip);
-    }
-
-    // --- Lit Object Logic (Detection & Occlusion) ---
-
-    void UpdateLitObjects()
-    {
-        // 1. Get raw candidates via OverlapSphere/Spot
-        Collider[] rawColliders = GetObjectsInLight();
-        HashSet<Collider> validLitSet = new HashSet<Collider>();
-
-        // 2. Filter candidates via Occlusion Raycast
-        if (activeLight != null)
-        {
-            Vector3 lightPos = activeLight.transform.position;
-            
-            foreach (Collider col in rawColliders)
-            {
-                if (col == null) continue;
-
-                // Check Line of Sight
-                if (HasLineOfSight(lightPos, col))
-                {
-                    validLitSet.Add(col);
-                }
-            }
-        }
-
-        // 3. Process Logic (Lit vs Unlit)
         
-        // Handle newly lit objects
-        foreach (Collider col in validLitSet)
+        if (_currentTargetTombstone != null)
         {
-            if (!currentlyLit.Contains(col))
-            {
-                NotifyLit(col, true);
-            }
-            else
-            {
-                // Still lit, drain energy
-                DrainEnergyFrom(col);
-            }
-        }
-
-        foreach (Collider col in currentlyLit)
-        {
-            if (!validLitSet.Contains(col))
-            {
-                NotifyLit(col, false);
-            }
-        }
-
-        currentlyLit = validLitSet;
-    }
-
-    private bool HasLineOfSight(Vector3 origin, Collider target)
-    {
-        Vector3 targetCenter = target.bounds.center;
-        Vector3 direction = targetCenter - origin;
-        float distance = direction.magnitude;
-        
-        if (Physics.Raycast(origin, direction, out RaycastHit hitInfo, distance, obstructionLayer))
-        {
-            return false; 
-        }
-
-        // No wall was hit.
-        return true;
-    }
-
-    void NotifyLit(Collider col, bool isLit)
-    {
-        if (col == null) return;
-        ILitObject litObj = col.GetComponent<ILitObject>();
-        if (litObj != null)
-        {
-            if (isLit) litObj.OnLit();
-            else litObj.OnUnlit();
+            _currentTargetTombstone.OnUnlit();
+            _currentTargetTombstone = null;
         }
     }
-
-    void DrainEnergyFrom(Collider col)
-    {
-        if (col == null) return;
-        TombstoneController tomb = col.GetComponent<TombstoneController>();
-        if (tomb != null) tomb.DrainEnergy(Time.deltaTime);
-    }
-
-    // --- Light Positioning Helpers ---
 
     void UpdateLight(Light light, Vector3 offset, ref Vector3 velocity, bool useCameraRotation, float bob)
     {
         if (light == null) return;
-
-        Vector3 target = player.position +
-            mainCameraTransform.right * offset.x +
-            Vector3.up * (offset.y + bob) +
-            mainCameraTransform.forward * offset.z;
-
+        Vector3 target = player.position + mainCameraTransform.right * offset.x + Vector3.up * (offset.y + bob) + mainCameraTransform.forward * offset.z;
         light.transform.position = Vector3.SmoothDamp(light.transform.position, target, ref velocity, smoothTime);
-
         if (useCameraRotation)
             light.transform.rotation = mainCameraTransform.rotation;
         else
@@ -319,7 +277,7 @@ public class WispMapLightController : MonoBehaviour
     void CacheOriginalSettings()
     {
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
-        if (visionLight != null) { origVisionI = visionLight.intensity; origVisionR = visionLight.range; }
+        // Removed Vision Cache
         if (focusLight != null) { origFocusI = focusLight.intensity; origFocusR = focusLight.range; }
     }
 
@@ -327,48 +285,24 @@ public class WispMapLightController : MonoBehaviour
     {
         rangeFactor = Mathf.Clamp01(rangeFactor);
         intensityFactor = Mathf.Clamp01(intensityFactor);
-
-        if (pointLight != null)
-        {
-            pointLight.range = origPointR * rangeFactor;
-            pointLight.intensity = origPointI * intensityFactor;
-        }
-        if (visionLight != null)
-        {
-            visionLight.range = origVisionR * rangeFactor;
-            visionLight.intensity = origVisionI * intensityFactor;
-        }
-        if (focusLight != null)
-        {
-            focusLight.range = origFocusR * rangeFactor;
-            focusLight.intensity = origFocusI * intensityFactor;
-        }
+        if (pointLight != null) { pointLight.range = origPointR * rangeFactor; pointLight.intensity = origPointI * intensityFactor; }
+        // Removed Vision Dimming
+        if (focusLight != null) { focusLight.range = origFocusR * rangeFactor; focusLight.intensity = origFocusI * intensityFactor; }
     }
-
-    // --- Detection Areas ---
 
     public Collider[] GetObjectsInLight()
     {
-        if (activeLight == null || !activeLight.enabled)
-            return new Collider[0];
-
+        if (activeLight == null || !activeLight.enabled) return new Collider[0];
         float currentRange = activeLight.range;
-
+        
         if (activeLight.type == LightType.Point)
         {
             return Physics.OverlapSphere(activeLight.transform.position, currentRange * 0.7f, detectionLayer);
         }
         else if (activeLight.type == LightType.Spot)
         {
-            return OverlapSpot(
-                activeLight.transform.position,
-                activeLight.transform.forward,
-                currentRange * 0.7f,
-                activeLight.spotAngle,
-                detectionLayer
-            );
+            return OverlapSpot(activeLight.transform.position, activeLight.transform.forward, currentRange * 0.7f, activeLight.spotAngle, detectionLayer);
         }
-
         return new Collider[0];
     }
 
@@ -376,24 +310,16 @@ public class WispMapLightController : MonoBehaviour
     {
         List<Collider> results = new List<Collider>();
         if (range <= 0) return results.ToArray();
-
         Collider[] colliders = Physics.OverlapSphere(origin, range, layerMask);
         float halfAngleRad = angle * 0.5f * Mathf.Deg2Rad;
-
         foreach (Collider col in colliders)
         {
             Vector3 toCollider = col.transform.position - origin;
             if (toCollider.sqrMagnitude > range * range) continue;
-
             toCollider.Normalize();
             float dot = Vector3.Dot(direction, toCollider);
-
-            if (dot >= Mathf.Cos(halfAngleRad))
-            {
-                results.Add(col);
-            }
+            if (dot >= Mathf.Cos(halfAngleRad)) results.Add(col);
         }
-
         return results.ToArray();
     }
 }

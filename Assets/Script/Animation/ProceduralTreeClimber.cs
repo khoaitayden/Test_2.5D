@@ -10,6 +10,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private Transform visualModel;
     [SerializeField] private Animator animator;
     [SerializeField] private MonsterMovement movementController;
+    [SerializeField] private MonsterBrain brain;
 
     [Header("IK Targets")]
     [SerializeField] private Transform leftHandTarget;
@@ -19,11 +20,14 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float lookAheadDist = 5f;
     [SerializeField] private float logicTurnSpeed = 4f;
 
-    [Header("Turn Logic")]
-    [SerializeField] private float sharpTurnThreshold = 75f;
+    [Header("Turn Logic (The Fix)")]
+    [Tooltip("Angle to trigger a sharp turn state.")]
+    [SerializeField] private float sharpTurnThreshold = 65f; // Lowered slightly to catch turns earlier
+    [Tooltip("Stricter angle check specifically during turns.")]
+    [SerializeField] private float turnStressAngle = 60f; 
     [SerializeField] private float turnPauseTime = 0.5f;
-    [SerializeField] private float turnCooldown = 1.5f;
-    [SerializeField] private float turnCrawlSpeed = 0.15f; 
+    [SerializeField] private float turnCooldown = 1.0f;
+    [SerializeField] private float turnCrawlSpeed = 0.1f; 
 
     [Header("Rhythm & Speed")]
     [SerializeField] private float reachSpeedFactor = 0.3f; 
@@ -37,11 +41,15 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float bodySmoothTime = 0.15f;
     [SerializeField] private float maxForwardLean = 45f;
     [SerializeField] private float bodyTwistAmount = 15f;
+    
+    [SerializeField] private float surgeDecaySpeed = 3.0f;
+    [SerializeField] private float bobSmoothingSpeed = 5.0f;
 
     [Header("Player Grabbing")]
     [SerializeField] private LayerMask playerLayer;
     [SerializeField] private float playerGrabHeight = 1.5f; 
     [SerializeField] private bool singleHandOnly = true;
+    [SerializeField] private float grabGracePeriod = 1.0f;
 
     [Header("Hand Settings")]
     [SerializeField] private float handSpeed = 10f;
@@ -50,7 +58,7 @@ public class ProceduralMonsterController : MonoBehaviour
 
     [Header("Triggers")]
     [SerializeField] private float releaseThreshold = 0.1f;
-    [SerializeField] private float maxArmAngle = 100f;
+    [SerializeField] private float maxArmAngle = 100f; // Normal walking angle limit
     [SerializeField] private float crossBodyThreshold = -0.2f;
 
     [Header("Vision")]
@@ -58,6 +66,10 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private float minReachDistance = 2.5f;
     [SerializeField] private float maxReachDistance = 8f;
     [Range(0, 180)] [SerializeField] private float viewAngle = 140f;
+
+    [Header("Rotation smoothing")]
+    public float minRotationSpeed = 2.0f; 
+    public float maxRotationSpeed = 8.0f; 
 
     // --- State ---
     private Vector3 leftHandPos, rightHandPos;
@@ -74,11 +86,12 @@ public class ProceduralMonsterController : MonoBehaviour
     private Vector3 bodyVelocity; 
     private int leftGripHash, rightGripHash;
     private float currentSurge = 0f;
+    private float currentBobY = 0f;
 
     // Jiggle Fixes
-    private float currentYaw = 0f; // Smoothed rotation
-    private float targetYaw = 0f; // Target rotation
-    private bool isLeaningRight = true; // Memory for Hysteresis
+    private float currentYaw = 0f; 
+    private float targetYaw = 0f; 
+    private bool isLeaningRight = true; 
 
     // Turn Logic State
     private float currentTurnTimer = 0f;
@@ -91,11 +104,7 @@ public class ProceduralMonsterController : MonoBehaviour
     private const float DistanceWeight = 2f;
 
     void Start()
-    {
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-        if (animator == null) animator = GetComponentInChildren<Animator>();
-        if (movementController == null) movementController = GetComponent<MonsterMovement>();
-
+    {   
         leftGripHash = Animator.StringToHash("LeftGrip");
         rightGripHash = Animator.StringToHash("RightGrip");
 
@@ -125,20 +134,29 @@ public class ProceduralMonsterController : MonoBehaviour
 
         UpdateStableForward();
 
-        // Turn Pause
+        // --- Turn Pause & Switch Logic ---
         CheckSharpTurn();
         if (currentTurnTimer > 0)
         {
             currentTurnTimer -= Time.deltaTime;
+            
+            // 1. Slow down
             movementController.AnimationSpeedFactor = turnCrawlSpeed;
             currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 10f);
             
+            // 2. FORCE HAND SWITCH during turn
+            if (!isHandMoving)
+            {
+                ForceHandSwitchDuringTurn();
+            }
+
             UpdateBodyPhysics();
             UpdatePlayerHold();
             UpdateIKTargets();
             return; 
         }
         
+        // --- Standard Move Logic ---
         if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
             CheckAndMoveHands();
@@ -163,6 +181,32 @@ public class ProceduralMonsterController : MonoBehaviour
         {
             currentTurnTimer = turnPauseTime;
             lastTurnTimestamp = Time.time;
+        }
+    }
+
+    // --- NEW: LOGIC TO FIX ROTATION STUCK HANDS ---
+    void ForceHandSwitchDuringTurn()
+    {
+        // 1. Calculate turn direction
+        Vector3 toSteering = (agent.steeringTarget - transform.position).normalized;
+        Vector3 cross = Vector3.Cross(transform.forward, toSteering);
+        bool turningRight = cross.y > 0;
+
+        // 2. Identify the "Outer Hand" (The one that gets left behind)
+        // Turning Right -> Left hand is outer.
+        // Turning Left -> Right hand is outer.
+        bool targetIsRight = !turningRight; 
+
+        // 3. Check Angle Stress specifically for the outer hand
+        Vector3 handPos = targetIsRight ? rightHandPos : leftHandPos;
+        Vector3 toHand = handPos - transform.position;
+        float angle = Vector3.Angle(transform.forward, toHand);
+
+        // If the angle is bad (even slightly), FORCE MOVE immediately
+        // We use a tighter threshold (turnStressAngle) than normal walking
+        if (angle > turnStressAngle)
+        {
+            AttemptStep(targetIsRight);
         }
     }
 
@@ -191,18 +235,71 @@ public class ProceduralMonsterController : MonoBehaviour
 
     void CheckAndMoveHands()
     {
-        bool canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
-        bool canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
+        // --- 1. LOGIC GATE: ARE WE ALLOWED TO GRAB? ---
+        bool allowedToGrabPlayer = false;
 
+        if (brain.IsAttacking) 
+        {
+            allowedToGrabPlayer = true;
+        }
+        else if (Time.time - brain.LastTimeSeenPlayer < grabGracePeriod)
+        {
+            if (brain.LastTimeSeenPlayer > 0) allowedToGrabPlayer = true;
+        }
+
+        // STATE LEAK FIX: If not allowed, but still holding, force release.
+        if (!allowedToGrabPlayer)
+        {
+            if (heldPlayerRight != null) heldPlayerRight = null;
+            if (heldPlayerLeft != null) heldPlayerLeft = null;
+        }
+
+        // --- 2. PLAYER GRAB ATTEMPT ---
+        bool canGrabRight = false;
+        bool canGrabLeft = false;
+
+        // Only scan for player if the logic gate passed
+        if (allowedToGrabPlayer)
+        {
+            canGrabRight = heldPlayerRight == null && ScanForPlayer(true) != null;
+            canGrabLeft = heldPlayerLeft == null && ScanForPlayer(false) != null;
+        }
+
+        // (Code from here is new/updated)
+        
+        // Don't grab if a single hand is already holding (if configured)
         if (singleHandOnly && (heldPlayerRight != null || heldPlayerLeft != null))
         {
             canGrabRight = false;
             canGrabLeft = false;
         }
+        
+        // --- TURN ORDER FIX: ENFORCE ALTERNATING GRABS ---
+        // If both hands are valid targets, only allow the one whose turn it is.
+        if (canGrabRight && canGrabLeft)
+        {
+            if (isLeaningRight) // Assuming isLeaningRight tracks the "next" hand to move
+                canGrabLeft = false;
+            else
+                canGrabRight = false;
+        }
 
-        if (canGrabRight) { StartCoroutine(SwingHand(true, null, ScanForPlayer(true))); return; }
-        if (canGrabLeft) { StartCoroutine(SwingHand(false, null, ScanForPlayer(false))); return; }
+        // Execute Player Grab if possible
+        if (canGrabRight) 
+        {
+            StartCoroutine(SwingHand(true, null, ScanForPlayer(true)));
+            isLeaningRight = !isLeaningRight; // Swap turn
+            return; 
+        }
+        if (canGrabLeft) 
+        {
+            StartCoroutine(SwingHand(false, null, ScanForPlayer(false)));
+            isLeaningRight = !isLeaningRight; // Swap turn
+            return;
+        }
 
+        // --- 3. STANDARD TREE CLIMBING (If player grab failed/invalid) ---
+        // Don't move a hand if it's currently holding a player
         bool rightStressed = (heldPlayerRight == null) && IsHandStressed(true);
         bool leftStressed = (heldPlayerLeft == null) && IsHandStressed(false);
 
@@ -216,8 +313,6 @@ public class ProceduralMonsterController : MonoBehaviour
         else if (leftStressed) AttemptStep(false);
     }
 
-    // ... (ScanForPlayer, AttemptStep, FindBestTree, SwingHand are unchanged from previous working version) ...
-    // Included below for completeness/copy-paste ease
     Transform ScanForPlayer(bool isRightHand)
     {
         Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.5f);
@@ -265,16 +360,24 @@ public class ProceduralMonsterController : MonoBehaviour
         return bestTree;
     }
 
-    IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer) {
+    IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer)
+    {
         isHandMoving = true;
+
         Vector3 startPos = isRight ? rightHandPos : leftHandPos;
         Quaternion startRot = isRight ? rightHandRot : leftHandRot;
+
         Vector3 finalPos = Vector3.zero;
         Quaternion finalRot = Quaternion.identity;
-        if (targetPlayer != null) {
+
+        // --- SETUP TARGET ---
+        if (targetPlayer != null)
+        {
             finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
             finalRot = Quaternion.LookRotation((finalPos - transform.position).normalized, Vector3.up);
-        } else {
+        }
+        else
+        {
             Vector3 targetCenter = targetTree.bounds.center;
             Vector3 dirToTree = (targetCenter - transform.position).normalized;
             finalPos = targetCenter;
@@ -283,40 +386,77 @@ public class ProceduralMonsterController : MonoBehaviour
             if (targetTree.Raycast(ray, out RaycastHit hit, 20f)) { finalPos = hit.point; surfaceNormal = hit.normal; }
             finalRot = Quaternion.LookRotation(-surfaceNormal, transform.up);
         }
+
         Vector3 midPoint = (startPos + finalPos) * 0.5f;
         Vector3 sideOffset = (isRight ? transform.right : -transform.right) * swingOutward;
         Vector3 controlPoint = midPoint + Vector3.up * swingArcHeight + sideOffset;
+
         float totalDist = Vector3.Distance(startPos, finalPos);
         float elapsed = 0f;
         int currentGripHash = isRight ? rightGripHash : leftGripHash;
-        while (elapsed <= totalDist) {
+        
+        while (elapsed <= totalDist)
+        {
             float dynamicSpeed = Mathf.Max(handSpeed, agent.velocity.magnitude * 3f);
             elapsed += Time.deltaTime * dynamicSpeed;
             float t = Mathf.Clamp01(elapsed / totalDist);
-            float smoothT = t * t * (3f - 2f * t); 
+            float smoothT = t * t * (3f - 2f * t);
+
+            // Physics: Slow down agent while reaching
             movementController.AnimationSpeedFactor = Mathf.Lerp(movementController.AnimationSpeedFactor, reachSpeedFactor, Time.deltaTime * 10f);
+            
+            // Grip Animation
             float gripVal = 0f;
             if (t < 0.2f) gripVal = 1f - (t / 0.2f);
             else if (t > 0.8f) gripVal = (t - 0.8f) / 0.2f;
             animator.SetFloat(currentGripHash, gripVal);
-            if (targetPlayer != null) finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+
+            // --- GRAB FAIL & TRACKING LOGIC ---
+            if (targetPlayer != null)
+            {
+                // Update finalPos to chase the moving player
+                finalPos = targetPlayer.position + Vector3.up * playerGrabHeight;
+
+                // If player gets too far away, ABORT.
+                // Add +2m buffer to max reach distance
+                if (Vector3.Distance(transform.position, finalPos) > maxReachDistance + 2.0f)
+                {
+                    // Open hand and exit
+                    animator.SetFloat(currentGripHash, 0f);
+                    isHandMoving = false;
+                    yield break; // ABORT GRAB
+                }
+            }
+            
+            // Bezier Move
             float u = 1f - smoothT;
             Vector3 pos = u * u * startPos + 2f * u * smoothT * controlPoint + smoothT * smoothT * finalPos;
+
             if (isRight) { rightHandPos = pos; rightHandRot = Quaternion.Slerp(startRot, finalRot, smoothT); }
             else         { leftHandPos = pos;  leftHandRot = Quaternion.Slerp(startRot, finalRot, smoothT); }
+
             if (t >= 1.0f) break;
             yield return null;
         }
+
+        // --- FINALIZE & LOCK ---
         animator.SetFloat(currentGripHash, 1f);
-        if (isRight) {
+
+        if (isRight)
+        {
             if (targetPlayer != null) { heldPlayerRight = targetPlayer; rightTreeCollider = null; }
             else { rightTreeCollider = targetTree; rightHandPos = finalPos; rightHandRot = finalRot; }
-        } else {
+        }
+        else
+        {
             if (targetPlayer != null) { heldPlayerLeft = targetPlayer; leftTreeCollider = null; }
             else { leftTreeCollider = targetTree; leftHandPos = finalPos; leftHandRot = finalRot; }
         }
+
+        // Physics: Trigger Surge
         movementController.AnimationSpeedFactor = pullSpeedFactor;
-        currentSurge = 1.0f; 
+        currentSurge = 1.0f;
+
         isHandMoving = false;
     }
 
@@ -358,61 +498,44 @@ public class ProceduralMonsterController : MonoBehaviour
     void UpdateBodyPhysics()
     {
         if (visualModel == null) return;
-
-        // Position Logic (Same as before)
         Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
         Vector3 targetWorldPos = handCenter;
         if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
-        currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 3f);
+        currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * surgeDecaySpeed);
         targetWorldPos += transform.forward * currentSurge;
         float speedFactor = movementController.AnimationSpeedFactor;
         float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
-        targetWorldPos.y += Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        float targetBob = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        currentBobY = Mathf.Lerp(currentBobY, targetBob, Time.deltaTime * bobSmoothingSpeed);
+        targetWorldPos.y += currentBobY;
         Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
         targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
         visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
-
-        // --- THE JIGGLE FIX: ROTATION HYSTERESIS ---
         float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
         float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
-
         Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
         Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        
-        // Hysteresis: Only flip the twist if the difference is significant (> 0.2)
-        // This stops the 1-frame flickering when hands are parallel
-        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true;
-        else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
-        // If they are within 0.2 of each other, keep previous state (Memory)
-
+        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true; else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
         targetYaw = isLeaningRight ? bodyTwistAmount : -bodyTwistAmount;
-        
-        // Smooth the Yaw value itself first
         currentYaw = Mathf.Lerp(currentYaw, targetYaw, Time.deltaTime * 3f);
-
         Vector3 moveDir = agent.velocity;
         if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        
+        float angleDiff = Vector3.Angle(visualModel.forward, moveDir);
+        float rotationSpeed = Mathf.Lerp(maxRotationSpeed, minRotationSpeed, angleDiff / 90f);
         Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
         Quaternion offsetRot = Quaternion.Euler(targetPitch, currentYaw, 0);
-
-        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * 6f);
+        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * rotationSpeed);
     }
 
     void UpdateIKTargets()
     {
-        // FIX: Micro-Smoothing to prevent frame-perfect jitter
-        // Instead of setting position instantly, we lerp it very fast (50f)
-        // This effectively "V-Syncs" the hand to the transform
-        if (leftHandTarget != null) 
-        {
-            leftHandTarget.position = Vector3.Lerp(leftHandTarget.position, leftHandPos, Time.deltaTime * 60f);
-            leftHandTarget.rotation = Quaternion.Lerp(leftHandTarget.rotation, leftHandRot, Time.deltaTime * 60f);
+        if (leftHandTarget != null) {
+            leftHandTarget.position = leftHandPos;
+            leftHandTarget.rotation = leftHandRot;
         }
-        if (rightHandTarget != null)
-        {
-            rightHandTarget.position = Vector3.Lerp(rightHandTarget.position, rightHandPos, Time.deltaTime * 60f);
-            rightHandTarget.rotation = Quaternion.Lerp(rightHandTarget.rotation, rightHandRot, Time.deltaTime * 60f);
+        if (rightHandTarget != null) {
+            rightHandTarget.position = rightHandPos;
+            rightHandTarget.rotation = rightHandRot;
         }
     }
 }

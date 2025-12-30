@@ -87,14 +87,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
             return;
         }
         
-        // Check if player is at max energy - stop emitting particles
-        var manager = FindFirstObjectByType<LightEnergyManager>();
-        if (manager != null && manager.CurrentEnergy >= 0.95f)
-        {
-            StopTransferParticles();
-            return;
-        }
-        
         // Keep particles playing if there's energy
         if (currentEnergy > 0f)
         {

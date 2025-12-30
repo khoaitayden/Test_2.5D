@@ -9,8 +9,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         [SerializeField] private NavMeshAgent agent;
         [SerializeField] private float stuckTimeout = 1.0f;
 
-        // --- NEW: Connection to Climber ---
-        // This allows the animation to throttle the speed
         public float AnimationSpeedFactor { get; set; } = 1.0f; 
 
         // State
@@ -18,23 +16,20 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         private bool isChaseMode;
         private Transform chaseTarget;
         private float pathSetTime;
+        private MonsterConfig config;
         
-        // Store the speed requested by GOAP so we can modify it
         private float targetSpeed; 
-
+    
         private void Awake()
         {
             if (agent == null) agent = GetComponent<NavMeshAgent>();
+            config = GetComponent<MonsterConfig>();
             agent.autoBraking = false; 
             agent.autoRepath = true;
         }
 
         private void Update()
         {
-            // --- NEW: Apply Rhythm ---
-            // We multiply the GOAP desired speed by the Animation Factor (0 to 1)
-            // If the climber says "Reach", factor is 0, agent stops.
-            // If climber says "Pull", factor is 1, agent moves.
             agent.speed = targetSpeed * AnimationSpeedFactor;
 
             // Chase Logic
@@ -45,7 +40,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
 
             // Stuck Logic
-            // Note: We check if factor > 0.1 to avoid detecting "Stuck" when we are just pausing for animation
             if (agent.hasPath && !agent.isStopped && AnimationSpeedFactor > 0.1f)
             {
                 if (agent.velocity.sqrMagnitude < 0.1f) standStillTimer += Time.deltaTime;
@@ -57,38 +51,77 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
         }
 
-        public bool MoveTo(Vector3 position, float speed, float stopDist)
+        public bool MoveTo(Vector3 targetPos, float speed)
         {
             isChaseMode = false;
             chaseTarget = null;
             standStillTimer = 0f;
             pathSetTime = Time.time;
-
-            targetSpeed = speed; // Store desired speed
-            agent.stoppingDistance = stopDist; 
+            targetSpeed = speed;
             agent.isStopped = false;
-            
-            // Reset factor so we start moving immediately
-            AnimationSpeedFactor = 1.0f; 
+            AnimationSpeedFactor = 1.0f;
 
-            if (NavMesh.SamplePosition(position, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+            Vector3 finalDestination = targetPos;
+            bool foundValidPoint = false;
+
+            // --- 1. FIND VALID NAVMESH POINT (Iterative Fallback) ---
+            // Try increasing radii to ensure we find SOMETHING valid.
+            // 5m -> Snap Radius -> Fallback Radius -> 50m Panic Search
+            float[] searchRadii = new float[] { 
+                5.0f, 
+                config != null ? config.traceNavMeshSnapRadius : 10f, 
+                config != null ? config.traceNavMeshFallbackRadius : 20f,
+                50.0f 
+            };
+
+            NavMeshHit hit;
+            for (int i = 0; i < searchRadii.Length; i++)
             {
-                NavMeshPath path = new NavMeshPath();
-                agent.CalculatePath(hit.position, path);
-
-                if (path.status == NavMeshPathStatus.PathPartial)
+                if (NavMesh.SamplePosition(targetPos, out hit, searchRadii[i], NavMesh.AllAreas))
                 {
-                    if (path.corners.Length > 0)
-                    {
-                        agent.SetDestination(path.corners[path.corners.Length - 1]);
-                        return true;
-                    }
+                    finalDestination = hit.position;
+                    foundValidPoint = true;
+                    break;
                 }
-                return agent.SetDestination(hit.position);
             }
 
-            agent.ResetPath();
-            return false;
+            if (!foundValidPoint)
+            {
+                // Panic: Point is completely off the map (e.g. infinite void)
+                // Just stay here or return failure.
+                Debug.LogWarning("[MonsterMovement] Target is completely unreachable/off-mesh.");
+                agent.ResetPath();
+                return false; 
+            }
+
+            // --- 2. CHECK REACHABILITY (Wall Hugging) ---
+            NavMeshPath path = new NavMeshPath();
+            agent.CalculatePath(finalDestination, path);
+
+            if (path.status == NavMeshPathStatus.PathInvalid)
+            {
+                agent.ResetPath();
+                return false;
+            }
+
+            // If path is PARTIAL (blocked by wall/door), go to the last reachable point
+            if (path.status == NavMeshPathStatus.PathPartial)
+            {
+                // The corners array contains the path points. The last one is the furthest reachable point.
+                if (path.corners.Length > 0)
+                {
+                    finalDestination = path.corners[path.corners.Length - 1];
+                }
+            }
+
+            // --- 3. EXECUTE ---
+            // Optional: Don't move if we are already practically there (prevents spinning)
+            if (Vector3.Distance(transform.position, finalDestination) < 1.0f)
+            {
+                return false;
+            }
+
+            return agent.SetDestination(finalDestination);
         }
 
         public void Chase(Transform target, float speed)
@@ -102,7 +135,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             pathSetTime = Time.time;
 
             targetSpeed = speed; // Store desired speed
-            agent.stoppingDistance = 0.5f; 
             agent.isStopped = false;
             agent.SetDestination(target.position);
         }
@@ -122,9 +154,11 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             if (standStillTimer > stuckTimeout) return true;
             if (agent.remainingDistance <= agent.stoppingDistance) return true;
 
+            // Important: If we hit a wall (Partial Path), we count that as "Arrived"
+            // This prevents the monster from running into the wall forever.
             if (agent.pathStatus == NavMeshPathStatus.PathPartial)
             {
-                if (agent.remainingDistance < 1.0f) return true;
+                if (agent.remainingDistance < 2.0f) return true;
             }
 
             return false;

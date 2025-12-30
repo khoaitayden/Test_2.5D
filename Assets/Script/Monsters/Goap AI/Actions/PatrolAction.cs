@@ -21,7 +21,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
-                movement.MoveTo(data.Target.Position, config.patrolSpeed, config.stoppingDistance);
+                movement.MoveTo(data.Target.Position, config.patrolSpeed);
             }
         }
 

@@ -59,7 +59,6 @@ public class PlayerController : MonoBehaviour
     private bool isInteractionLocked; 
     private bool isClimbing;
     private bool isEnteringLadder;
-    private bool isLaunchingFromLadder; 
 
     // Ladder Reference
     private Ladder nearbyLadder;

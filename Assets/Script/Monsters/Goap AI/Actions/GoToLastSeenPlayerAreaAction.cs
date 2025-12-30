@@ -24,7 +24,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (data.Target != null)
             {
                 // Try to move
-                bool success = movement.MoveTo(data.Target.Position, config.investigateSpeed, config.stoppingDistance);
+                bool success = movement.MoveTo(data.Target.Position, config.investigateSpeed);
                 
                 if (!success)
                 {
