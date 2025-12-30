@@ -5158,5 +5158,5 @@ MonoBehaviour:
   triggerLayers:
     serializedVersion: 2
     m_Bits: 64
-  checkRadius: 0.05
+  checkRadius: 0.01
   energyPerParticle: 0.2
