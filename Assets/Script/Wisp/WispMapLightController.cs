@@ -11,7 +11,7 @@ public class WispMapLightController : MonoBehaviour
     [Header("Cinemachine Settings")]
     [SerializeField] private CinemachineCamera virtualCamera;
     [SerializeField] private float pointLightFarClip = 40f;
-    [SerializeField] private float visionLightFarClip = 100f;
+    // Removed VisionLightFarClip
     [SerializeField] private float focusLightFarClip = 60f;
     [SerializeField] private float offLightFarClip = 15f;
     
@@ -22,8 +22,7 @@ public class WispMapLightController : MonoBehaviour
     [SerializeField] private Light pointLight;
     [SerializeField] private Vector3 pointLightOffset = new Vector3(1.5f, 2.5f, -2.0f);
 
-    [SerializeField] private Light visionLight;
-    [SerializeField] private Vector3 visionLightOffset = new Vector3(0f, 1.8f, -1.0f);
+    // Removed Vision Light Variables
 
     [SerializeField] private Light focusLight;
     [SerializeField] private Vector3 focusLightOffset = new Vector3(0f, 1.6f, -0.5f);
@@ -41,13 +40,17 @@ public class WispMapLightController : MonoBehaviour
 
     // --- Private State Variables ---
     private float origPointI, origPointR;
-    private float origVisionI, origVisionR;
+    // Removed origVision vars
     private float origFocusI, origFocusR;
+    
     private Vector3 pointVel = Vector3.zero;
-    private Vector3 visionVel = Vector3.zero;
+    // Removed visionVel
     private Vector3 focusVel = Vector3.zero;
-    private enum LightMode { Point, Vision, Focus }
+    
+    // Updated Enum to only have Point and Focus
+    private enum LightMode { Point, Focus }
     private LightMode currentMode = LightMode.Point;
+    
     private Light activeLight;
     private TombstoneController _currentTargetTombstone;
     private bool isSystemPoweredOn = true;
@@ -90,30 +93,25 @@ public class WispMapLightController : MonoBehaviour
     {
         if (player == null || mainCameraTransform == null) return;
         float bob = Mathf.Sin(Time.time * floatSpeed) * floatStrength;
+        
         UpdateLight(pointLight, pointLightOffset, ref pointVel, false, bob);
-        UpdateLight(visionLight, visionLightOffset, ref visionVel, true, bob);
+        // Removed Vision Update
         UpdateLight(focusLight, focusLightOffset, ref focusVel, true, bob);
     }
 
     // --- MASTER LOGIC METHOD ---
     private void UpdateTombstoneTargeting()
     {
-        // 1. Find all potential targets in the light
         HashSet<TombstoneController> potentialTargets = GetVisibleTombstones();
-
-        // 2. Find the single best target from that list (the closest one to the PLAYER)
         TombstoneController bestTarget = FindClosestTombstoneToPlayer(potentialTargets);
 
-        // 3. Manage State: Is the best target different from our current target?
         if (bestTarget != _currentTargetTombstone)
         {
-            // Deactivate the old target
             if (_currentTargetTombstone != null)
             {
                 _currentTargetTombstone.OnUnlit();
             }
 
-            // Activate the new target
             _currentTargetTombstone = bestTarget;
             if (_currentTargetTombstone != null)
             {
@@ -121,18 +119,14 @@ public class WispMapLightController : MonoBehaviour
             }
         }
         
-        // 4. Drain Logic: Only drain if there is a valid target
         if (_currentTargetTombstone != null)
         {
-            // Check if player needs energy
             if (LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy < energyThresholdBeforeCollect)
             {
-                // Tell the active target to drain (this just starts particles)
                 _currentTargetTombstone.DrainEnergy(Time.deltaTime);
             }
             else
             {
-                // Player is full, tell the target to stop particles even if lit
                 _currentTargetTombstone.OnUnlit();
             }
         }
@@ -194,7 +188,8 @@ public class WispMapLightController : MonoBehaviour
     void CycleLightMode()
     {
         if (!isSystemPoweredOn) return;
-        currentMode = (LightMode)(((int)currentMode + 1) % 3);
+        // Modulo 2 since we only have Point and Focus now
+        currentMode = (LightMode)(((int)currentMode + 1) % 2);
         ApplyLightMode();
     }
 
@@ -244,10 +239,7 @@ public class WispMapLightController : MonoBehaviour
                 if (pointLight != null) { pointLight.enabled = true; activeLight = pointLight; }
                 UpdateCameraClip(pointLightFarClip);
                 break;
-            case LightMode.Vision:
-                if (visionLight != null) { visionLight.enabled = true; activeLight = visionLight; }
-                UpdateCameraClip(visionLightFarClip);
-                break;
+            // Removed Vision Case
             case LightMode.Focus:
                 if (focusLight != null) { focusLight.enabled = true; activeLight = focusLight; }
                 UpdateCameraClip(focusLightFarClip);
@@ -258,12 +250,12 @@ public class WispMapLightController : MonoBehaviour
     void TurnOffAllLights()
     {
         if (pointLight != null) pointLight.enabled = false;
-        if (visionLight != null) visionLight.enabled = false;
+        // Removed Vision disable
         if (focusLight != null) focusLight.enabled = false;
         activeLight = null;
         IsLightActive = false;
         UpdateCameraClip(offLightFarClip);
-        // Ensure we stop targeting when the light goes off
+        
         if (_currentTargetTombstone != null)
         {
             _currentTargetTombstone.OnUnlit();
@@ -285,7 +277,7 @@ public class WispMapLightController : MonoBehaviour
     void CacheOriginalSettings()
     {
         if (pointLight != null) { origPointI = pointLight.intensity; origPointR = pointLight.range; }
-        if (visionLight != null) { origVisionI = visionLight.intensity; origVisionR = visionLight.range; }
+        // Removed Vision Cache
         if (focusLight != null) { origFocusI = focusLight.intensity; origFocusR = focusLight.range; }
     }
 
@@ -294,7 +286,7 @@ public class WispMapLightController : MonoBehaviour
         rangeFactor = Mathf.Clamp01(rangeFactor);
         intensityFactor = Mathf.Clamp01(intensityFactor);
         if (pointLight != null) { pointLight.range = origPointR * rangeFactor; pointLight.intensity = origPointI * intensityFactor; }
-        if (visionLight != null) { visionLight.range = origVisionR * rangeFactor; visionLight.intensity = origVisionI * intensityFactor; }
+        // Removed Vision Dimming
         if (focusLight != null) { focusLight.range = origFocusR * rangeFactor; focusLight.intensity = origFocusI * intensityFactor; }
     }
 
@@ -302,6 +294,7 @@ public class WispMapLightController : MonoBehaviour
     {
         if (activeLight == null || !activeLight.enabled) return new Collider[0];
         float currentRange = activeLight.range;
+        
         if (activeLight.type == LightType.Point)
         {
             return Physics.OverlapSphere(activeLight.transform.position, currentRange * 0.7f, detectionLayer);
