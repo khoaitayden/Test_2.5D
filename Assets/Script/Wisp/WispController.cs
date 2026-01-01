@@ -33,6 +33,11 @@ public class WispController : MonoBehaviour
     [SerializeField] private float maxGlowIntensity = 2f;
     [SerializeField] private float minGlowIntensity = 0.5f;
 
+    [Header("Audio")]
+    [SerializeField] private SoundDefinition wispLoopDef;
+    private AudioSource _audioSource;
+    private float _baseVolume;
+
     private Vector3 currentVelocity = Vector3.zero;
     private float orbitAngle;
     
@@ -56,6 +61,14 @@ public class WispController : MonoBehaviour
             float factor = LightEnergyManager.Instance.GetIntensityFactor();
             float baseGlow = Mathf.Lerp(minGlowIntensity, maxGlowIntensity, factor);
             innerGlowLight.intensity = baseGlow;
+        }
+
+        if (SoundManager.Instance != null && wispLoopDef != null)
+        {
+            // Create the loop
+            _audioSource = SoundManager.Instance.CreateLoop(wispLoopDef, this.transform);
+            // Remember the volume set in the ScriptableObject
+            _baseVolume = wispLoopDef.volume; 
         }
     }
 
@@ -138,23 +151,37 @@ public class WispController : MonoBehaviour
         }
 
         // --- 9. Inner Glow Logic ---
-        UpdateGlow();
+        UpdateEffects();
+    }
+    void OnDisable()
+    {
+        if (_audioSource != null) _audioSource.Stop();
     }
 
-    private void UpdateGlow()
+    private void UpdateEffects()
     {
-        if (innerGlowLight != null && LightEnergyManager.Instance != null)
-        {
-            // Pulsation noise
-            float noise1 = Mathf.PerlinNoise(Time.time * 0.7f, 0f);
-            float noise2 = Mathf.PerlinNoise(Time.time * 3.1f, 100f);
-            float noise3 = Mathf.PerlinNoise(Time.time * 10f, 200f) * 0.3f;
-            float pulse = Mathf.Clamp01(noise1 * 0.5f + noise2 * 0.4f + noise3 * 0.1f);
+        if (LightEnergyManager.Instance == null) return;
 
-            // Apply global energy
-            float energyFactor = LightEnergyManager.Instance.GetIntensityFactor();
-            float glow = Mathf.Lerp(minGlowIntensity, maxGlowIntensity, pulse * energyFactor);
-            innerGlowLight.intensity = glow;
+        // Get the global energy factor (0.0 to 1.0)
+        float energyFactor = LightEnergyManager.Instance.GetIntensityFactor();
+
+        // 1. Handle Light (Existing logic)
+        if (innerGlowLight != null)
+        {
+            float noise = Mathf.PerlinNoise(Time.time * 2f, 0f);
+            float pulse = Mathf.Lerp(0.8f, 1.2f, noise);
+            // Fade intensity based on energy
+            innerGlowLight.intensity = Mathf.Lerp(minGlowIntensity, maxGlowIntensity, energyFactor) * pulse;
+        }
+
+        // 2. Handle Audio Volume (New logic)
+        if (_audioSource != null)
+        {
+            // If energy is 1, volume is max. If energy is 0, volume is 0.
+            _audioSource.volume = _baseVolume * energyFactor;
+            
+            // Optional: Pitch shift slightly as it dies (sounds cool)
+            _audioSource.pitch = Mathf.Lerp(0.5f, 1.0f, energyFactor);
         }
     }
 }
