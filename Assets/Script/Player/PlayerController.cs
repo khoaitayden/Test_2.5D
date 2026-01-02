@@ -45,6 +45,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerAnimation playerAnimation;
     [SerializeField] private UIManager uIManager;
     [SerializeField] private WispMapLightController wispController;
+    [SerializeField] private PlayerAudio playerAudio;
     
     private CharacterController controller;
     private Vector3 velocity;
@@ -69,7 +70,7 @@ public class PlayerController : MonoBehaviour
     public bool IsInteractionLocked => isInteractionLocked;
     public bool IsClimbing => isClimbing;
     public bool IsEnteringLadder => isEnteringLadder;
-
+    public bool IsGrounded => isGrounded;
     public bool IsSlowWalking => InputManager.Instance.IsSlowWalking;
     public bool IsSprinting => InputManager.Instance.IsSprinting;
     
@@ -186,6 +187,7 @@ public class PlayerController : MonoBehaviour
             particleController?.PlayLandEffect(fallIntensity);
             particleController?.ToggleTrail(isGrounded, IsSlowWalking);
             playerAnimation?.Land();
+            playerAudio?.PlayLand(fallIntensity);
         }
         HandleEnergyDrain();
         wasGrounded = isGrounded;
@@ -341,6 +343,7 @@ public class PlayerController : MonoBehaviour
             particleController?.PlayJumpEffect();
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             playerAnimation?.Jump();
+            playerAudio?.PlayJump();
             jumpRequest = false; 
         }
 

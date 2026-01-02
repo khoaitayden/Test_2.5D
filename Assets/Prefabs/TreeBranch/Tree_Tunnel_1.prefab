@@ -73,6 +73,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 69d0390995f4abe4bb22454ee88fac86, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1092012407099617824}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 69d0390995f4abe4bb22454ee88fac86, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -3407632217856271833}
   m_SourcePrefab: {fileID: 100100000, guid: 69d0390995f4abe4bb22454ee88fac86, type: 3}
 --- !u!1 &3282671448839007066 stripped
 GameObject:
@@ -137,3 +140,16 @@ MonoBehaviour:
   tripDuration: 0.5
   walkSlowFactor: 0.7
   slowDuration: 1
+--- !u!114 &-3407632217856271833
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3282671448839007066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f46e1981e9ee43029168efc87e8aa35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SurfaceIdentifier
+  type: 5
