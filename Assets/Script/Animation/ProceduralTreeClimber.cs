@@ -70,6 +70,9 @@ public class ProceduralMonsterController : MonoBehaviour
     [Header("Rotation smoothing")]
     public float minRotationSpeed = 2.0f; 
     public float maxRotationSpeed = 8.0f; 
+    [Header("Audio")]
+    [SerializeField] private SoundDefinition sfx_TreeGrab;
+    [SerializeField] private SoundDefinition sfx_PlayerGrab;
 
     // --- State ---
     private Vector3 leftHandPos, rightHandPos;
@@ -444,13 +447,47 @@ public class ProceduralMonsterController : MonoBehaviour
 
         if (isRight)
         {
-            if (targetPlayer != null) { heldPlayerRight = targetPlayer; rightTreeCollider = null; }
-            else { rightTreeCollider = targetTree; rightHandPos = finalPos; rightHandRot = finalRot; }
+            if (targetPlayer != null) 
+            { 
+                heldPlayerRight = targetPlayer; 
+                rightTreeCollider = null; 
+                
+                // Play Player Grab Sound
+                if (SoundManager.Instance != null && sfx_PlayerGrab != null)
+                    SoundManager.Instance.PlaySound(sfx_PlayerGrab, finalPos);
+            }
+            else 
+            { 
+                rightTreeCollider = targetTree; 
+                rightHandPos = finalPos; 
+                rightHandRot = finalRot; 
+
+                // --- ADDED: Play Tree Grab Sound ---
+                if (SoundManager.Instance != null && sfx_TreeGrab != null)
+                    SoundManager.Instance.PlaySound(sfx_TreeGrab, finalPos);
+            }
         }
-        else
+        else // Left Hand
         {
-            if (targetPlayer != null) { heldPlayerLeft = targetPlayer; leftTreeCollider = null; }
-            else { leftTreeCollider = targetTree; leftHandPos = finalPos; leftHandRot = finalRot; }
+            if (targetPlayer != null) 
+            { 
+                heldPlayerLeft = targetPlayer; 
+                leftTreeCollider = null; 
+
+                // Play Player Grab Sound
+                if (SoundManager.Instance != null && sfx_PlayerGrab != null)
+                    SoundManager.Instance.PlaySound(sfx_PlayerGrab, finalPos);
+            }
+            else 
+            { 
+                leftTreeCollider = targetTree; 
+                leftHandPos = finalPos; 
+                leftHandRot = finalRot; 
+
+                // --- ADDED: Play Tree Grab Sound ---
+                if (SoundManager.Instance != null && sfx_TreeGrab != null)
+                    SoundManager.Instance.PlaySound(sfx_TreeGrab, finalPos);
+            }
         }
 
         // Physics: Trigger Surge
