@@ -1,99 +1,176 @@
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerController))]
 public class PlayerAudio : MonoBehaviour
 {
-    [Header("Ref")]
-    [SerializeField] private PlayerController player;
-    [SerializeField] private Transform feetPos;
+    [Header("References")]
+    [SerializeField] private PlayerController playerController;
+    [SerializeField] private CharacterController characterController;
+    [SerializeField] private Transform feetPosition;
 
-    [Header("Surface Sounds")]
-    [SerializeField] private SoundDefinition stepGrass;
-    [SerializeField] private SoundDefinition stepWood; // Tree branches
-    [SerializeField] private SoundDefinition stepStone; // House/Concrete
-    [SerializeField] private SoundDefinition jumpSound;
-    [SerializeField] private SoundDefinition landSound;
+    [Header("Step Settings")]
+    [Tooltip("Distance traveled before playing a step when walking.")]
+    [SerializeField] private float strideWalk = 0.5f;
+    [Tooltip("Distance traveled before playing a step when sprinting.")]
+    [SerializeField] private float strideSprint = 0.8f;
+    [SerializeField] private float velocityThreshold = 0.1f;
 
-    [Header("Settings")]
-    [SerializeField] private float stepStrideWalk = 0.5f;
-    [SerializeField] private float stepStrideSprint = 0.9f;
+    [Header("Sound Definitions")]
+    [SerializeField] private SoundDefinition sfx_GenericDirt;
+    [SerializeField] private SoundDefinition sfx_Grass;
+    [SerializeField] private SoundDefinition sfx_Stone;
+    [SerializeField] private SoundDefinition sfx_Wood;
+    [SerializeField] private SoundDefinition sfx_TreeBranch;
+    [SerializeField] private SoundDefinition sfx_Log;
+    
+    [Space(10)]
+    [SerializeField] private SoundDefinition sfx_Jump;
+    [SerializeField] private SoundDefinition sfx_Land;
 
-    private float distanceTraveled;
+    private float _distanceTraveled;
+    private bool _isMoving;
 
-    void Update()
+    private void Start()
     {
-        HandleFootsteps();
+        if (playerController == null) playerController = GetComponent<PlayerController>();
+        if (characterController == null) characterController = GetComponent<CharacterController>();
     }
 
-    // Call this from PlayerController.HandleJumpTrigger
-    public void PlayJump() => SoundManager.Instance.PlaySound(jumpSound, transform.position);
-
-    // Call this from PlayerController Update (Landing logic)
-    public void PlayLand(float intensity) => SoundManager.Instance.PlaySound(landSound, transform.position, 1f + (intensity/10f));
-
-    private void HandleFootsteps()
+    // --- NEW: IMMEDIATE TRIGGER LOGIC ---
+    // This fires the moment the player's collider touches the Branch/Log Trigger
+    private void OnTriggerEnter(Collider other)
     {
-        // 1. Check if moving and grounded
-        if (player.IsDead || player.IsClimbing || player.IsInteractionLocked) return;
+        // 1. Check if the object has a Surface Identifier
+        SurfaceIdentifier surface = other.GetComponent<SurfaceIdentifier>();
         
-        // Use CharacterController velocity (assuming PlayerController has GetComponent<CharacterController> public or check velocity)
-        // Since PlayerController calculation is private, we estimate via input or expose Velocity. 
-        // Let's assume we can get magnitude:
-        float speed = player.WorldSpaceMoveDirection.magnitude > 0.1f ? (player.IsSprinting ? 6f : 3f) : 0f;
-
-        if (speed < 0.1f) { distanceTraveled = 0; return; }
-
-        float stride = player.IsSprinting ? stepStrideSprint : stepStrideWalk;
-        distanceTraveled += speed * Time.deltaTime;
-
-        if (distanceTraveled >= stride)
+        if (surface != null)
         {
-            PlayStep();
-            distanceTraveled = 0;
+            // 2. Only force play for "Single Event" items (Branches and Logs)
+            // We don't want this for big floors (Wood/Stone) or we'd hear a step just by standing near a wall
+            if (surface.type == SurfaceType.TreeBranch || surface.type == SurfaceType.Log)
+            {
+                SoundDefinition soundToPlay = GetSoundForSurfaceType(surface.type);
+                PlaySoundInternal(soundToPlay);
+
+                // 3. Reset distance so we don't play a "Stride" step immediately after this
+                _distanceTraveled = 0f;
+            }
         }
     }
 
-    private void PlayStep()
+    private void Update()
     {
-        // 2. Raycast to find surface
+        if (playerController == null) return;
+
+        if (playerController.IsDead || playerController.IsClimbing || !playerController.IsGrounded) 
+        {
+            _distanceTraveled = 0f;
+            return;
+        }
+
+        HandleStrideFootsteps();
+    }
+
+    // --- Public API ---
+    public void PlayJump() => PlaySoundInternal(sfx_Jump);
+    
+    public void PlayLand(float fallIntensity)
+    {
+        if (SoundManager.Instance != null && sfx_Land != null)
+        {
+            float volMod = Mathf.Clamp(fallIntensity / 5f, 0.8f, 1.5f);
+            SoundManager.Instance.PlaySound(sfx_Land, transform.position, volMod);
+        }
+    }
+
+    // --- Internal Logic ---
+
+    private void HandleStrideFootsteps()
+    {
+        Vector3 horizontalVel = characterController.velocity;
+        horizontalVel.y = 0;
+        float speed = horizontalVel.magnitude;
+
+        _isMoving = speed > velocityThreshold;
+
+        if (!_isMoving) 
+        {
+            _distanceTraveled = 0f;
+            return;
+        }
+
+        float currentStride = playerController.IsSprinting ? strideSprint : strideWalk;
+        _distanceTraveled += speed * Time.deltaTime;
+
+        if (_distanceTraveled >= currentStride)
+        {
+            PlayRaycastFootstep();
+            _distanceTraveled = 0f;
+        }
+    }
+
+    private void PlayRaycastFootstep()
+    {
+        SoundDefinition soundToPlay = sfx_GenericDirt; 
+
         RaycastHit hit;
-        SurfaceType surface = SurfaceType.Grass; // Default
-
-        if (Physics.Raycast(feetPos.position + Vector3.up, Vector3.down, out hit, 2f))
+        // Note: QueryTriggerInteraction.Collide ensures we still hear steps if walking ALONG a long log
+        if (Physics.Raycast(feetPosition.position + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, Physics.AllLayers, QueryTriggerInteraction.Collide))
         {
-            // A. Check for Component (Tree Branch, House Floor)
-            SurfaceIdentifier id = hit.collider.GetComponent<SurfaceIdentifier>();
-            if (id != null)
+            SurfaceIdentifier surface = hit.collider.GetComponent<SurfaceIdentifier>();
+            
+            if (surface != null)
             {
-                surface = id.type;
+                soundToPlay = GetSoundForSurfaceType(surface.type);
             }
-            // B. Check Tag (For Terrain or objects without script)
-            else if (hit.collider.CompareTag("Concrete")) surface = SurfaceType.Stone;
-            else if (hit.collider.CompareTag("Wood")) surface = SurfaceType.Wood;
+            else if (hit.collider.GetComponent<Terrain>() != null)
+            {
+                TerrainDetector detector = hit.collider.GetComponent<TerrainDetector>();
+                if (detector != null)
+                {
+                    int textureIndex = detector.GetDominantTextureIndex(hit.point);
+                    if (textureIndex == 3) soundToPlay = sfx_Grass;
+                    else soundToPlay = sfx_GenericDirt; 
+                }
+            }
         }
 
-        // 3. Choose Definition
-        SoundDefinition defToPlay = stepGrass;
-        switch (surface)
+        PlaySoundInternal(soundToPlay);
+    }
+
+    // Helper to keep the switch statement in one place
+    private SoundDefinition GetSoundForSurfaceType(SurfaceType type)
+    {
+        switch (type)
         {
-            case SurfaceType.Wood: defToPlay = stepWood; break;
-            case SurfaceType.Stone: defToPlay = stepStone; break;
+            case SurfaceType.Wood:       return sfx_Wood;
+            case SurfaceType.TreeBranch: return sfx_TreeBranch;
+            case SurfaceType.Stone:      return sfx_Stone;
+            case SurfaceType.Log:        return sfx_Log;
+            case SurfaceType.Grass:      return sfx_Grass;
+            default:                     return sfx_GenericDirt;
         }
+    }
 
-        // 4. Modify Audio based on Speed (The Request)
-        float pitchMult = 1f;
-        float volMult = 1f;
+    // The actual audio player that applies volume/pitch based on speed
+    private void PlaySoundInternal(SoundDefinition soundDef)
+    {
+        if (soundDef == null) return;
 
-        if (player.IsSprinting)
+        float volMultiplier = 1f;
+        float pitchMultiplier = 1f;
+
+        if (playerController.IsSprinting)
         {
-            pitchMult = 1.1f; // Higher pitch when running
-            volMult = 1.2f;   // Louder
+            volMultiplier = 1.2f;   
+            pitchMultiplier = 1.1f; 
         }
-        else if (player.IsSlowWalking)
+        else if (playerController.IsSlowWalking)
         {
-            pitchMult = 0.8f; // Lower pitch sneaking
-            volMult = 0.5f;   // Quieter
+            volMultiplier = 0.5f;   
+            pitchMultiplier = 0.9f; 
         }
 
-        SoundManager.Instance.PlaySound(defToPlay, feetPos.position, volMult, pitchMult);
+        SoundManager.Instance.PlaySound(soundDef, feetPosition.position, volMultiplier, pitchMultiplier);
     }
 }

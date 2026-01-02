@@ -1,6 +1,15 @@
 using UnityEngine;
 
-public enum SurfaceType { Dirt, Grass, Wood, Stone, Metal }
+// Add 'TreeBranch' to the list
+public enum SurfaceType 
+{ 
+    Dirt, 
+    Grass, 
+    Wood,       // Generic wood (Planks, Floors, Bridges)
+    TreeBranch, // Sticks, Small branches (Snap sounds)
+    Stone, 
+    Log 
+}
 
 public class SurfaceIdentifier : MonoBehaviour
 {
