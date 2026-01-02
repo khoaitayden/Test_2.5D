@@ -26,7 +26,7 @@ public class SoundManager : MonoBehaviour
         }
     }
 
-    public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volumeMult = 1f, float pitchMult = 1f)
+     public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volumeMult = 1f, float pitchMult = 1f)
     {
         if (def == null || def.clips.Length == 0) return null;
 
@@ -37,19 +37,54 @@ public class SoundManager : MonoBehaviour
         source.clip = def.clips[Random.Range(0, def.clips.Length)];
         source.outputAudioMixerGroup = def.mixerGroup;
         
-        // Randomize + Multipliers (from player speed)
-        source.volume = (def.volume + Random.Range(-def.volumeVariance, def.volumeVariance)) * volumeMult;
-        source.pitch = (def.pitch + Random.Range(-def.pitchVariance, def.pitchVariance)) * pitchMult;
+        // Calculate final pitch and volume
+        float finalPitch = (def.pitch + Random.Range(-def.pitchVariance, def.pitchVariance)) * pitchMult;
+        // Clamp pitch to avoid divide-by-zero or negative time errors
+        if (finalPitch < 0.1f) finalPitch = 0.1f; 
 
+        float finalVolume = (def.volume + Random.Range(-def.volumeVariance, def.volumeVariance)) * volumeMult;
+
+        source.volume = finalVolume;
+        source.pitch = finalPitch;
         source.spatialBlend = def.spatialBlend;
         source.minDistance = def.minDistance;
         source.maxDistance = def.maxDistance;
+        
         source.Play();
 
-        StartCoroutine(DisableSource(source, source.clip.length + 0.2f));
+        // --- THE FIX ---
+        // 1. Calculate actual duration based on pitch (Lower pitch = Longer time)
+        float trueDuration = source.clip.length / Mathf.Abs(finalPitch);
+        
+        // 2. Start the Disable routine with the correct time
+        StartCoroutine(DisableSourceWithFade(source, trueDuration, finalVolume));
+        
         return source;
     }
+    private System.Collections.IEnumerator DisableSourceWithFade(AudioSource source, float duration, float startVolume)
+    {
+        // Wait until near the end of the clip (minus 0.5 seconds for fade out)
+        float fadeDuration = 0.5f;
+        float waitTime = duration - fadeDuration;
 
+        if (waitTime > 0)
+        {
+            yield return new WaitForSeconds(waitTime);
+        }
+
+        // --- FADE OUT LOGIC ---
+        float timer = 0f;
+        while (timer < fadeDuration)
+        {
+            timer += Time.deltaTime;
+            // Smoothly lerp volume to 0
+            source.volume = Mathf.Lerp(startVolume, 0f, timer / fadeDuration);
+            yield return null;
+        }
+
+        source.Stop();
+        source.gameObject.SetActive(false);
+    }
     public AudioSource CreateLoop(SoundDefinition def, Transform parent)
     {
         GameObject obj = new GameObject("Loop_" + def.name);
