@@ -23,11 +23,24 @@ public class FlashlightController : MonoBehaviour
     public bool IsActive { get; private set; }
     private ILitObject currentLitObj;
     private Transform mainCam;
+    
+    // Dimming Variables
+    private float _initIntensity;
+    private float _initRange;
+    private float _minRange = 5.0f; // Minimum range when energy is near 0
 
     void Start()
     {
         if (Camera.main != null) mainCam = Camera.main.transform;
-        if (spotLight != null) spotLight.enabled = false;
+        
+        if (spotLight != null) 
+        {
+            // 1. Cache the starting values set in the Inspector
+            _initIntensity = spotLight.intensity;
+            _initRange = spotLight.range;
+            
+            spotLight.enabled = false;
+        }
         
         if (playerTransform != null && mainCam != null) UpdateTargetTransform(1000f);
     }
@@ -35,32 +48,39 @@ public class FlashlightController : MonoBehaviour
     void LateUpdate()
     {
         if (playerTransform == null || mainCam == null) return;
+        
         UpdateTargetTransform(Time.deltaTime);
+
+        if (IsActive)
+        {
+            UpdateBrightness();
+        }
     }
 
     void Update()
     {
-        // 1. Get Desired State directly from Input Manager
-        bool isInputHeld = InputManager.Instance.IsFlashlightHeld;
-        
-        // 2. Wisp Power Check (Fail-safe)
-        bool canBeOn = true;
-        if (WispController.Instance != null && !WispController.Instance.IsWispAlive)
+        bool shouldBeOn = InputManager.Instance.IsFlashlightHeld;
+
+        if (WispController.Instance != null && !WispController.Instance.IsWispAlive) 
         {
-            canBeOn = false;
+            shouldBeOn = false;
         }
 
-        // 3. Final Should-Be-On State
-        bool shouldBeOn = isInputHeld && canBeOn;
-
-        // 4. State Sync (Only run logic if state CHANGES)
         if (shouldBeOn != IsActive)
         {
             SetFlashlightState(shouldBeOn);
         }
 
-        // 5. Logic Raycast
         if (IsActive) CheckLightInteraction();
+    }
+
+    void UpdateBrightness()
+    {
+        if (spotLight == null || LightEnergyManager.Instance == null) return;
+        float energyFactor = LightEnergyManager.Instance.EnergyFraction;
+
+        spotLight.intensity = Mathf.Lerp(0f, _initIntensity, energyFactor);
+        spotLight.range = Mathf.Lerp(_minRange, _initRange, energyFactor);
     }
 
     void SetFlashlightState(bool on)
@@ -68,16 +88,15 @@ public class FlashlightController : MonoBehaviour
         IsActive = on;
         if (spotLight != null) spotLight.enabled = on;
 
-        // --- NEW: Notify Energy Manager ---
         if (LightEnergyManager.Instance != null)
         {
             LightEnergyManager.Instance.SetFlashlightState(on);
         }
-        // ----------------------------------
 
         if (on)
         {
             TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseWeak);
+            UpdateBrightness(); // Update immediately on turn on so it doesn't flash wrong
         }
         else
         {
@@ -88,6 +107,7 @@ public class FlashlightController : MonoBehaviour
             }
         }
     }
+
     void UpdateTargetTransform(float dt)
     {
         transform.rotation = Quaternion.Slerp(transform.rotation, mainCam.rotation, dt * rotationSmoothSpeed);
@@ -113,6 +133,8 @@ public class FlashlightController : MonoBehaviour
     void CheckLightInteraction()
     {
         if (spotLight == null) return;
+        
+        // Raycast uses current dynamic range
         RaycastHit hit;
         if (Physics.Raycast(transform.position, transform.forward, out hit, spotLight.range, interactLayer))
         {
@@ -133,5 +155,4 @@ public class FlashlightController : MonoBehaviour
             }
         }
     }
-    
 }

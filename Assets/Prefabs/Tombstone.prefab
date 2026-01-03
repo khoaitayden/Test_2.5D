@@ -61,7 +61,7 @@ MonoBehaviour:
   - {fileID: 871994168, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   - {fileID: -251498489, guid: 48a9badc299f0cc478a16634442e7863, type: 3}
   maxEnergy: 0.5
-  rechargeDelay: 15
+  rechargeDelay: 30
   regainRate: 0.1
   energyIndicatorLight: {fileID: 1161283004597510785}
   wispSoul: {fileID: 5884447155509154794}
@@ -5159,4 +5159,4 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   checkRadius: 0.05
-  energyPerParticle: 0.15
+  energyPerParticle: 0.1

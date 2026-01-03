@@ -21,7 +21,8 @@ MonoBehaviour:
   volume: 0.25
   pitch: 1
   volumeVariance: 0.2
-  pitchVariance: 0.2
+  pitchVariance: 0.1
   spatialBlend: 0
   minDistance: 1
   maxDistance: 30
+  tailSeconds: 0
