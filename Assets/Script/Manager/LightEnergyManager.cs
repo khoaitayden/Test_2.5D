@@ -38,11 +38,14 @@ public class LightEnergyManager : MonoBehaviour
 
         float drain = drainRateBase * activeDrainMultiplier * Time.deltaTime;
         currentEnergy = Mathf.Clamp(currentEnergy - drain, 0f, maxDuration);
+        Debug.Log(EnergyFraction);
     }
 
-    public void RestoreEnergy(float amount)
+    public void RestoreEnergy(float percentAmount)
     {
-        currentEnergy = Mathf.Clamp(currentEnergy + amount, 0f, maxDuration);
+        float actualAmount = maxDuration * percentAmount;
+        
+        currentEnergy = Mathf.Clamp(currentEnergy + actualAmount, 0f, maxDuration);
     }
 
     public void SetDrainMultiplier(float multiplier) => activeDrainMultiplier = multiplier;

@@ -20,8 +20,9 @@ MonoBehaviour:
   mixerGroup: {fileID: 6018927166039805170, guid: af6319a4422cf05ab822ef238b837492, type: 2}
   volume: 1
   pitch: 1
-  volumeVariance: 0.2
+  volumeVariance: 0.1
   pitchVariance: 0.2
   spatialBlend: 1
   minDistance: 1
   maxDistance: 180
+  tailSeconds: 0
