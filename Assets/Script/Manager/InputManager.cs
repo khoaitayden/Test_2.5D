@@ -77,22 +77,19 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
         else if (context.canceled) { IsJumpHeld = false; OnJumpReleased?.Invoke(); }
     }
 
-    public void OnWispSwitch(InputAction.CallbackContext context)
+    public void OnFlashLight(InputAction.CallbackContext context) 
     {
         if (context.started)
         {
-            // Button Pressed Down
             _isWispSwitchDown = true;
             _wispSwitchStartTime = Time.time;
             _wispHoldEventFired = false;
         }
         else if (context.canceled)
         {
-            // Button Released
             _isWispSwitchDown = false;
 
-            // If we released the button BEFORE the hold threshold triggered,
-            // treat it as a "Tap" (Cycle Mode)
+            // Tap Logic (Toggle Flashlight)
             if (!_wispHoldEventFired)
             {
                 OnWispCycleTriggered?.Invoke();

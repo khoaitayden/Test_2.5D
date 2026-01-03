@@ -24,7 +24,6 @@ public class PlayerController : MonoBehaviour
     [Tooltip("The BACKWARD force to clear the ladder when jumping off the top.")]
     [SerializeField] private float topDismountBackwardForce = 3f;
 
-
     [Header("Momentum Settings")]
     [SerializeField] private float acceleration = 10f;
     [SerializeField] private float deceleration = 15f;
@@ -44,9 +43,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerParticleController particleController;
     [SerializeField] private PlayerAnimation playerAnimation;
     [SerializeField] private UIManager uIManager;
-    [SerializeField] private WispMapLightController wispController;
+    // REMOVED: [SerializeField] private WispMapLightController wispController; 
     [SerializeField] private PlayerAudio playerAudio;
     
+    // --- Internal Variables ---
     private CharacterController controller;
     private Vector3 velocity;
     private Vector3 horizontalVelocity = Vector3.zero;
@@ -66,6 +66,7 @@ public class PlayerController : MonoBehaviour
     private float _climbCooldownTimer=0f;
 
     public Vector3 WorldSpaceMoveDirection { get; private set; }
+    public float CurrentHorizontalSpeed => horizontalVelocity.magnitude;
     public bool IsDead => isDead; 
     public bool IsInteractionLocked => isInteractionLocked;
     public bool IsClimbing => isClimbing;
@@ -117,13 +118,8 @@ public class PlayerController : MonoBehaviour
     public void ClearLadderNearby()
     {
         nearbyLadder = null;
-        // FIX: If we were climbing when we left the trigger, force us to stop.
-        if (isClimbing)
-        {
-            StopClimbing();
-        }
+        if (isClimbing) StopClimbing();
     }
-
 
     // --- Interaction Locking ---
     public void FreezeInteraction(float duration)
@@ -141,10 +137,8 @@ public class PlayerController : MonoBehaviour
 
     private void HandleJumpTrigger()
     {
-        // THE FIX: If we are climbing, this is a dismount, not a jump. Ignore the global handler.
         if (isClimbing || isEnteringLadder || isInteractionLocked || isDead) return;
 
-        // This code will now ONLY run if we are on the ground and not on a ladder.
         if (isGrounded)
         { 
             jumpRequest = true;
@@ -154,14 +148,12 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // --- HIGHEST PRIORITY: Dead/Locked/Transitioning ---
         if (isDead || isInteractionLocked || isEnteringLadder)
         {
             if (isDead || isInteractionLocked) { ApplyGravityAndFall(); }
-            return; // Halt all other logic
+            return; 
         }
 
-        // --- STATE CHANGE: Start Climbing ---
         if (!isClimbing && nearbyLadder != null && Time.time > _climbCooldownTimer)
         {
             if (InputManager.Instance.MoveInput.y > 0.1f)
@@ -171,14 +163,12 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // --- ACTIVE STATE: Is Climbing ---
         if (isClimbing)
         {
             HandleClimbing();
             return;
         }
 
-        // 3. NORMAL MOVEMENT
         isGrounded = groundCheck();
 
         if (isGrounded && !wasGrounded)
@@ -197,12 +187,10 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
     }
 
-
     private void HandleEnergyDrain()
     {
         if (LightEnergyManager.Instance == null) return;
 
-        // Condition: Is Sprinting AND actually moving AND not Climbing
         bool isSprintingAndMoving = IsSprinting && horizontalVelocity.magnitude > 0.1f && !isClimbing;
 
         if (isSprintingAndMoving)
@@ -211,12 +199,10 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // Reset to normal speed
             LightEnergyManager.Instance.SetDrainMultiplier(1.0f);
         }
     }
 
-    // --- CLIMBING LOGIC ---
     private void ApplyGravityAndFall()
     {
         isGrounded = groundCheck();
@@ -225,13 +211,13 @@ public class PlayerController : MonoBehaviour
         controller.Move(Vector3.up * velocity.y * Time.deltaTime);
     }
 
-
-    // --- CLIMBING LOGIC (DEFINITIVE VERSION) ---
+    // --- CLIMBING LOGIC ---
     private void StartClimbing()
     {
         if (isEnteringLadder || nearbyLadder == null) return;
         StartCoroutine(EnterLadderRoutine());
     }
+
     private IEnumerator EnterLadderRoutine()
     {
         isEnteringLadder = true;
@@ -275,51 +261,39 @@ public class PlayerController : MonoBehaviour
     {
         if (nearbyLadder == null) { StopClimbing(); return; }
 
-        // --- Calculate player's position relative to the ladder top ---
         float feetY = transform.position.y - (controller.height * 0.5f);
         float stopYPosition = nearbyLadder.GetLadderTopY() - climbTopOffset;
         bool isAtTopPerch = (feetY >= stopYPosition);
 
-
-        // --- 1. HANDLE JUMP EXIT (MODIFIED) ---
-        // Player can now ONLY jump if they are at the top perch.
         if (isAtTopPerch && InputManager.Instance.IsJumpHeld)
         {
             StopClimbing();
-
-            // Perform the powerful dismount launch
             velocity.y = topDismountUpwardForce;
             horizontalVelocity = -transform.forward * topDismountBackwardForce;
-            
-            return; // Exit. Physics will apply next frame.
+            return;
         }
 
-
-        // --- 2. MOVEMENT LOGIC (WITH INVISIBLE CEILING) ---
         float verticalInput = InputManager.Instance.MoveInput.y;
 
-        // If at the top perch and trying to move up, clamp input to zero.
         if (isAtTopPerch && verticalInput > 0)
         {
             verticalInput = 0;
         }
 
-        // Only move if there's input, preventing the slow slide.
         if (Mathf.Abs(verticalInput) > 0.01f)
         {
             controller.Move(Vector3.up * verticalInput * climbSpeed * Time.deltaTime);
         }
 
-        // --- 3. HANDLE BOTTOM EXIT ---
         if (verticalInput < 0 && (controller.collisionFlags & CollisionFlags.Below) != 0)
         {
             StopClimbing();
         }
     }
+
     // --- NORMAL MOVEMENT LOGIC ---
     private void HandleMovement()
     {
-        // --- 1. GET INPUT AND CALCULATE WORLD DIRECTION ---
         Vector2 moveInput = InputManager.Instance.MoveInput;
 
         Vector3 camForward = mainCameraTransform.forward;
@@ -330,14 +304,12 @@ public class PlayerController : MonoBehaviour
         camRight.Normalize();
         WorldSpaceMoveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
 
-        // --- 2. ROTATE PLAYER ---
         if (WorldSpaceMoveDirection.magnitude >= 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
-        // --- 3. HANDLE JUMPING ---
         if (jumpRequest && isGrounded)
         {
             particleController?.PlayJumpEffect();
@@ -347,14 +319,14 @@ public class PlayerController : MonoBehaviour
             jumpRequest = false; 
         }
 
-        // --- 4. APPLY GRAVITY ---
         ApplyGravity();
         
-        // --- 5. DETERMINE MOVEMENT SPEED (WITH LIGHT CHECK) ---
         float currentMoveSpeed = moveSpeed;
-        bool hasLight = (wispController != null && wispController.IsLightActive);
 
-        if (hasLight)
+        // --- FIXED LOGIC: CHECK ENERGY DIRECTLY ---
+        bool hasEnergy = LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy > 0;
+
+        if (hasEnergy)
         {
             // Normal behavior: Player can sprint, walk, or slow walk.
             if (IsSprinting) 
@@ -368,26 +340,22 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // NO LIGHT: Force player into slow walk speed.
-            // Ignore Sprint and normal Walk input.
+            // NO ENERGY: Force player into slow walk speed.
             currentMoveSpeed *= slowWalkSpeedMultiplier;
         }
+        // ------------------------------------------
         
-        // Apply any environmental effects (e.g., branch traps)
         currentMoveSpeed *= environmentSpeedMultiplier; 
 
-        // --- 6. CALCULATE FINAL VELOCITY (with acceleration/deceleration) ---
         Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * currentMoveSpeed;
         float currentAcceleration = (WorldSpaceMoveDirection.magnitude > 0.1f) ? acceleration : deceleration;
         horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, currentAcceleration * Time.deltaTime);
         
-        // Clamp small values to zero to prevent sliding
         if (horizontalVelocity.magnitude < 0.01f) 
         {
             horizontalVelocity = Vector3.zero;
         }
         
-        // --- 7. MOVE THE CHARACTER CONTROLLER ---
         Vector3 totalVelocity = horizontalVelocity + (Vector3.up * velocity.y);
         controller.Move(totalVelocity * Time.deltaTime);
     }
@@ -421,20 +389,14 @@ public class PlayerController : MonoBehaviour
     }
     public void ApplyEnvironmentalSlow(float slowFactor, float duration)
     {
-        // If we are already being slowed, stop the previous timer so we don't overlap
         if (slowCoroutine != null) StopCoroutine(slowCoroutine);
-        
         slowCoroutine = StartCoroutine(SlowRoutine(slowFactor, duration));
     }
 
     private IEnumerator SlowRoutine(float factor, float duration)
     {
         environmentSpeedMultiplier = factor;
-        
-        // Wait for the duration
         yield return new WaitForSeconds(duration);
-        
-        // Reset speed
         environmentSpeedMultiplier = 1f;
         slowCoroutine = null;
     }

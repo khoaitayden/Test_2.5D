@@ -4,64 +4,51 @@ public class LightEnergyManager : MonoBehaviour
 {
     public static LightEnergyManager Instance { get; private set; }
 
-    [Header("Global Light Energy")]
-    public float startingEnergy = 0.5f;
-    public float maxDuration = 20f;
-    public bool useSmoothDimming = true;
+    [Header("Settings")]
+    [SerializeField] private float maxDuration = 100f; // Seconds of light
+    [SerializeField] private float startingPercentage = 0.5f; // 0 to 1
 
     private float currentEnergy;
-    private float energyDrainRate;
-    
-    // NEW: Multiplier to speed up drain (default is 1.0)
+    private float drainRateBase;
     private float activeDrainMultiplier = 1.0f; 
-    
     private bool isDrainPaused = false;
 
+    // Public Getter
     public float CurrentEnergy => currentEnergy;
+    public float EnergyFraction => currentEnergy / maxDuration; // Returns 0.0 to 1.0
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); }
-        else { Instance = this; DontDestroyOnLoad(gameObject); }
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     void Start()
     {
-        energyDrainRate = 1f / Mathf.Max(maxDuration, 0.1f);
-        currentEnergy = Mathf.Clamp01(startingEnergy);
-        isDrainPaused = false;
+        currentEnergy = maxDuration * startingPercentage;
+        drainRateBase = 1.0f; // 1 unit per second
     }
 
     void Update()
     {
         if (isDrainPaused) return;
 
-        // NEW: Apply the multiplier to the calculation
-        float effectiveDrain = energyDrainRate * activeDrainMultiplier;
-        
-        currentEnergy -= effectiveDrain * Time.deltaTime;
-        currentEnergy = Mathf.Clamp01(currentEnergy);
-    }
-
-    // --- NEW API ---
-    public void SetDrainMultiplier(float multiplier)
-    {
-        activeDrainMultiplier = multiplier;
-    }
-
-    public void SetDrainPaused(bool isPaused)
-    {
-        isDrainPaused = isPaused;
+        float drain = drainRateBase * activeDrainMultiplier * Time.deltaTime;
+        currentEnergy = Mathf.Clamp(currentEnergy - drain, 0f, maxDuration);
     }
 
     public void RestoreEnergy(float amount)
     {
-        if (currentEnergy >= 1f) return;
-        currentEnergy = Mathf.Clamp01(currentEnergy + amount);
+        currentEnergy = Mathf.Clamp(currentEnergy + amount, 0f, maxDuration);
     }
 
+    public void SetDrainMultiplier(float multiplier) => activeDrainMultiplier = multiplier;
+    public void SetDrainPaused(bool isPaused) => isDrainPaused = isPaused;
+    
+    // Helper for lights to dim
     public float GetIntensityFactor()
     {
-        return useSmoothDimming ? currentEnergy : (currentEnergy > 0f ? 1f : 0f);
+        return Mathf.Clamp01(currentEnergy / (maxDuration * 0.2f)); // Dim when last 20% remains
     }
 }

@@ -43,7 +43,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "WispSwitch",
+                    "name": "FlashLight",
                     "type": "Button",
                     "id": "8eb57862-4e8a-4f8b-bc9a-59265cd67251",
                     "expectedControlType": "",
@@ -157,7 +157,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "",
-                    "action": "WispSwitch",
+                    "action": "FlashLight",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

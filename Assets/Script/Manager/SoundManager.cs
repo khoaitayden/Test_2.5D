@@ -26,7 +26,7 @@ public class SoundManager : MonoBehaviour
         }
     }
 
-     public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volumeMult = 1f, float pitchMult = 1f)
+public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volumeMult = 1f, float pitchMult = 1f)
     {
         if (def == null || def.clips.Length == 0) return null;
 
@@ -37,10 +37,9 @@ public class SoundManager : MonoBehaviour
         source.clip = def.clips[Random.Range(0, def.clips.Length)];
         source.outputAudioMixerGroup = def.mixerGroup;
         
-        // Calculate final pitch and volume
+        // Pitch & Volume Math
         float finalPitch = (def.pitch + Random.Range(-def.pitchVariance, def.pitchVariance)) * pitchMult;
-        // Clamp pitch to avoid divide-by-zero or negative time errors
-        if (finalPitch < 0.1f) finalPitch = 0.1f; 
+        if (finalPitch < 0.1f) finalPitch = 0.1f; // Safety
 
         float finalVolume = (def.volume + Random.Range(-def.volumeVariance, def.volumeVariance)) * volumeMult;
 
@@ -53,13 +52,23 @@ public class SoundManager : MonoBehaviour
         source.Play();
 
         // --- THE FIX ---
-        // 1. Calculate actual duration based on pitch (Lower pitch = Longer time)
-        float trueDuration = source.clip.length / Mathf.Abs(finalPitch);
+        // 1. Calculate how long the clip actually takes to play (Length / Pitch)
+        float clipDuration = source.clip.length / Mathf.Abs(finalPitch);
+
+        // 2. Add the "Tail" time for Echo/Reverb
+        float totalLifeTime = clipDuration + def.tailSeconds;
         
-        // 2. Start the Disable routine with the correct time
-        StartCoroutine(DisableSourceWithFade(source, trueDuration, finalVolume));
+        // 3. Wait for that full time before killing the object
+        StartCoroutine(DisableSourceDelayed(source, totalLifeTime));
         
         return source;
+    }
+
+    private System.Collections.IEnumerator DisableSourceDelayed(AudioSource source, float time)
+    {
+        yield return new WaitForSeconds(time);
+        source.Stop();
+        source.gameObject.SetActive(false);
     }
     private System.Collections.IEnumerator DisableSourceWithFade(AudioSource source, float duration, float startVolume)
     {

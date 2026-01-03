@@ -28,6 +28,26 @@ AudioMixerEffectController:
   m_SendTarget: {fileID: 0}
   m_EnableWetMix: 0
   m_Bypass: 0
+--- !u!243 &-4037818589245871841
+AudioMixerGroupController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: MonsterRoar
+  m_AudioMixer: {fileID: 24100000}
+  m_GroupID: 93920557c17b7cdb1aa2dd268bce2660
+  m_Children: []
+  m_Volume: ca41f82f6b220727bb68379f1c2b568e
+  m_Pitch: 511f5c2696a035196a60674f39150413
+  m_Send: 00000000000000000000000000000000
+  m_Effects:
+  - {fileID: 560989326553004762}
+  - {fileID: 5733343484784781975}
+  m_UserColorIndex: 0
+  m_Mute: 0
+  m_Solo: 0
+  m_BypassEffects: 0
 --- !u!244 &-2355263198639755783
 AudioMixerEffectController:
   m_ObjectHideFlags: 3
@@ -64,6 +84,7 @@ AudioMixerController:
     - 327bfcf9a70cf6f288abdd4b047930ea
     - 17e601cd53277fa8f9eda32c8967f84b
     - c0b745bfe05884c189cd2299b34f3b48
+    - 93920557c17b7cdb1aa2dd268bce2660
     name: View
   m_CurrentViewIndex: 0
   m_TargetSnapshot: {fileID: 24500006}
@@ -112,8 +133,25 @@ AudioMixerSnapshotController:
   m_Name: Snapshot
   m_AudioMixer: {fileID: 24100000}
   m_SnapshotID: e15084af81876361ca2313ec010489c7
-  m_FloatValues: {}
+  m_FloatValues:
+    c5ae3be13c478e749b683043695d352d: 0.6
+    88c54012c2f781395a42b5abb9ffacdb: 0.3
+    2355115bd01e6a5898b603aafa2238e1: 300
   m_TransitionOverrides: {}
+--- !u!244 &560989326553004762
+AudioMixerEffectController:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_EffectID: 7f3404c745e09457da378413ed077b20
+  m_EffectName: Attenuation
+  m_MixLevel: 484d69c7cee409148a88733305f3fba8
+  m_Parameters: []
+  m_SendTarget: {fileID: 0}
+  m_EnableWetMix: 0
+  m_Bypass: 0
 --- !u!243 &1264556643454883266
 AudioMixerGroupController:
   m_ObjectHideFlags: 0
@@ -152,6 +190,30 @@ AudioMixerGroupController:
   m_Mute: 0
   m_Solo: 0
   m_BypassEffects: 0
+--- !u!244 &5733343484784781975
+AudioMixerEffectController:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_EffectID: 5fcb324dd9e41cff4ba4bef234f37eb5
+  m_EffectName: Echo
+  m_MixLevel: ed4eae298b5eaa7639bb7621bf388107
+  m_Parameters:
+  - m_ParameterName: Delay
+    m_GUID: 2355115bd01e6a5898b603aafa2238e1
+  - m_ParameterName: Decay
+    m_GUID: 88c54012c2f781395a42b5abb9ffacdb
+  - m_ParameterName: Max channels
+    m_GUID: 6b4192eb04df89eeab6918d86b69d576
+  - m_ParameterName: Drymix
+    m_GUID: f42b72196df2c78b5aa49c93c838aa2b
+  - m_ParameterName: Wetmix
+    m_GUID: c5ae3be13c478e749b683043695d352d
+  m_SendTarget: {fileID: 0}
+  m_EnableWetMix: 0
+  m_Bypass: 0
 --- !u!243 &6018927166039805170
 AudioMixerGroupController:
   m_ObjectHideFlags: 0
@@ -161,7 +223,8 @@ AudioMixerGroupController:
   m_Name: Monster
   m_AudioMixer: {fileID: 24100000}
   m_GroupID: c0b745bfe05884c189cd2299b34f3b48
-  m_Children: []
+  m_Children:
+  - {fileID: -4037818589245871841}
   m_Volume: ab3776cddcdff548287361b07b80f101
   m_Pitch: da35207f51968cc89a7fad635bb186ed
   m_Send: 00000000000000000000000000000000
