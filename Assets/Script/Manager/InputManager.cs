@@ -17,6 +17,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public bool IsSprinting { get; private set; }
     public bool IsSlowWalking { get; private set; }
     public bool IsJumpHeld { get; private set; }
+    public bool IsFlashlightHeld { get; private set; }
 
     // --- Events ---
     public event Action OnJumpTriggered;
@@ -27,7 +28,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public event Action OnWispCycleTriggered;       // Short Press
     public event Action OnWispPowerToggleTriggered; // Long Hold
 
-    // Internal State for "Hold" logic
+    // Internal State
     private bool _isWispSwitchDown;
     private float _wispSwitchStartTime;
     private bool _wispHoldEventFired;
@@ -44,6 +45,21 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     private void OnEnable() => _playerInput.Player.Enable();
     private void OnDisable() => _playerInput.Player.Disable();
 
+    // --- FIX 1: HANDLE FOCUS LOSS ---
+    // If you Alt-Tab or click away, this forces all inputs to release immediately.
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+        {
+            MoveInput = Vector2.zero;
+            IsSprinting = false;
+            IsSlowWalking = false;
+            IsJumpHeld = false;
+            IsFlashlightHeld = false;
+            _isWispSwitchDown = false;
+        }
+    }
+
     private void Update()
     {
         // Handle "Hold" Logic
@@ -51,33 +67,57 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
         {
             if (Time.time - _wispSwitchStartTime >= lightToggleHoldDuration)
             {
-                // Threshold reached: Trigger Power Toggle
                 OnWispPowerToggleTriggered?.Invoke();
-                _wispHoldEventFired = true; // Mark as fired so we don't fire again this press
+                _wispHoldEventFired = true; 
             }
         }
     }
 
     // --- IPlayerActions Implementation ---
 
-    public void OnMovement(InputAction.CallbackContext context) => MoveInput = context.ReadValue<Vector2>();
+    // --- FIX 2: EXPLICIT MOVEMENT HANDLING ---
+    public void OnMovement(InputAction.CallbackContext context) 
+    {
+        // Explicitly check for canceled to guarantee zeroing out
+        if (context.canceled)
+        {
+            MoveInput = Vector2.zero;
+        }
+        else
+        {
+            MoveInput = context.ReadValue<Vector2>();
+        }
+    }
+
     public void OnSlowWalk(InputAction.CallbackContext context) => IsSlowWalking = context.ReadValueAsButton();
     public void OnSprint(InputAction.CallbackContext context) => IsSprinting = context.ReadValueAsButton();
+    
     public void OnInteract(InputAction.CallbackContext context)
     {
-        if (context.performed)
-        {
-            OnInteractTriggered?.Invoke();
-        }
+        if (context.performed) OnInteractTriggered?.Invoke();
     }
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (context.performed) { IsJumpHeld = true; OnJumpTriggered?.Invoke(); }
-        else if (context.canceled) { IsJumpHeld = false; OnJumpReleased?.Invoke(); }
+        if (context.performed) 
+        { 
+            IsJumpHeld = true; 
+            OnJumpTriggered?.Invoke(); 
+        }
+        else if (context.canceled) 
+        { 
+            IsJumpHeld = false; 
+            OnJumpReleased?.Invoke(); 
+        }
     }
 
     public void OnFlashLight(InputAction.CallbackContext context) 
+    {
+        // ReadValueAsButton is usually fine, but explicit checks match the movement fix style
+        IsFlashlightHeld = context.ReadValueAsButton();
+    }
+
+    public void OnWispSwitch(InputAction.CallbackContext context)
     {
         if (context.started)
         {
@@ -88,8 +128,6 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
         else if (context.canceled)
         {
             _isWispSwitchDown = false;
-
-            // Tap Logic (Toggle Flashlight)
             if (!_wispHoldEventFired)
             {
                 OnWispCycleTriggered?.Invoke();

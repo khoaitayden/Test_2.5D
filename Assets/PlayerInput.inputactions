@@ -44,12 +44,12 @@
                 },
                 {
                     "name": "FlashLight",
-                    "type": "Button",
+                    "type": "Value",
                     "id": "8eb57862-4e8a-4f8b-bc9a-59265cd67251",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": true
                 },
                 {
                     "name": "Interact",
@@ -154,6 +154,17 @@
                     "name": "",
                     "id": "db890532-5d5a-4593-9678-80aa4e154aa7",
                     "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "FlashLight",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f978eb72-5ffd-463b-96b2-d35cee5b1ea7",
+                    "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "",

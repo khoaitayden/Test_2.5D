@@ -27,8 +27,6 @@ public class PlayerController : MonoBehaviour
     [Header("Momentum Settings")]
     [SerializeField] private float acceleration = 10f;
     [SerializeField] private float deceleration = 15f;
-    [Tooltip("How much faster light drains when sprinting (e.g. 2x faster).")]
-    [SerializeField] private float sprintEnergyDrainMult = 2.0f; 
 
     [Header("Ground Detection")]
     [SerializeField] private LayerMask groundLayer;
@@ -170,6 +168,7 @@ public class PlayerController : MonoBehaviour
         }
 
         isGrounded = groundCheck();
+        ReportSprintStatus();
 
         if (isGrounded && !wasGrounded)
         {
@@ -179,30 +178,23 @@ public class PlayerController : MonoBehaviour
             playerAnimation?.Land();
             playerAudio?.PlayLand(fallIntensity);
         }
-        HandleEnergyDrain();
         wasGrounded = isGrounded;
 
         if (isGrounded && velocity.y < 0) { velocity.y = -2f; }
 
         HandleMovement();
     }
-
-    private void HandleEnergyDrain()
+    private void ReportSprintStatus()
     {
         if (LightEnergyManager.Instance == null) return;
 
-        bool isSprintingAndMoving = IsSprinting && horizontalVelocity.magnitude > 0.1f && !isClimbing;
+        // Determine if we are physically sprinting
+        // (Must be holding Shift + Moving + Not Climbing)
+        bool isPhysicallySprinting = IsSprinting && horizontalVelocity.magnitude > 0.1f && !isClimbing;
 
-        if (isSprintingAndMoving)
-        {
-            LightEnergyManager.Instance.SetDrainMultiplier(sprintEnergyDrainMult);
-        }
-        else
-        {
-            LightEnergyManager.Instance.SetDrainMultiplier(1.0f);
-        }
+        // Just tell the manager the status. It handles the math.
+        LightEnergyManager.Instance.SetSprintState(isPhysicallySprinting);
     }
-
     private void ApplyGravityAndFall()
     {
         isGrounded = groundCheck();
