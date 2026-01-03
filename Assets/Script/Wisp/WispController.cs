@@ -1,199 +1,185 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class WispController : MonoBehaviour
 {
     public static WispController Instance { get; private set; }
 
-    [Header("References")]
-    [SerializeField] private Transform playerTransform;
-    [SerializeField] private PlayerController playerController; 
-    [SerializeField] private Light innerGlowLight; // The small light on the wisp itself
+    [Header("Lights")]
+    [SerializeField] private Light innerGlowLight;
+    [SerializeField] private Light areaMapLight; 
     [SerializeField] private SpriteRenderer spriteRenderer;
 
-    [Header("Orbit & Motion")]
-    [SerializeField] private float orbitRadius = 2f;
-    [SerializeField] private float orbitHeight = 1.5f;
-    [SerializeField] private float orbitSpeed = 40f;
-    [SerializeField] private float followLag = 0.5f;
-    [SerializeField] private float bobSpeed = 2f;
-    [SerializeField] private float bobHeight = 0.3f;
-
-    [Header("Obstacle Avoidance")]
-    [SerializeField] private LayerMask obstacleLayer; 
-    [SerializeField] private float collisionRadius = 0.5f;
-    [SerializeField] private float avoidanceStrength = 5f;
-
-    [Header("Camera Safety")]
-    [SerializeField] private Transform mainCameraTransform;
-    [SerializeField] private float minDistanceFromCamera = 1.0f;
-
     [Header("Soul Collection")]
-    [SerializeField] private LayerMask absorbableLayer;
-    [SerializeField] private float collectRadius = 4.0f;
-    [SerializeField] private float absorbRate = 5.0f;
+    [SerializeField] private LayerMask detectionLayer;   
+    [SerializeField] private LayerMask obstructionLayer; 
+    [Tooltip("Stops collecting if Energy % is higher than this (0.0 to 1.0)")]
     [SerializeField] private float energyThreshold = 0.8f;
 
-    [Header("Visual Config")]
-    [SerializeField] private float maxGlowIntensity = 2f;
-    [SerializeField] private float minGlowIntensity = 0.5f;
+    // --- State ---
+    private TombstoneController _currentTargetTombstone;
+    private HashSet<ILitObject> _currentlyLitObjects = new HashSet<ILitObject>();
+    
+    private float _initInnerIntensity;
+    private float _initAreaIntensity;
+    private float _initAreaRange;
 
-    private Vector3 currentVelocity = Vector3.zero;
-    private float orbitAngle;
-    private Collider[] hitColliders = new Collider[5]; 
-    private TombstoneController activeTombstone;
+    public bool IsWispAlive => LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy > 0;
 
-    // Public getter: Is the Wisp alive?
-    public bool IsWispAlive 
-    {
-        get { return LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy > 0; }
-    }
-
-    void Awake()
-    {
-        if (Instance == null) Instance = this;
+    void Awake() 
+    { 
+        if (Instance == null) Instance = this; 
     }
 
     void Start()
     {
-        if (Camera.main != null) mainCameraTransform = Camera.main.transform;
-        orbitAngle = Random.Range(0f, 360f);
-    }
-
-    void FixedUpdate()
-    {
-        if (playerTransform == null || mainCameraTransform == null) return;
-
-        // 1. Movement Logic
-        MoveWisp();
-
-        // 2. Visuals (Only show if alive)
-        UpdateVisuals();
-
-        // 3. Logic (Only collect if alive)
-        if (IsWispAlive) 
+        if (innerGlowLight) _initInnerIntensity = innerGlowLight.intensity;
+        if (areaMapLight)
         {
-            HandleTombstoneInteraction();
-        }
-        else
-        {
-            // Disconnect if dead
-            if (activeTombstone != null)
-            {
-                activeTombstone.OnUnlit(LightSourceType.Wisp);
-                activeTombstone = null;
-            }
+            _initAreaIntensity = areaMapLight.intensity;
+            _initAreaRange = areaMapLight.range;
         }
     }
 
-    void MoveWisp()
+    void Update()
     {
-        // Orbit
-        orbitAngle += orbitSpeed * Time.deltaTime;
-        if (orbitAngle > 360f) orbitAngle -= 360f;
-
-        Vector3 orbitOffset = new Vector3(
-            Mathf.Cos(orbitAngle * Mathf.Deg2Rad) * orbitRadius,
-            orbitHeight,
-            Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
-        );
-
-        // Lag
-        Vector3 lagOffset = Vector3.zero;
-        if (playerController != null && playerController.WorldSpaceMoveDirection.magnitude > 0.1f)
+        if (!IsWispAlive)
         {
-            lagOffset = -playerTransform.forward * followLag;
+            HandleDeath();
+            return;
         }
 
-        // Target Calculation
-        Vector3 targetPos = playerTransform.position + orbitOffset + lagOffset + Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
-
-        // Obstacle Avoidance
-        int numHits = Physics.OverlapSphereNonAlloc(transform.position, collisionRadius, hitColliders, obstacleLayer);
-        Vector3 avoidance = Vector3.zero;
-        if (numHits > 0)
-        {
-            for (int i = 0; i < numHits; i++)
-            {
-                if (hitColliders[i] == null) continue;
-                Vector3 pushDir = transform.position - hitColliders[i].ClosestPoint(transform.position);
-                if (pushDir.sqrMagnitude < 0.001f) pushDir = Vector3.up;
-                avoidance += pushDir.normalized * (1f - Mathf.Clamp01(pushDir.magnitude / collisionRadius)) * avoidanceStrength;
-            }
-        }
-
-        // Camera Clip Prevention
-        Vector3 finalPos = targetPos + avoidance;
-        Vector3 toWisp = finalPos - mainCameraTransform.position;
-        if (toWisp.magnitude < minDistanceFromCamera)
-        {
-            finalPos = mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
-        }
-
-        transform.position = Vector3.SmoothDamp(transform.position, finalPos, ref currentVelocity, 0.2f);
+        UpdateLights();
+        UpdateInteractions();
     }
 
-    void UpdateVisuals()
+    // --- 1. LIGHT VISUALS (UPDATED) ---
+    void UpdateLights()
     {
-        // 1. Billboarding
-        if (mainCameraTransform != null)
+        // Now using EnergyFraction directly (Linear 0.0 to 1.0)
+        float energyFactor = LightEnergyManager.Instance.EnergyFraction; 
+
+        // Sprite
+        if (spriteRenderer) spriteRenderer.enabled = true;
+
+        // Inner Light (Pulse)
+        if (innerGlowLight)
         {
-            Vector3 flatForward = mainCameraTransform.forward;
-            flatForward.y = 0;
-            if (flatForward.magnitude > 0.1f) transform.rotation = Quaternion.LookRotation(flatForward);
+            innerGlowLight.enabled = true;
+            float pulse = Mathf.Lerp(0.8f, 1.2f, Mathf.PerlinNoise(Time.time * 3f, 0f));
+            innerGlowLight.intensity = Mathf.Lerp(0f, _initInnerIntensity, energyFactor) * pulse;
         }
 
-        // 2. Inner Glow Logic
-        if (LightEnergyManager.Instance == null) return;
-
-        float energyFactor = LightEnergyManager.Instance.GetIntensityFactor();
-        bool isAlive = LightEnergyManager.Instance.CurrentEnergy > 0;
-
-        // Toggle Sprite
-        if (spriteRenderer != null) spriteRenderer.enabled = isAlive;
-
-        // Toggle Inner Light
-        if (innerGlowLight != null)
+        // Area Light (Dimming)
+        if (areaMapLight)
         {
-            innerGlowLight.enabled = isAlive;
-            if (isAlive)
-            {
-                // Pulsating effect for life
-                float pulse = Mathf.Lerp(0.8f, 1.2f, Mathf.PerlinNoise(Time.time * 3f, 0f));
-                innerGlowLight.intensity = Mathf.Lerp(minGlowIntensity, maxGlowIntensity, energyFactor) * pulse;
-            }
+            areaMapLight.enabled = true;
+            // Linear scaling: 50% energy = 50% intensity
+            areaMapLight.intensity = Mathf.Lerp(0f, _initAreaIntensity, energyFactor);
+            areaMapLight.range = Mathf.Lerp(5f, _initAreaRange, energyFactor);
         }
     }
 
-    void HandleTombstoneInteraction()
+    // --- 2. INTERACTION & COLLECTION ---
+    void UpdateInteractions()
     {
-        if (LightEnergyManager.Instance == null) return;
+        float detectionRange = areaMapLight != null ? areaMapLight.range : 5f;
         
-        Collider[] hits = Physics.OverlapSphere(transform.position, collectRadius, absorbableLayer);
-        TombstoneController nearest = null;
-        float minDist = float.MaxValue;
+        HashSet<ILitObject> visibleObjects = new HashSet<ILitObject>();
+        HashSet<TombstoneController> visibleTombstones = new HashSet<TombstoneController>();
 
-        foreach (var hit in hits)
+        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, detectionLayer);
+
+        foreach (var col in hits)
         {
-            float d = Vector3.Distance(transform.position, hit.transform.position);
-            if (d < minDist)
+            if (col == null) continue;
+
+            Vector3 targetCenter = col.bounds.center;
+            Vector3 dir = targetCenter - transform.position;
+            if (!Physics.Raycast(transform.position, dir, dir.magnitude, obstructionLayer))
             {
-                var t = hit.GetComponent<TombstoneController>();
-                if (t != null && t.CurrentEnergy > 0) { nearest = t; minDist = d; }
+                ILitObject litObj = col.GetComponent<ILitObject>();
+                if (litObj != null)
+                {
+                    visibleObjects.Add(litObj);
+                    if (litObj is TombstoneController tomb && tomb.CurrentEnergy > 0)
+                    {
+                        visibleTombstones.Add(tomb);
+                    }
+                }
             }
         }
 
-        if (nearest != activeTombstone)
+        TombstoneController bestTombstone = null;
+        
+        if (LightEnergyManager.Instance.EnergyFraction < energyThreshold)
         {
-            if (activeTombstone != null) activeTombstone.OnUnlit(LightSourceType.Wisp);
-            activeTombstone = nearest;
-            if (activeTombstone != null) activeTombstone.OnLit(LightSourceType.Wisp);
+            float minDst = float.MaxValue;
+            foreach (var t in visibleTombstones)
+            {
+                float d = Vector3.Distance(transform.position, t.transform.position);
+                if (d < minDst)
+                {
+                    minDst = d;
+                    bestTombstone = t;
+                }
+            }
         }
 
-        if (activeTombstone != null && LightEnergyManager.Instance.EnergyFraction < energyThreshold)
+        foreach (var obj in visibleObjects)
         {
-            float amount = absorbRate * Time.deltaTime;
-            activeTombstone.DrainEnergyByAmount(amount);
-            LightEnergyManager.Instance.RestoreEnergy(amount);
+            if (obj is TombstoneController tomb)
+            {
+                if (tomb == bestTombstone)
+                {
+                    if (!_currentlyLitObjects.Contains(tomb)) tomb.OnLit(LightSourceType.Wisp);
+                }
+                else
+                {
+                    if (_currentlyLitObjects.Contains(tomb)) tomb.OnUnlit(LightSourceType.Wisp);
+                }
+            }
+            else
+            {
+                if (!_currentlyLitObjects.Contains(obj)) obj.OnLit(LightSourceType.Wisp);
+            }
         }
+
+        foreach (var oldObj in _currentlyLitObjects)
+        {
+            if (!visibleObjects.Contains(oldObj))
+            {
+                oldObj.OnUnlit(LightSourceType.Wisp);
+            }
+        }
+
+        _currentlyLitObjects.Clear();
+        foreach (var obj in visibleObjects)
+        {
+            if (obj is TombstoneController tomb)
+            {
+                if (tomb == bestTombstone) _currentlyLitObjects.Add(obj);
+            }
+            else
+            {
+                _currentlyLitObjects.Add(obj);
+            }
+        }
+        
+        _currentTargetTombstone = bestTombstone;
+    }
+
+    void HandleDeath()
+    {
+        if (spriteRenderer) spriteRenderer.enabled = false;
+        if (innerGlowLight) innerGlowLight.enabled = false;
+        if (areaMapLight) areaMapLight.enabled = false;
+
+        foreach (var obj in _currentlyLitObjects)
+        {
+            obj.OnUnlit(LightSourceType.Wisp);
+        }
+        _currentlyLitObjects.Clear();
+        _currentTargetTombstone = null;
     }
 }

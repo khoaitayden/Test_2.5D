@@ -2,8 +2,8 @@ using UnityEngine;
 
 public enum LightSourceType
 {
-    Flashlight, // Can trigger events, cannot collect souls
-    Wisp        // Can trigger events, CAN collect souls
+    Flashlight, // Triggers events, cannot collect souls
+    Wisp        // Triggers events, CAN collect souls
 }
 
 public interface ILitObject

@@ -15,7 +15,9 @@ public class LightEnergyManager : MonoBehaviour
 
     // Public Getter
     public float CurrentEnergy => currentEnergy;
-    public float EnergyFraction => currentEnergy / maxDuration; // Returns 0.0 to 1.0
+    
+    // Returns 0.0 to 1.0 based on how much energy is left
+    public float EnergyFraction => maxDuration > 0 ? currentEnergy / maxDuration : 0f;
 
     void Awake()
     {
@@ -45,10 +47,4 @@ public class LightEnergyManager : MonoBehaviour
 
     public void SetDrainMultiplier(float multiplier) => activeDrainMultiplier = multiplier;
     public void SetDrainPaused(bool isPaused) => isDrainPaused = isPaused;
-    
-    // Helper for lights to dim
-    public float GetIntensityFactor()
-    {
-        return Mathf.Clamp01(currentEnergy / (maxDuration * 0.2f)); // Dim when last 20% remains
-    }
 }

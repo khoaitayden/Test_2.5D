@@ -19,8 +19,8 @@ public class PlayerVisionController : MonoBehaviour
     {
         if (LightEnergyManager.Instance == null || virtualCamera == null) return;
 
-        // Get Energy Data
-        float energyFactor = LightEnergyManager.Instance.GetIntensityFactor(); // 0.0 to 1.0
+        // --- FIX: Use EnergyFraction instead of GetIntensityFactor ---
+        float energyFactor = LightEnergyManager.Instance.EnergyFraction; // 0.0 to 1.0
         bool hasEnergy = LightEnergyManager.Instance.CurrentEnergy > 0;
 
         // Calculate Target Clip Plane
