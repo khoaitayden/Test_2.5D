@@ -74,7 +74,7 @@ public class ProceduralMonsterController : MonoBehaviour
     [SerializeField] private SoundDefinition sfx_TreeGrab;
     [SerializeField] private SoundDefinition sfx_PlayerGrab;
 
-    // --- State ---
+    //State
     private Vector3 leftHandPos, rightHandPos;
     private Quaternion leftHandRot, rightHandRot;
     private Collider leftTreeCollider, rightTreeCollider;
@@ -137,17 +137,14 @@ public class ProceduralMonsterController : MonoBehaviour
 
         UpdateStableForward();
 
-        // --- Turn Pause & Switch Logic ---
         CheckSharpTurn();
         if (currentTurnTimer > 0)
         {
             currentTurnTimer -= Time.deltaTime;
             
-            // 1. Slow down
             movementController.AnimationSpeedFactor = turnCrawlSpeed;
             currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * 10f);
             
-            // 2. FORCE HAND SWITCH during turn
             if (!isHandMoving)
             {
                 ForceHandSwitchDuringTurn();
@@ -159,7 +156,6 @@ public class ProceduralMonsterController : MonoBehaviour
             return; 
         }
         
-        // --- Standard Move Logic ---
         if (!isHandMoving && agent.velocity.sqrMagnitude > MinVelocity * MinVelocity)
         {
             CheckAndMoveHands();
@@ -187,26 +183,18 @@ public class ProceduralMonsterController : MonoBehaviour
         }
     }
 
-    // --- NEW: LOGIC TO FIX ROTATION STUCK HANDS ---
     void ForceHandSwitchDuringTurn()
     {
-        // 1. Calculate turn direction
         Vector3 toSteering = (agent.steeringTarget - transform.position).normalized;
         Vector3 cross = Vector3.Cross(transform.forward, toSteering);
         bool turningRight = cross.y > 0;
 
-        // 2. Identify the "Outer Hand" (The one that gets left behind)
-        // Turning Right -> Left hand is outer.
-        // Turning Left -> Right hand is outer.
         bool targetIsRight = !turningRight; 
 
-        // 3. Check Angle Stress specifically for the outer hand
         Vector3 handPos = targetIsRight ? rightHandPos : leftHandPos;
         Vector3 toHand = handPos - transform.position;
         float angle = Vector3.Angle(transform.forward, toHand);
 
-        // If the angle is bad (even slightly), FORCE MOVE immediately
-        // We use a tighter threshold (turnStressAngle) than normal walking
         if (angle > turnStressAngle)
         {
             AttemptStep(targetIsRight);
@@ -339,27 +327,69 @@ public class ProceduralMonsterController : MonoBehaviour
         return false;
     }
 
-    Collider FindBestTree(bool isRightHand) {
-        Vector3 searchCenter = transform.position + stableForward * (maxReachDistance * 0.6f);
+    Collider FindBestTree(bool isRightHand)
+    {
+        // 1. Setup Search Area
+        Vector3 searchCenter = transform.position + (stableForward * (maxReachDistance * 0.6f));
         Collider[] hits = Physics.OverlapSphere(searchCenter, maxReachDistance, treeLayer);
+
         if (hits.Length == 0) return null;
+
+        // 2. Pre-calculate Comparison Vectors
+        Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
+        
+        // Optimization: Convert Angle to Dot Product Threshold (Cheaper than calculating Angle inside loop)
+        // 1.0 = 0 degrees, 0.0 = 90 degrees. 
+        float minViewDot = Mathf.Cos(viewAngle * 0.5f * Mathf.Deg2Rad);
+
         Collider bestTree = null;
         float bestScore = float.MinValue;
-        Vector3 pathRight = Vector3.Cross(Vector3.up, stableForward);
-        float halfViewAngle = viewAngle * 0.5f;
-        foreach (var tree in hits) {
+
+        foreach (var tree in hits)
+        {
+            // --- VALIDITY CHECKS ---
+
+            // A. Ignore trees we are already holding
             if (tree == leftTreeCollider || tree == rightTreeCollider) continue;
-            Vector3 toTree = tree.transform.position - transform.position;
-            float dist = toTree.magnitude;
-            if (dist < minReachDistance) continue;
-            Vector3 dirToTree = toTree / dist; 
-            float sideDot = Vector3.Dot(toTree, pathRight);
-            if ((isRightHand && sideDot < -LaneOverlap) || (!isRightHand && sideDot > LaneOverlap)) continue;
-            if (Vector3.Angle(stableForward, dirToTree) > halfViewAngle) continue;
-            float pathAlign = Vector3.Dot(stableForward, dirToTree);
-            float score = pathAlign * PathAlignWeight + dist * DistanceWeight;
-            if (score > bestScore) { bestScore = score; bestTree = tree; }
+
+            Vector3 vectorToTree = tree.transform.position - transform.position;
+            float distSqr = vectorToTree.sqrMagnitude; // Faster distance check
+
+            // B. Min Reach Check (Squared comparison is faster)
+            if (distSqr < minReachDistance * minReachDistance) continue;
+
+            // Normalize for direction checks
+            Vector3 directionToTree = vectorToTree.normalized;
+
+            // C. Lane Check (Left vs Right side)
+            float horizontalAlignment = Vector3.Dot(vectorToTree, pathRight);
+            
+            // If Right Hand: Allow anything on Right (> 0) and slightly Left (> -LaneOverlap)
+            if (isRightHand && horizontalAlignment < -LaneOverlap) continue;
+            
+            // If Left Hand: Allow anything on Left (< 0) and slightly Right (< LaneOverlap)
+            if (!isRightHand && horizontalAlignment > LaneOverlap) continue;
+
+            // D. Vision Cone Check
+            float forwardAlignment = Vector3.Dot(stableForward, directionToTree);
+            if (forwardAlignment < minViewDot) continue;
+
+            // --- SCORING ---
+            
+            // We want trees that are:
+            // 1. Perfectly aligned with our forward path (High Forward Alignment)
+            // 2. Far away (High Distance) -> Encourages long, heavy strides
+            
+            float distance = Mathf.Sqrt(distSqr);
+            float score = (forwardAlignment * PathAlignWeight) + (distance * DistanceWeight);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestTree = tree;
+            }
         }
+
         return bestTree;
     }
 
@@ -505,65 +535,148 @@ public class ProceduralMonsterController : MonoBehaviour
 
     Vector3 GetPathDirection()
     {
+        // 1. Safety Checks
+        if (agent.path.corners.Length < 2) 
+            return transform.position + transform.forward * lookAheadDist;
+
+        // 2. Find the "Rabbit" point on the path
+        Vector3 rabbitPoint = GetPointAlongPath(lookAheadDist);
+        
+        // 3. Return direction to that point
+        return (rabbitPoint - transform.position).normalized;
+    }
+
+    Vector3 GetPointAlongPath(float targetDistance)
+    {
         Vector3[] corners = agent.path.corners;
-        if (corners.Length < 2) return transform.position + transform.forward * lookAheadDist;
         Vector3 currentPos = transform.position;
-        float distCovered = 0f;
-        for (int i = 0; i < corners.Length - 1; i++) {
-            Vector3 segStart = (i == 0) ? currentPos : corners[i];
-            Vector3 segEnd = corners[i + 1];
-            float segDist = Vector3.Distance(segStart, segEnd);
-            if (distCovered + segDist >= lookAheadDist) return (Vector3.MoveTowards(segStart, segEnd, lookAheadDist - distCovered) - transform.position).normalized;
-            distCovered += segDist;
+        float accumulatedDist = 0f;
+
+        // Iterate through path segments
+        for (int i = 0; i < corners.Length - 1; i++)
+        {
+            Vector3 start = (i == 0) ? currentPos : corners[i];
+            Vector3 end = corners[i + 1];
+            
+            float segmentLength = Vector3.Distance(start, end);
+
+            // If the target point lies within this segment
+            if (accumulatedDist + segmentLength >= targetDistance)
+            {
+                float remainingDist = targetDistance - accumulatedDist;
+                return Vector3.MoveTowards(start, end, remainingDist);
+            }
+
+            accumulatedDist += segmentLength;
         }
-        return corners[corners.Length - 1] - transform.position;
+
+        // Fallback: Return the final destination if path is shorter than lookAheadDist
+        return corners[corners.Length - 1];
     }
 
     bool IsHandStressed(bool isRight)
     {
         Vector3 handPos = isRight ? rightHandPos : leftHandPos;
-        Vector3 toHand = handPos - transform.position;
-        if (Vector3.Angle(stableForward, toHand) > maxArmAngle) return true;
+        Vector3 vectorToHand = handPos - transform.position;
+
+        // 1. ANGLE CHECK (T-Pose Fix)
+        // Is the arm twisted too far sideways/backwards?
+        if (Vector3.Angle(stableForward, vectorToHand) > maxArmAngle) 
+            return true;
+
+        // 2. CROSS-BODY CHECK (Tangle Fix)
+        // Is the Right hand crossing over to the Left side (or vice versa)?
         Vector3 stableRight = Vector3.Cross(Vector3.up, stableForward);
-        float sideDist = Vector3.Dot(toHand, stableRight);
-        if (isRight && sideDist < crossBodyThreshold) return true;
-        if (!isRight && sideDist > -crossBodyThreshold) return true;
-        float depth = Vector3.Dot(toHand, stableForward);
-        return depth < releaseThreshold;
+        float horizontalDist = Vector3.Dot(vectorToHand, stableRight);
+        
+        if (isRight && horizontalDist < crossBodyThreshold) return true; // Right hand is on Left side
+        if (!isRight && horizontalDist > -crossBodyThreshold) return true; // Left hand is on Right side
+
+        // 3. DEPTH CHECK (Standard Walking)
+        // Is the hand dragging too far behind the body?
+        float forwardDist = Vector3.Dot(vectorToHand, stableForward);
+        
+        return forwardDist < releaseThreshold;
     }
 
     void UpdateBodyPhysics()
     {
         if (visualModel == null) return;
-        Vector3 handCenter = (leftHandPos + rightHandPos) / 2f;
-        Vector3 targetWorldPos = handCenter;
-        if (agent.velocity.magnitude > 0.1f) targetWorldPos -= agent.velocity.normalized * bodyLag;
-        currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * surgeDecaySpeed);
-        targetWorldPos += transform.forward * currentSurge;
-        float speedFactor = movementController.AnimationSpeedFactor;
-        float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
-        float targetBob = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
-        currentBobY = Mathf.Lerp(currentBobY, targetBob, Time.deltaTime * bobSmoothingSpeed);
-        targetWorldPos.y += currentBobY;
-        Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
-        targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
-        visualModel.localPosition = Vector3.SmoothDamp(visualModel.localPosition, targetLocalPos, ref bodyVelocity, bodySmoothTime);
-        float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
-        float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
-        Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
-        Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
-        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true; else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
-        targetYaw = isLeaningRight ? bodyTwistAmount : -bodyTwistAmount;
-        currentYaw = Mathf.Lerp(currentYaw, targetYaw, Time.deltaTime * 3f);
-        Vector3 moveDir = agent.velocity;
-        if (moveDir.magnitude < 0.1f) moveDir = transform.forward;
-        float angleDiff = Vector3.Angle(visualModel.forward, moveDir);
-        float rotationSpeed = Mathf.Lerp(maxRotationSpeed, minRotationSpeed, angleDiff / 90f);
-        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
-        Quaternion offsetRot = Quaternion.Euler(targetPitch, currentYaw, 0);
-        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * rotationSpeed);
+
+        ApplyPositionPhysics();
+        ApplyRotationPhysics();
     }
 
+    void ApplyPositionPhysics()
+    {
+        // A. Calculate Center Mass (Ideal Position)
+        Vector3 handCenter = (leftHandPos + rightHandPos) * 0.5f;
+        Vector3 targetWorldPos = handCenter;
+
+        // B. Apply Drag (Move body backwards based on speed)
+        if (agent.velocity.sqrMagnitude > 0.01f)
+        {
+            targetWorldPos -= agent.velocity.normalized * bodyLag;
+        }
+
+        // C. Apply Surge (The "Pull" force)
+        currentSurge = Mathf.Lerp(currentSurge, 0f, Time.deltaTime * surgeDecaySpeed);
+        targetWorldPos += transform.forward * currentSurge;
+
+        // D. Apply Bob (Height changes based on reach/pull state)
+        float speedFactor = movementController.AnimationSpeedFactor;
+        float liftProgress = Mathf.InverseLerp(reachSpeedFactor, pullSpeedFactor, speedFactor);
+        
+        float targetBob = Mathf.Lerp(-dropAmount, liftAmount, liftProgress);
+        currentBobY = Mathf.Lerp(currentBobY, targetBob, Time.deltaTime * bobSmoothingSpeed);
+        
+        targetWorldPos.y += currentBobY;
+
+        // E. Convert to Local & Clamp (Prevents teleporting)
+        Vector3 targetLocalPos = transform.InverseTransformPoint(targetWorldPos);
+        targetLocalPos = Vector3.ClampMagnitude(targetLocalPos, 1.0f);
+
+        // F. Apply Smoothly
+        visualModel.localPosition = Vector3.SmoothDamp(
+            visualModel.localPosition, 
+            targetLocalPos, 
+            ref bodyVelocity, 
+            bodySmoothTime
+        );
+    }
+
+    void ApplyRotationPhysics()
+    {
+        Vector3 moveDir = agent.velocity;
+        if (moveDir.sqrMagnitude < 0.01f) moveDir = transform.forward;
+
+        // 1. Pitch (Lean Forward)
+        float speedRatio = Mathf.Clamp01(agent.velocity.magnitude / 6f);
+        float targetPitch = Mathf.Lerp(5f, maxForwardLean, speedRatio);
+
+        // 2. Yaw (Body Twist)
+        // Determine which hand is the "Anchor" (furthest back)
+        Vector3 localLeft = transform.InverseTransformPoint(leftHandPos);
+        Vector3 localRight = transform.InverseTransformPoint(rightHandPos);
+        
+        // Hysteresis: Only switch twist if hands pass each other significantly
+        // This prevents jitter when hands are side-by-side
+        if (localRight.z < localLeft.z - 0.2f) isLeaningRight = true;
+        else if (localLeft.z < localRight.z - 0.2f) isLeaningRight = false;
+
+        targetYaw = isLeaningRight ? bodyTwistAmount : -bodyTwistAmount;
+        currentYaw = Mathf.Lerp(currentYaw, targetYaw, Time.deltaTime * 3f);
+
+        // 3. Rotation Speed (Slow down rotation on sharp turns)
+        float angleDiff = Vector3.Angle(visualModel.forward, moveDir);
+        float rotationSpeed = Mathf.Lerp(maxRotationSpeed, minRotationSpeed, angleDiff / 90f);
+
+        // 4. Apply
+        Quaternion lookRot = Quaternion.LookRotation(moveDir, Vector3.up);
+        Quaternion offsetRot = Quaternion.Euler(targetPitch, currentYaw, 0);
+
+        visualModel.rotation = Quaternion.Slerp(visualModel.rotation, lookRot * offsetRot, Time.deltaTime * rotationSpeed);
+    }
     void UpdateIKTargets()
     {
         if (leftHandTarget != null) {
