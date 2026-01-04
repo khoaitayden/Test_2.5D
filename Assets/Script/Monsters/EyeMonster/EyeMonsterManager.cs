@@ -4,45 +4,34 @@ using System.Collections;
 public class EyeMonsterManager : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private GameObject eyeObject; // Drag the Eye from the scene here
+    [SerializeField] private GameObject eyeObject;
     [SerializeField] private Transform playerTransform;
     [SerializeField] private LightEnergyManager lightManager;
 
-    [Header("Timing")]
-    [Tooltip("Minimum time (seconds) to wait before attempting a spawn.")]
-    [SerializeField] private float minSpawnInterval = 180f; // 3 minutes
-    [Tooltip("Maximum time (seconds) to wait before attempting a spawn.")]
-    [SerializeField] private float maxSpawnInterval = 240f; // 4 minutes
+    [SerializeField] private float minSpawnInterval = 180f;
+    [SerializeField] private float maxSpawnInterval = 240f;
 
     [Header("Spawn Chance (Light Dependent)")]
-    [Tooltip("Chance to spawn when light is FULL (100%).")]
-    [Range(0f, 1f)] [SerializeField] private float chanceAtFullLight = 0.05f; // 5%
-    [Tooltip("Chance to spawn when light is EMPTY (0%).")]
-    [Range(0f, 1f)] [SerializeField] private float chanceAtNoLight = 0.40f; // 40%
+    [Range(0f, 1f)] [SerializeField] private float chanceAtFullLight = 0.05f;
+    [Range(0f, 1f)] [SerializeField] private float chanceAtNoLight = 0.40f;
 
     [Header("Spawn Radius (Light Dependent)")]
-    [Tooltip("Distance from player when light is FULL (100%).")]
     [SerializeField] private float radiusAtFullLight = 30f;
-    [Tooltip("Distance from player when light is EMPTY (0%).")]
     [SerializeField] private float radiusAtNoLight = 8f;
-    
-    [SerializeField] private float spawnHeight = 1.7f; // Eye level
+
+    [Header("Spawn Position")]
+    [SerializeField] private float minSpawnHeight = 1.5f;
+    [SerializeField] private float maxSpawnHeight = 4.0f; 
 
     // State
-    private bool isUnlocked = false; // Has the first objective been met?
+    private bool isUnlocked = false;
     
     void Start()
     {
-        // Ensure eye starts hidden
         if (eyeObject != null)
             eyeObject.SetActive(false);
-            
-        // For testing, we can unlock it immediately.
-        // In your real game, you would call UnlockEyeSpawning() from your objective manager.
         UnlockEyeSpawning(); 
     }
-
-    // Call this from your game manager when the first objective is complete
     public void UnlockEyeSpawning()
     {
         if (isUnlocked) return;
@@ -53,10 +42,8 @@ public class EyeMonsterManager : MonoBehaviour
 
     private IEnumerator SpawnTimer()
     {
-        // This loop runs forever in the background
         while (isUnlocked)
         {
-            // Wait for a random duration
             float waitTime = Random.Range(minSpawnInterval, maxSpawnInterval);
             yield return new WaitForSeconds(waitTime);
 
@@ -118,16 +105,21 @@ public class EyeMonsterManager : MonoBehaviour
             float randomAngle = Random.Range(0f, 360f);
             Vector3 direction = Quaternion.Euler(0, randomAngle, 0) * Vector3.forward;
 
-            // Calculate position
+            // Calculate position on the circle
             Vector3 attemptPos = playerTransform.position + direction * radius;
 
             // Raycast down from the sky to find the ground
             if (Physics.Raycast(attemptPos + Vector3.up * 20f, Vector3.down, out RaycastHit hit, 40f))
             {
-                Vector3 finalPos = hit.point + Vector3.up * spawnHeight;
+                // --- THE FIX IS HERE ---
+                // Pick a random height within the specified range
+                float randomHeight = Random.Range(minSpawnHeight, maxSpawnHeight);
+                Vector3 finalPos = hit.point + Vector3.up * randomHeight;
+                // -----------------------
 
                 // Make sure we didn't spawn inside a wall (check from player TO eye)
                 Vector3 toEye = finalPos - playerTransform.position;
+                // We check against 90% of the distance to avoid hitting the player's own collider
                 if (!Physics.Raycast(playerTransform.position, toEye.normalized, toEye.magnitude * 0.9f))
                 {
                     return finalPos; // Path is clear!

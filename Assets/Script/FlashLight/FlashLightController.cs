@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class FlashlightController : MonoBehaviour
 {
@@ -17,17 +18,20 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private float bobAmplitude = 0.05f;
 
     [Header("Logic")]
-    [SerializeField] private LayerMask interactLayer;
+    [SerializeField] private LayerMask interactLayer;   // Monsters, Eyes, Interactables
+    [SerializeField] private LayerMask obstructionLayer; // Walls, Ground (Blocks light)
 
     // State
     public bool IsActive { get; private set; }
-    private ILitObject currentLitObj;
     private Transform mainCam;
     
+    // Changed from single object to a List to handle multiple things in the cone
+    private HashSet<ILitObject> currentlyLitObjects = new HashSet<ILitObject>();
+
     // Dimming Variables
     private float _initIntensity;
     private float _initRange;
-    private float _minRange = 5.0f; // Minimum range when energy is near 0
+    private float _minRange = 5.0f;
 
     void Start()
     {
@@ -35,10 +39,8 @@ public class FlashlightController : MonoBehaviour
         
         if (spotLight != null) 
         {
-            // 1. Cache the starting values set in the Inspector
             _initIntensity = spotLight.intensity;
             _initRange = spotLight.range;
-            
             spotLight.enabled = false;
         }
         
@@ -71,7 +73,7 @@ public class FlashlightController : MonoBehaviour
             SetFlashlightState(shouldBeOn);
         }
 
-        if (IsActive) CheckLightInteraction();
+        if (IsActive) CheckConeInteraction();
     }
 
     void UpdateBrightness()
@@ -95,16 +97,16 @@ public class FlashlightController : MonoBehaviour
 
         if (on)
         {
-            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseWeak);
-            UpdateBrightness(); // Update immediately on turn on so it doesn't flash wrong
+            UpdateBrightness();
         }
         else
         {
-            if (currentLitObj != null)
+            // Clear all lit objects when turning off
+            foreach (var obj in currentlyLitObjects)
             {
-                currentLitObj.OnUnlit(LightSourceType.Flashlight);
-                currentLitObj = null;
+                obj.OnUnlit(LightSourceType.Flashlight);
             }
+            currentlyLitObjects.Clear();
         }
     }
 
@@ -130,29 +132,60 @@ public class FlashlightController : MonoBehaviour
         transform.position = Vector3.Lerp(transform.position, targetPos, dt * positionSmoothSpeed);
     }
 
-    void CheckLightInteraction()
+    // --- NEW: CONE LOGIC ---
+    void CheckConeInteraction()
     {
         if (spotLight == null) return;
+
+        float range = spotLight.range;
+        float halfAngle = spotLight.spotAngle * 0.5f;
+
+        // 1. Find everything in Range
+        Collider[] hits = Physics.OverlapSphere(transform.position, range, interactLayer);
+        HashSet<ILitObject> visibleThisFrame = new HashSet<ILitObject>();
+
+        foreach (var hit in hits)
+        {
+            // 2. Direction Check
+            Vector3 dirToTarget = (hit.transform.position - transform.position).normalized;
+            
+            // 3. Angle Check (Is it inside the cone?)
+            if (Vector3.Angle(transform.forward, dirToTarget) < halfAngle)
+            {
+                // 4. Line of Sight Check (Is it behind a wall?)
+                float dst = Vector3.Distance(transform.position, hit.transform.position);
+                if (!Physics.Raycast(transform.position, dirToTarget, dst, obstructionLayer))
+                {
+                    ILitObject litObj = hit.GetComponent<ILitObject>();
+                    if (litObj != null)
+                    {
+                        visibleThisFrame.Add(litObj);
+                    }
+                }
+            }
+        }
+
+        // 5. Apply States
         
-        // Raycast uses current dynamic range
-        RaycastHit hit;
-        if (Physics.Raycast(transform.position, transform.forward, out hit, spotLight.range, interactLayer))
+        // A. Handle New/Persisting Objects
+        foreach (var obj in visibleThisFrame)
         {
-            ILitObject obj = hit.collider.GetComponent<ILitObject>();
-            if (obj != currentLitObj)
+            if (!currentlyLitObjects.Contains(obj))
             {
-                if (currentLitObj != null) currentLitObj.OnUnlit(LightSourceType.Flashlight);
-                currentLitObj = obj;
-                if (currentLitObj != null) currentLitObj.OnLit(LightSourceType.Flashlight);
+                obj.OnLit(LightSourceType.Flashlight);
             }
         }
-        else
+
+        // B. Handle Objects that left the cone (or got blocked)
+        foreach (var oldObj in currentlyLitObjects)
         {
-            if (currentLitObj != null)
+            if (!visibleThisFrame.Contains(oldObj))
             {
-                currentLitObj.OnUnlit(LightSourceType.Flashlight);
-                currentLitObj = null;
+                oldObj.OnUnlit(LightSourceType.Flashlight);
             }
-        }
+        } 
+
+        // C. Update Cache
+        currentlyLitObjects = visibleThisFrame;
     }
 }
