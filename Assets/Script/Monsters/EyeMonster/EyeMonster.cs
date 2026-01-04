@@ -2,6 +2,12 @@ using UnityEngine;
 
 public class EyeMonster : MonoBehaviour, ILitObject
 {
+    [Header("Visuals")]
+    [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private Sprite normalSprite;
+    [SerializeField] private Sprite burnSprite;
+
+    [Header("Mechanics")]
     [SerializeField] private float timeToExpose = 3.0f;
     [SerializeField] private float timeToVanish = 2.0f;
     [SerializeField] private EyeMonsterManager manager;
@@ -15,6 +21,10 @@ public class EyeMonster : MonoBehaviour, ILitObject
     {
         if (Camera.main != null) mainCameraTransform = Camera.main.transform;
         if (manager == null) manager = FindFirstObjectByType<EyeMonsterManager>();
+        
+        // Safety check for SpriteRenderer
+        if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        
         OnEnable();
     }
 
@@ -23,13 +33,14 @@ public class EyeMonster : MonoBehaviour, ILitObject
         currentHeat = 0f;
         exposeTimer = 0f;
         isLitByFlashlight = false;
-        // Reset flag immediately
         if (manager != null) manager.SetExposureState(false);
+        
+        // Reset Sprite
+        if (spriteRenderer != null) spriteRenderer.sprite = normalSprite;
     }
 
     void OnDisable()
     {
-        // Safety check: ensure flag is off when object turns off
         if (manager != null) manager.SetExposureState(false);
     }
 
@@ -50,9 +61,14 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
     private void HandleBurning()
     {
-        // Immediately cut the alarm
         if (manager != null) manager.SetExposureState(false);
         
+        // --- CHANGE SPRITE: HURT ---
+        if (spriteRenderer != null && spriteRenderer.sprite != burnSprite)
+        {
+            spriteRenderer.sprite = burnSprite;
+        }
+
         exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime * 2f);
         currentHeat += Time.deltaTime;
         
@@ -61,13 +77,17 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
     private void HandleStaring()
     {
+        // --- CHANGE SPRITE: NORMAL ---
+        if (spriteRenderer != null && spriteRenderer.sprite != normalSprite)
+        {
+            spriteRenderer.sprite = normalSprite;
+        }
+
         if (currentHeat > 0) currentHeat = Mathf.Max(0, currentHeat - Time.deltaTime);
 
         if (CanSeePlayer())
         {
             exposeTimer += Time.deltaTime;
-
-            // --- TRIGGER ---
             if (exposeTimer >= timeToExpose)
             {
                 if (manager != null) manager.SetExposureState(true);
@@ -76,7 +96,6 @@ public class EyeMonster : MonoBehaviour, ILitObject
         else
         {
             exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime);
-            // Stop alarm if line of sight broken
             if (manager != null) manager.SetExposureState(false);
         }
     }
