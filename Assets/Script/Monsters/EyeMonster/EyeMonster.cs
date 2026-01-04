@@ -1,104 +1,99 @@
 using UnityEngine;
-using System.Collections;
 
 public class EyeMonster : MonoBehaviour, ILitObject
 {
-    [Header("Burn Settings")]
-    [Tooltip("How long (in seconds) the eye must be lit to burn away.")]
-    [SerializeField] private float timeToVanish;
-
-    [Tooltip("How fast the eye 'heals' when not lit (seconds recovered per second).")]
-    [SerializeField] private float regenRate; 
-
-    [Header("Dependencies")]
+    [SerializeField] private float timeToExpose = 3.0f;
+    [SerializeField] private float timeToVanish = 2.0f;
     [SerializeField] private EyeMonsterManager manager;
 
     private Transform mainCameraTransform;
-    
-    // "Heat" represents how much the eye has been burned (0 to timeToVanish)
     private float currentHeat = 0f;
+    private float exposeTimer = 0f;
     private bool isLitByFlashlight = false;
 
     void Start()
     {
-        if (Camera.main != null) 
-            mainCameraTransform = Camera.main.transform;
-            
-        if (manager == null) 
-            manager = FindFirstObjectByType<EyeMonsterManager>();
+        if (Camera.main != null) mainCameraTransform = Camera.main.transform;
+        if (manager == null) manager = FindFirstObjectByType<EyeMonsterManager>();
+        OnEnable();
     }
 
     void OnEnable()
     {
         currentHeat = 0f;
+        exposeTimer = 0f;
         isLitByFlashlight = false;
+        // Reset flag immediately
+        if (manager != null) manager.SetExposureState(false);
+    }
+
+    void OnDisable()
+    {
+        // Safety check: ensure flag is off when object turns off
+        if (manager != null) manager.SetExposureState(false);
     }
 
     void LateUpdate()
     {
-        // 1. Billboarding
-        if (mainCameraTransform != null)
-        {
-            transform.LookAt(mainCameraTransform);
-        }
+        if (mainCameraTransform == null) return;
+        transform.LookAt(mainCameraTransform);
 
-        // 2. Heat / Burn Logic
         if (isLitByFlashlight)
         {
-            // Increase Heat
-            currentHeat += Time.deltaTime;
-            
-            // Check for Death
-            if (currentHeat >= timeToVanish)
+            HandleBurning();
+        }
+        else
+        {
+            HandleStaring();
+        }
+    }
+
+    private void HandleBurning()
+    {
+        // Immediately cut the alarm
+        if (manager != null) manager.SetExposureState(false);
+        
+        exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime * 2f);
+        currentHeat += Time.deltaTime;
+        
+        if (currentHeat >= timeToVanish) Vanish();
+    }
+
+    private void HandleStaring()
+    {
+        if (currentHeat > 0) currentHeat = Mathf.Max(0, currentHeat - Time.deltaTime);
+
+        if (CanSeePlayer())
+        {
+            exposeTimer += Time.deltaTime;
+
+            // --- TRIGGER ---
+            if (exposeTimer >= timeToExpose)
             {
-                Vanish();
+                if (manager != null) manager.SetExposureState(true);
             }
         }
         else
         {
-            // Decrease Heat (Regen)
-            if (currentHeat > 0f)
-            {
-                currentHeat -= regenRate * Time.deltaTime;
-                if (currentHeat < 0f) currentHeat = 0f;
-            }
+            exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime);
+            // Stop alarm if line of sight broken
+            if (manager != null) manager.SetExposureState(false);
         }
-        
-        // Optional Debug: Shake based on heat?
-        // if (currentHeat > 0) transform.localScale = Vector3.one * (1f - (currentHeat/timeToVanish) * 0.2f);
+    }
+
+    private bool CanSeePlayer()
+    {
+        Vector3 dir = (mainCameraTransform.position - transform.position).normalized;
+        float dist = Vector3.Distance(transform.position, mainCameraTransform.position);
+        return !Physics.Raycast(transform.position, dir, dist, LayerMask.GetMask("Default", "Structure", "Terrain"));
     }
 
     private void Vanish()
     {
-        Debug.Log("<color=green>[EyeMonster]</color> Eye burned away!");
-        
-        TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseWeak);
-
-        if (manager != null)
-        {
-            manager.DespawnEye();
-        }
-        else
-        {
-            gameObject.SetActive(false);
-        }
+        if (manager != null) manager.DespawnEye();
+        else gameObject.SetActive(false);
     }
 
-    // --- ILitObject Implementation ---
-
-    public void OnLit(LightSourceType sourceType)
-    {
-        if (sourceType == LightSourceType.Flashlight)
-        {
-            isLitByFlashlight = true;
-        }
-    }
-
-    public void OnUnlit(LightSourceType sourceType)
-    {
-        if (sourceType == LightSourceType.Flashlight)
-        {
-            isLitByFlashlight = false;
-        }
-    }
+    public void OnLit(LightSourceType type) { if (type == LightSourceType.Flashlight) isLitByFlashlight = true; }
+    public void OnUnlit(LightSourceType type) { if (type == LightSourceType.Flashlight) isLitByFlashlight = false; }
 }

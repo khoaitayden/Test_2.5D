@@ -38,8 +38,25 @@ public class MonsterVision : MonoBehaviour
 
     private void PerformVisionCheck()
     {
+        // --- 1. GLOBAL EXPOSURE OVERRIDE ---
+        if (EyeMonsterManager.Instance != null && EyeMonsterManager.Instance.IsPlayerExposed)
+        {
+            Transform player = EyeMonsterManager.Instance.PlayerTransform;
+            
+            // "Wallhack" enabled: Skip all raycasts and angles
+            canSeePlayerNow = true;
+            timeSinceLastSeen = 0f;
+            
+            // Update Brain immediately
+            if (brain != null) brain.OnPlayerSeen(player);
+            
+            return; // EXIT FUNCTION EARLY
+        }
+
+        // --- 2. STANDARD VISION LOGIC ---
+        // (This code only runs if the Eye is NOT exposing the player)
         Transform seenPlayer = ScanForPlayer();
-        canSeePlayerNow = (seenPlayer != null);
+        canSeePlayerNow = seenPlayer != null;
 
         if (canSeePlayerNow)
         {
@@ -149,6 +166,21 @@ public class MonsterVision : MonoBehaviour
 
         return false;
     }
+
+    public void ForceRevealPlayer(Transform player)
+        {
+            if (player == null) return;
+
+            // Reset the "Lost Sight" timer so the monster doesn't forget
+            timeSinceLastSeen = 0f;
+            canSeePlayerNow = true;
+
+            if (brain != null)
+            {
+                // Continuously update the brain with the LIVE position
+                brain.OnPlayerSeen(player);
+            }
+        }
     private void OnDrawGizmosSelected()
     {
     #if UNITY_EDITOR

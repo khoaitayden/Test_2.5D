@@ -3,6 +3,7 @@ using System.Collections;
 
 public class EyeMonsterManager : MonoBehaviour
 {
+    public static EyeMonsterManager Instance { get; private set; }
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
     [SerializeField] private Transform playerTransform;
@@ -25,6 +26,13 @@ public class EyeMonsterManager : MonoBehaviour
 
     // State
     private bool isUnlocked = false;
+    public bool IsPlayerExposed { get; private set; }
+    public Transform PlayerTransform => playerTransform;
+    void Awake()
+    {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+    }
     
     void Start()
     {
@@ -134,6 +142,11 @@ public class EyeMonsterManager : MonoBehaviour
     {
         if (eyeObject != null)
             eyeObject.SetActive(false);
+    }
+
+    public void SetExposureState(bool isExposed)
+    {
+        IsPlayerExposed = isExposed;
     }
     
     // For testing in the editor
