@@ -2,79 +2,59 @@ using UnityEngine;
 
 public class LightEnergyManager : MonoBehaviour
 {
-    public static LightEnergyManager Instance { get; private set; }
+    // REMOVED: public static LightEnergyManager Instance;
+
+    [Header("Data References")]
+    [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
+    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"
+    [SerializeField] private BoolVariableSO isSprinting;    // Drag "var_IsSprinting"
+    [SerializeField] private BoolVariableSO isFlashlightOn; // Drag "var_IsFlashlightOn"
 
     [Header("Base Settings")]
-    [SerializeField] private float maxDuration = 100f;
+    [SerializeField] private float maxDuration = 100f; // This sets the MaxEnergy SO
     [SerializeField] private float startingPercentage = 0.5f;
 
     [Header("Drain Multipliers")]
-    [Tooltip("Multiplier when flashlight is ON.")]
     [SerializeField] private float flashlightCostMult = 1.5f;
-    [Tooltip("Multiplier when Sprinting.")]
     [SerializeField] private float sprintCostMult = 2.0f;
 
-    // Internal State
-    private float currentEnergy;
-    private float drainRateBase = 1.0f; // 1 unit per second default
-    private bool isDrainPaused = false;
-
-    // Flags controlled by other scripts
-    private bool isFlashlightActive = false;
-    private bool isPlayerSprinting = false;
-
-    public float CurrentEnergy => currentEnergy;
-    public float EnergyFraction => maxDuration > 0 ? currentEnergy / maxDuration : 0f;
+    [Header("Debug")]
+    [SerializeField] private bool isDrainPaused = false;
+    private float drainRateBase = 1.0f;
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
-
-    void Start()
-    {
-        currentEnergy = maxDuration * startingPercentage;
+        // Initialize the Data assets
+        // We do this here so other scripts reading Start() get correct values
+        if (maxEnergy != null) maxEnergy.Value = maxDuration;
+        
+        if (currentEnergy != null && maxEnergy != null)
+        {
+            currentEnergy.Value = maxEnergy.Value * startingPercentage;
+        }
     }
 
     void Update()
     {
-        if (isDrainPaused) return;
+        if (isDrainPaused || currentEnergy == null) return;
 
-        // --- CENTRALIZED DRAIN CALCULATION ---
         float finalMultiplier = 1.0f;
 
-        if (isFlashlightActive) 
+        // READ from the ScriptableObjects directly
+        if (isFlashlightOn.Value) 
             finalMultiplier *= flashlightCostMult;
 
-        if (isPlayerSprinting) 
+        if (isSprinting.Value) 
             finalMultiplier *= sprintCostMult;
 
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;
-        currentEnergy = Mathf.Clamp(currentEnergy - drain, 0f, maxDuration);
-    }
+        currentEnergy.ApplyChange(-drain, 0f, maxEnergy.Value);
 
-    // --- PUBLIC API FOR OTHER SCRIPTS ---
-
-    public void SetFlashlightState(bool isOn)
-    {
-        isFlashlightActive = isOn;
-    }
-
-    public void SetSprintState(bool isSprinting)
-    {
-        isPlayerSprinting = isSprinting;
+    
     }
 
     public void SetDrainPaused(bool isPaused)
     {
         isDrainPaused = isPaused;
-    }
-
-    public void RestoreEnergy(float percentAmount)
-    {
-        float actualAmount = maxDuration * percentAmount;
-        currentEnergy = Mathf.Clamp(currentEnergy + actualAmount, 0f, maxDuration);
     }
 }

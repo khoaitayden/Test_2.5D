@@ -4,11 +4,12 @@ using System.Collections;
 public class EyeMonsterManager : MonoBehaviour
 {
     public static EyeMonsterManager Instance { get; private set; }
-
+    [Header("Data")]
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
     [SerializeField] private Transform playerTransform;
-    [SerializeField] private LightEnergyManager lightManager;
 
     [SerializeField] private float minSpawnInterval = 180f;
     [SerializeField] private float maxSpawnInterval = 240f;
@@ -66,10 +67,9 @@ public class EyeMonsterManager : MonoBehaviour
 
     private void TrySpawn()
     {
-        if (eyeObject == null || playerTransform == null || lightManager == null) return;
         if (eyeObject.activeSelf) return;
 
-        float lightFraction = lightManager.EnergyFraction;
+        float lightFraction = currentEnergy.Value / maxEnergy.Value;
         float currentSpawnChance = Mathf.Lerp(chanceAtNoLight, chanceAtFullLight, lightFraction);
 
         if (Random.value > currentSpawnChance) return;

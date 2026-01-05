@@ -4,10 +4,14 @@ using UnityEngine;
 public class FloatVariableSO : ScriptableObject
 {
     public float Value;
+    
+    [TextArea] public string Description;
 
-    [TextArea]
-    public string Description; // Good for documentation
+    private void OnDisable() => Value = 0f;
 
-    // Optional: Reset value on start so data doesn't persist between sessions unexpectedly
-    public void SetValue(float value) => Value = value;
+    // Helper to modify energy safely
+    public void ApplyChange(float amount, float min, float max)
+    {
+        Value = Mathf.Clamp(Value + amount, min, max);
+    }
 }

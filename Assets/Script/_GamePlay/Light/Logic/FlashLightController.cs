@@ -3,6 +3,10 @@ using System.Collections.Generic;
 
 public class FlashlightController : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private BoolVariableSO isFlashlightOn;
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
     [Header("References")]
     [SerializeField] private Light spotLight;
     [SerializeField] private Transform playerTransform;
@@ -63,7 +67,7 @@ public class FlashlightController : MonoBehaviour
     {
         bool shouldBeOn = InputManager.Instance.IsFlashlightHeld;
 
-        if (WispController.Instance != null && !WispController.Instance.IsWispAlive) 
+        if (currentEnergy.Value<=0) 
         {
             shouldBeOn = false;
         }
@@ -78,8 +82,7 @@ public class FlashlightController : MonoBehaviour
 
     void UpdateBrightness()
     {
-        if (spotLight == null || LightEnergyManager.Instance == null) return;
-        float energyFactor = LightEnergyManager.Instance.EnergyFraction;
+        float energyFactor = currentEnergy.Value/maxEnergy.Value;
 
         spotLight.intensity = Mathf.Lerp(0f, _initIntensity, energyFactor);
         spotLight.range = Mathf.Lerp(_minRange, _initRange, energyFactor);
@@ -90,10 +93,8 @@ public class FlashlightController : MonoBehaviour
         IsActive = on;
         if (spotLight != null) spotLight.enabled = on;
 
-        if (LightEnergyManager.Instance != null)
-        {
-            LightEnergyManager.Instance.SetFlashlightState(on);
-        }
+        if (isFlashlightOn != null)
+                    isFlashlightOn.Value = on;
 
         if (on)
         {

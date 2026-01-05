@@ -3,8 +3,8 @@ using UnityEngine;
 public class PlayerAnimation : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private SpriteRenderer playerBodyRenderer; // Assign Player Sprite Here
-    [SerializeField] private PlayerItemCarrier itemCarrier;     // Assign Player script Here
+    [SerializeField] private SpriteRenderer playerBodyRenderer; 
+    [SerializeField] private PlayerItemCarrier itemCarrier;   
 
     private Animator animator;
     private Transform mainCameraTransform;

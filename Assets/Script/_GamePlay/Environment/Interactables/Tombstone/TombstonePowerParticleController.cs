@@ -2,6 +2,9 @@ using UnityEngine;
 
 public class TombstonePowerParticleController : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy; 
     [Header("Detection Settings")]
     [SerializeField] private LayerMask triggerLayers;
     [SerializeField] private float checkRadius = 0.5f;
@@ -12,7 +15,6 @@ public class TombstonePowerParticleController : MonoBehaviour
     private ParticleSystem ps;
     private ParticleSystem.Particle[] particles;
     private Collider[] hitBuffer = new Collider[4];
-    private LightEnergyManager energyManager;
     
     // Reference to the parent logic script
     private TombstoneController tombstoneController;
@@ -23,8 +25,6 @@ public class TombstonePowerParticleController : MonoBehaviour
         // Ensure array is large enough
         if (ps != null)
             particles = new ParticleSystem.Particle[ps.main.maxParticles];
-        
-        energyManager = FindFirstObjectByType<LightEnergyManager>();
         
         // Grab the controller on the same object (or parent)
         tombstoneController = GetComponent<TombstoneController>();
@@ -45,9 +45,10 @@ public class TombstonePowerParticleController : MonoBehaviour
             if (hits > 0)
             {
                 // 1. Give Energy to Player
-                if (energyManager != null && energyPerParticle > 0f)
+                if (currentEnergy != null && maxEnergy != null)
                 {
-                    energyManager.RestoreEnergy(energyPerParticle);
+                    float amountToAdd = maxEnergy.Value * energyPerParticle;
+                    currentEnergy.ApplyChange(amountToAdd, 0f, maxEnergy.Value);
                 }
                 
                 // 2. Remove Energy from Tombstone (Crucial Fix)

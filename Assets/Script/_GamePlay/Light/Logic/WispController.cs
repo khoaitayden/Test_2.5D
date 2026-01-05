@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 public class WispController : MonoBehaviour
 {
-    public static WispController Instance { get; private set; }
-
+    [Header("Data")]
+    [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
+    [SerializeField] private FloatVariableSO maxEnergy;  
     [Header("Lights")]
     [SerializeField] private Light innerGlowLight;
     [SerializeField] private Light areaMapLight; 
@@ -23,13 +24,8 @@ public class WispController : MonoBehaviour
     private float _initInnerIntensity;
     private float _initAreaIntensity;
     private float _initAreaRange;
+    private float energyFactor;
 
-    public bool IsWispAlive => LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy > 0;
-
-    void Awake() 
-    { 
-        if (Instance == null) Instance = this; 
-    }
 
     void Start()
     {
@@ -43,12 +39,12 @@ public class WispController : MonoBehaviour
 
     void Update()
     {
-        if (!IsWispAlive)
+        if (currentEnergy.Value<=0)
         {
             HandleDeath();
             return;
         }
-
+        energyFactor = currentEnergy.Value / maxEnergy.Value;
         UpdateLights();
         UpdateInteractions();
     }
@@ -56,9 +52,6 @@ public class WispController : MonoBehaviour
     // --- 1. LIGHT VISUALS (UPDATED) ---
     void UpdateLights()
     {
-        // Now using EnergyFraction directly (Linear 0.0 to 1.0)
-        float energyFactor = LightEnergyManager.Instance.EnergyFraction; 
-
         // Sprite
         if (spriteRenderer) spriteRenderer.enabled = true;
 
@@ -111,8 +104,7 @@ public class WispController : MonoBehaviour
         }
 
         TombstoneController bestTombstone = null;
-        
-        if (LightEnergyManager.Instance.EnergyFraction < energyThreshold)
+        if (energyFactor < energyThreshold)
         {
             float minDst = float.MaxValue;
             foreach (var t in visibleTombstones)

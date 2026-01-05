@@ -3,6 +3,9 @@ using Unity.Cinemachine;
 
 public class PlayerVisionController : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
     [Header("References")]
     [Tooltip("The Flashlight Script on the Player or Camera.")]
     [SerializeField] private FlashlightController flashlight;
@@ -11,31 +14,27 @@ public class PlayerVisionController : MonoBehaviour
     [SerializeField] private CinemachineCamera virtualCamera;
 
     [Header("Camera Settings")]
-    [SerializeField] private float baseFarClip = 40f;       // Normal range (High Energy)
-    [SerializeField] private float flashlightFarClip = 65f; // Boosted range (Flashlight ON)
-    [SerializeField] private float deadFarClip = 15f;       // Blindness range (No Energy)
+    [SerializeField] private float baseFarClip = 40f;       
+    [SerializeField] private float flashlightFarClip = 65f; 
+    [SerializeField] private float deadFarClip = 15f;       
 
     void Update()
     {
-        if (LightEnergyManager.Instance == null || virtualCamera == null) return;
 
-        // --- FIX: Use EnergyFraction instead of GetIntensityFactor ---
-        float energyFactor = LightEnergyManager.Instance.EnergyFraction; // 0.0 to 1.0
-        bool hasEnergy = LightEnergyManager.Instance.CurrentEnergy > 0;
+        float energyFactor =currentEnergy.Value / maxEnergy.Value;
+        bool hasEnergy = currentEnergy.Value > 0;
 
         // Calculate Target Clip Plane
         float targetClip = deadFarClip;
 
         if (hasEnergy)
         {
-            // Priority: If Flashlight is ON, use max range regardless of energy
             if (flashlight != null && flashlight.IsActive)
             {
                 targetClip = flashlightFarClip;
             }
             else
             {
-                // Otherwise, scale vision based on remaining energy
                 targetClip = Mathf.Lerp(deadFarClip, baseFarClip, energyFactor);
             }
         }

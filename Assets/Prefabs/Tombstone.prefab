@@ -5156,6 +5156,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 79382dc69229267d497b489cb9f46052, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TombstonePowerParticleController
+  currentEnergy: {fileID: 11400000, guid: edb419d904aef2e35b1ecc776199e81d, type: 2}
+  maxEnergy: {fileID: 11400000, guid: 5d5a7d95cb36ff1edacdad06ccff294b, type: 2}
   triggerLayers:
     serializedVersion: 2
     m_Bits: 64

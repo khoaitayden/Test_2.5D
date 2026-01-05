@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// Expand this list whenever you add new mechanics (dry leaves, doors opening, etc)
 public enum TraceType
 {
     Footstep_Walk,

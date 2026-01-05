@@ -7,6 +7,11 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private TraceEventChannelSO traceChannel; 
+    [Header("Data")]
+    [SerializeField] private BoolVariableSO isFlashlightOn;
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
+    [SerializeField] private BoolVariableSO isSprinting;
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 6f;
     [SerializeField] private float sprintSpeedMultiplier;
@@ -43,7 +48,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerParticleController particleController;
     [SerializeField] private PlayerAnimation playerAnimation;
     [SerializeField] private UIManager uIManager;
-    // REMOVED: [SerializeField] private WispMapLightController wispController; 
     [SerializeField] private PlayerAudio playerAudio;
     
     // --- Internal Variables ---
@@ -188,14 +192,11 @@ public class PlayerController : MonoBehaviour
     }
     private void ReportSprintStatus()
     {
-        if (LightEnergyManager.Instance == null) return;
-
-        // Determine if we are physically sprinting
-        // (Must be holding Shift + Moving + Not Climbing)
-        bool isPhysicallySprinting = IsSprinting && horizontalVelocity.magnitude > 0.1f && !isClimbing;
-
-        // Just tell the manager the status. It handles the math.
-        LightEnergyManager.Instance.SetSprintState(isPhysicallySprinting);
+        bool isPhysicallySprinting = IsSprinting && CurrentHorizontalSpeed > 0.1f && !IsClimbing;
+        if (isSprinting != null)
+        {
+            isSprinting.Value = isPhysicallySprinting;
+        }
     }
     private void ApplyGravityAndFall()
     {
@@ -316,9 +317,7 @@ public class PlayerController : MonoBehaviour
         ApplyGravity();
         
         float currentMoveSpeed = moveSpeed;
-
-        // --- FIXED LOGIC: CHECK ENERGY DIRECTLY ---
-        bool hasEnergy = LightEnergyManager.Instance != null && LightEnergyManager.Instance.CurrentEnergy > 0;
+        bool hasEnergy = currentEnergy.Value > 0;
 
         if (hasEnergy)
         {

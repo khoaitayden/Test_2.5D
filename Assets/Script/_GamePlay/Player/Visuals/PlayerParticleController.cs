@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class PlayerParticleController : MonoBehaviour
 {
-    // --- CHANGE THIS ---
-    // We want a direct reference to the ParticleSystem component itself.
     [SerializeField] private ParticleSystem trailEffect;
     [SerializeField] private ParticleSystem landEffect;
 
