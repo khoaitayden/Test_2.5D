@@ -57,6 +57,15 @@ public class BeaconController : MonoBehaviour, IInteractable
         // Mark as filled
         filledLayers[index] = true;
 
+        // --- NEW: TRIGGER EYE MONSTER ---
+        // This will only actually "start" it the first time. 
+        // Subsequent calls are ignored by the Manager's isUnlocked check.
+        if (EyeMonsterManager.Instance != null)
+        {
+            EyeMonsterManager.Instance.UnlockEyeSpawning();
+        }
+        // -------------------------------
+
         // Emit Trace/Sound
         TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
         Debug.Log($"Placed Layer {index}");
@@ -80,6 +89,6 @@ public class BeaconController : MonoBehaviour, IInteractable
 
     public string GetInteractionPrompt()
     {
-        return "lmao";
+        return "Place Fragment"; // Changed from "lmao" for clarity :)
     }
 }
