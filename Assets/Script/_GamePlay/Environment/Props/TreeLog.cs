@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class TreeLog : MonoBehaviour
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Trip Settings (Sprinting)")]
     [Tooltip("How long the player cannot move after tripping.")]
     [SerializeField] private float tripDuration = 0.5f; 
@@ -29,13 +31,13 @@ public class TreeLog : MonoBehaviour
             player.FreezeInteraction(tripDuration);
             
             // 2. Emit Strong Noise
-            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
+            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
         }
 
         else
         {
             player.ApplyEnvironmentalSlow(walkSlowFactor, slowDuration);
-            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
+            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
         }
     }
 }

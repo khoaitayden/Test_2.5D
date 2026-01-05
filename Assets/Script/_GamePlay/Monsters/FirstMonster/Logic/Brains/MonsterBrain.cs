@@ -40,17 +40,11 @@ public class MonsterBrain : MonoBehaviour
 
     public void MarkNoiseAsHandled(float timestamp)
     {
-        // We finished investigating this time.
-        // Update memory so we don't look at it (or anything older) again.
         if (timestamp > HandledNoiseTimestamp)
         {
             HandledNoiseTimestamp = timestamp;
-            // Debug.Log($"[Brain] Noise Handled. Ignoring traces older than: {HandledNoiseTimestamp}");
         }
     }
-
-    // --- EXISTING INPUTS ---
-
     public void OnPlayerSeen(Transform player)
     {
         IsPlayerVisible = true;

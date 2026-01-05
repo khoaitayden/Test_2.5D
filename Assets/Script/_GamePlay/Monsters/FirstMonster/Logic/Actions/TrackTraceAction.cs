@@ -32,7 +32,7 @@ namespace CrashKonijn.Goap.MonsterGen
             // 1. ARRIVAL CHECK
             if (movement.HasArrivedOrStuck())
             {
-                brain.MarkNoiseAsHandled(Time.time);
+                brain.MarkNoiseAsHandled(Time.time+0.01f);
                 return ActionRunState.Completed;
             }
 
@@ -66,9 +66,8 @@ namespace CrashKonijn.Goap.MonsterGen
         // --- SIMPLIFIED SCANNER ---
         private Vector3? ScanForNewerTrace(IMonoAgent agent)
         {
-            if (TraceManager.Instance == null) return null;
 
-            var traces = TraceManager.Instance.GetTraces();
+            var traces = config.traceStorage.GetTraces();
             Vector3 eyes = agent.Transform.position;
             Vector3 forward = agent.Transform.forward;
             float timeFloor = brain.HandledNoiseTimestamp;

@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class PlayerTraceEmitter : MonoBehaviour
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel;
     [Header("Intervals (Seconds)")]
     [Tooltip("Random time between traces while running (e.g. 5 to 10s)")]
     public Vector2 runInterval = new Vector2(5f, 10f);
@@ -51,8 +53,8 @@ public class PlayerTraceEmitter : MonoBehaviour
             // FIRE EVENT
             TraceType type = isSprinting ? TraceType.Footstep_Run : TraceType.Footstep_Walk;
             
-            // Clean call via Event Bus
-            TraceEventBus.Emit(transform.position, type);
+            if(traceChannel != null) 
+                traceChannel.RaiseEvent(transform.position, type);
 
             // Reset
             timer = 0f;

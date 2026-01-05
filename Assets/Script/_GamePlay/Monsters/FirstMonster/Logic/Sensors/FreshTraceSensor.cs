@@ -16,9 +16,8 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
-            if (TraceManager.Instance == null) return null;
 
-            var traces = TraceManager.Instance.GetTraces();
+            var traces = config.traceStorage.GetTraces();
             Vector3 eyes = agent.Transform.position;
             Vector3 facing = agent.Transform.forward;
             float timeFloor = brain.HandledNoiseTimestamp;

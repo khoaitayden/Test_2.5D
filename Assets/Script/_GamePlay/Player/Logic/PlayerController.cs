@@ -5,6 +5,8 @@ using UnityEngine.Events;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 6f;
     [SerializeField] private float sprintSpeedMultiplier;
@@ -140,7 +142,7 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         { 
             jumpRequest = true;
-            TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
+            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
         }
     }
 

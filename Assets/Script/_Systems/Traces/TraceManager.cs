@@ -3,8 +3,10 @@ using UnityEngine;
 
 public class TraceManager : MonoBehaviour
 {
-    public static TraceManager Instance { get; private set; }
 
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel;
+    [SerializeField] private TraceStorageSO traceStorage;
     [Header("Settings")]
     [SerializeField] private float footstepDuration = 25f;
     [SerializeField] private float soulTraceDuration = 40f;
@@ -15,16 +17,18 @@ public class TraceManager : MonoBehaviour
     [SerializeField] private bool showDebugGizmos = true;
     [SerializeField] private bool logToConsole = true;
 
-    private List<GameTrace> activeTraces = new List<GameTrace>();
 
-    private void Awake()
+    private void OnEnable()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (traceChannel != null)
+            traceChannel.OnTraceEmitted += HandleNewTrace;
     }
 
-    private void OnEnable() => TraceEventBus.OnTraceEmitted += HandleNewTrace;
-    private void OnDisable() => TraceEventBus.OnTraceEmitted -= HandleNewTrace;
+    private void OnDisable()
+    {
+        if (traceChannel != null)
+            traceChannel.OnTraceEmitted -= HandleNewTrace;
+    }
 
     private void HandleNewTrace(Vector3 pos, TraceType type)
     {
@@ -55,11 +59,11 @@ public class TraceManager : MonoBehaviour
         }
 
         GameTrace trace = new GameTrace(pos, type, duration);
-        activeTraces.Add(trace);
-
-        if (activeTraces.Count > maxTraceCount)
+        traceStorage.AddTrace(trace);
+        
+        if (traceStorage.GetTraces().Count > maxTraceCount)
         {
-            activeTraces.RemoveAt(0);
+            traceStorage.RemoveTraceAt(0);
         }
 
         if (logToConsole)
@@ -70,19 +74,23 @@ public class TraceManager : MonoBehaviour
 
     private void Update()
     {
-        for (int i = activeTraces.Count - 1; i >= 0; i--)
+        // MANAGE STORAGE
+        var traces = traceStorage.GetTraces();
+        for (int i = traces.Count - 1; i >= 0; i--)
         {
-            if (activeTraces[i].IsExpired) activeTraces.RemoveAt(i);
+            if (traces[i].IsExpired) traceStorage.RemoveTraceAt(i);
         }
     }
 
-    public List<GameTrace> GetTraces() => activeTraces;
 
     private void OnDrawGizmos()
     {
         if (!showDebugGizmos) return;
+        if (traceStorage == null) return;
 
-        foreach (var trace in activeTraces)
+        var traces = traceStorage.GetTraces();
+        if (traces == null) return;
+        foreach (var trace in traces)
         {
             float ratio = trace.RemainingTime / trace.Duration;
             

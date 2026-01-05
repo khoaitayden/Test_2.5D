@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class BeaconController : MonoBehaviour, IInteractable
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Visuals")]
     [Tooltip("The parent object holding the layers (the one that rotates/floats).")]
     [SerializeField] private GameObject displayRoot;
@@ -67,7 +69,7 @@ public class BeaconController : MonoBehaviour, IInteractable
         // -------------------------------
 
         // Emit Trace/Sound
-        TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
+        traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
         Debug.Log($"Placed Layer {index}");
 
         // Check for Win Condition?

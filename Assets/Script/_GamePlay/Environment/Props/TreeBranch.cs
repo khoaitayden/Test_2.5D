@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class TreeBranch : MonoBehaviour
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Settings")]
     [Tooltip("How long the slow lasts (in seconds).")]
     [SerializeField] private float slowDuration = 2.0f;
@@ -21,9 +23,9 @@ public class TreeBranch : MonoBehaviour
         {
             // --- 1. SLOW WALK (Sneaking) ---
             // Effect: No Slow, Weak Noise
-            if (player.IsSlowWalking) 
+            if (player.IsSlowWalking)
             {
-                TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseWeak); 
+                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseWeak);
             }
             
             // --- 2. SPRINTING (Running) ---
@@ -32,7 +34,7 @@ public class TreeBranch : MonoBehaviour
             {
                 player.ApplyEnvironmentalSlow(sprintSlowMultiplier, slowDuration);
                 
-                TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseStrong);
+                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
             }
             
             // --- 3. NORMAL WALK ---
@@ -41,7 +43,7 @@ public class TreeBranch : MonoBehaviour
             {
                 player.ApplyEnvironmentalSlow(walkSlowMultiplier, slowDuration);
                 
-                TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium); 
+                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
             }
         }
     }

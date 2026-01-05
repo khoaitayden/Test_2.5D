@@ -4,6 +4,8 @@ using UnityEngine;
 [RequireComponent(typeof(Animator))]
 public class ChestController : MonoBehaviour, IInteractable
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Chest Settings")]
     [SerializeField] private bool isOpen = false;
     [SerializeField] private bool isLocked = false;
@@ -49,8 +51,7 @@ public class ChestController : MonoBehaviour, IInteractable
     private IEnumerator OperationRoutine(GameObject interactor)
     {
         isBusy = true; 
-        TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
-
+        traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null) pc.FreezeInteraction(playerFreezeTime);
 

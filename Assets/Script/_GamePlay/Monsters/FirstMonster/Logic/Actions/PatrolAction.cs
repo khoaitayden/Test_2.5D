@@ -59,9 +59,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private bool CheckForNoise(Vector3 pos)
         {
-            if (TraceManager.Instance == null || brain == null) return false;
-
-            var traces = TraceManager.Instance.GetTraces();
+            var traces = config.traceStorage.GetTraces();
             float timeFloor = brain.HandledNoiseTimestamp;
 
             for (int i = traces.Count - 1; i >= 0; i--)

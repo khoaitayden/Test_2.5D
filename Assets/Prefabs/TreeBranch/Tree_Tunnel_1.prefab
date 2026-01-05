@@ -137,6 +137,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 333ce34d083ec3776a9a2ba71115f435, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeLog
+  traceChannel: {fileID: 11400000, guid: 022c7b4816bd9121c9d4cc4a9a9d5323, type: 2}
   tripDuration: 0.5
   walkSlowFactor: 0.7
   slowDuration: 1

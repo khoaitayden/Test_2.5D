@@ -48,6 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce1e465c42dc5f24392a8867cd1a7ef5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tombstonecontroller
+  traceChannel: {fileID: 11400000, guid: 022c7b4816bd9121c9d4cc4a9a9d5323, type: 2}
   energyRange: {x: 0.4, y: 0.8}
   spriteRenderer: {fileID: 9174580218717002390}
   tombstoneSprites:

@@ -3,6 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Animator))]
 public class DoorController : MonoBehaviour, IInteractable
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Door Settings")]
     [SerializeField] private bool isOpen = false;
     [SerializeField] private bool isLocked = false;
@@ -53,7 +55,7 @@ public class DoorController : MonoBehaviour, IInteractable
     private IEnumerator OperationRoutine(GameObject interactor)
     {
         isBusy = true; // Lock the door immediately so it can't be clicked again
-        TraceEventBus.Emit(transform.position, TraceType.EnviromentNoiseMedium);
+        traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
         // 1. FREEZE PLAYER (Uses the specific freeze duration)
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null)

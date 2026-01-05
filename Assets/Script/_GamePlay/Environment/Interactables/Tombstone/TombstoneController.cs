@@ -3,6 +3,8 @@ using System.Collections;
 
 public class TombstoneController : MonoBehaviour, ILitObject
 {
+    [Header("Dependencies")]
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Energy Randomization")]
     public Vector2 energyRange = new Vector2(0.5f, 1.0f);
     
@@ -101,8 +103,7 @@ public class TombstoneController : MonoBehaviour, ILitObject
         if (currentEnergy <= 0f) return;
         
         // Only emit trace if actually draining
-        TraceEventBus.Emit(transform.position, TraceType.Soul_Collection);
-        
+        traceChannel.RaiseEvent(transform.position, TraceType.Soul_Collection);
         currentEnergy -= amount;
         if (currentEnergy < 0f) currentEnergy = 0f;
         
