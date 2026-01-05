@@ -4,6 +4,8 @@ public class BeaconController : MonoBehaviour, IInteractable
 {
     [Header("Dependencies")]
     [SerializeField] private TraceEventChannelSO traceChannel; 
+    [Header("Events")]
+    [SerializeField] private GameEventSO unlockEyeEvent;
     [Header("Visuals")]
     [Tooltip("The parent object holding the layers (the one that rotates/floats).")]
     [SerializeField] private GameObject displayRoot;
@@ -58,16 +60,10 @@ public class BeaconController : MonoBehaviour, IInteractable
         
         // Mark as filled
         filledLayers[index] = true;
-
-        // --- NEW: TRIGGER EYE MONSTER ---
-        // This will only actually "start" it the first time. 
-        // Subsequent calls are ignored by the Manager's isUnlocked check.
-        if (EyeMonsterManager.Instance != null)
+        if (unlockEyeEvent != null)
         {
-            EyeMonsterManager.Instance.UnlockEyeSpawning();
+            unlockEyeEvent.Raise();
         }
-        // -------------------------------
-
         // Emit Trace/Sound
         traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
         Debug.Log($"Placed Layer {index}");

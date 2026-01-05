@@ -3,58 +3,55 @@ using System.Collections;
 
 public class EyeMonsterManager : MonoBehaviour
 {
-    public static EyeMonsterManager Instance { get; private set; }
-    [Header("Data")]
+    // REMOVED: public static EyeMonsterManager Instance { get; private set; }
+
+    [Header("Data & Events")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
+    [SerializeField] private BoolVariableSO isPlayerExposed; 
+    [SerializeField] private GameEventSO unlockEvent;
+    
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
-    [SerializeField] private Transform playerTransform;
+    [SerializeField] private Transform playerTransform; // You can decouple this later with a TransformAnchor, but keep for now.
 
     [SerializeField] private float minSpawnInterval = 180f;
     [SerializeField] private float maxSpawnInterval = 240f;
-
-    [Header("Spawn Chance (Light Dependent)")]
     [Range(0f, 1f)] [SerializeField] private float chanceAtFullLight = 0.05f;
     [Range(0f, 1f)] [SerializeField] private float chanceAtNoLight = 0.40f;
-
-    [Header("Spawn Radius (Light Dependent)")]
     [SerializeField] private float radiusAtFullLight = 30f;
     [SerializeField] private float radiusAtNoLight = 8f;
-
-    [Header("Spawn Position")]
     [SerializeField] private float minSpawnHeight = 1.5f;
     [SerializeField] private float maxSpawnHeight = 4.0f; 
 
-    // State
     private bool isUnlocked = false;
-    // New property so monsters can check exposure status easily
-    public bool IsPlayerExposed { get; private set; }
-    public Transform PlayerTransform => playerTransform;
+    private void OnEnable()
+    {
+        if (unlockEvent != null) 
+            unlockEvent.RegisterListener(new GameEventListener() { Response = new UnityEngine.Events.UnityEvent() });
+    }
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-        Instance = this;
-    }
-    
-    void Start()
-    {
-        if (eyeObject != null)
-            eyeObject.SetActive(false);
-            
+        // Reset state on load
+        if (isPlayerExposed != null) isPlayerExposed.Value = false;
     }
 
+    void Start()
+    {
+        if (eyeObject != null) eyeObject.SetActive(false);
+    }
+
+    // Public method called by the GameEventListener Component
     public void UnlockEyeSpawning()
     {
         if (isUnlocked) return;
         isUnlocked = true;
-        Debug.Log("[EyeManager] First item placed. Eye Spawning has started.");
+        Debug.Log("[EyeManager] Unlocked via Event.");
         StartCoroutine(SpawnTimer());
     }
 
-    // ... (The rest of the script: SpawnTimer, TrySpawn, etc. remains exactly the same) ...
-    
+    // ... SpawnTimer and TrySpawn logic remains the same ...
     private IEnumerator SpawnTimer()
     {
         while (isUnlocked)
@@ -69,7 +66,9 @@ public class EyeMonsterManager : MonoBehaviour
     {
         if (eyeObject.activeSelf) return;
 
-        float lightFraction = currentEnergy.Value / maxEnergy.Value;
+        float lightFraction = 0f;
+        if (maxEnergy.Value > 0) lightFraction = currentEnergy.Value / maxEnergy.Value;
+
         float currentSpawnChance = Mathf.Lerp(chanceAtNoLight, chanceAtFullLight, lightFraction);
 
         if (Random.value > currentSpawnChance) return;
@@ -84,8 +83,11 @@ public class EyeMonsterManager : MonoBehaviour
         }
     }
 
+    // ... FindValidPosition logic remains the same ...
     private Vector3 FindValidPosition(float radius)
     {
+        // (Paste your existing FindValidPosition logic here)
+        // Ensure you use 'playerTransform' which is serialized
         for (int i = 0; i < 15; i++)
         {
             float randomAngle = Random.Range(0f, 360f);
@@ -109,13 +111,14 @@ public class EyeMonsterManager : MonoBehaviour
 
     public void DespawnEye()
     {
-        IsPlayerExposed = false;
+        SetExposureState(false);
         if (eyeObject != null) eyeObject.SetActive(false);
     }
     
     public void SetExposureState(bool exposed)
     {
-        IsPlayerExposed = exposed;
+        if (isPlayerExposed != null) isPlayerExposed.Value = exposed;
+        
     }
 
     [ContextMenu("Force Spawn Attempt")]

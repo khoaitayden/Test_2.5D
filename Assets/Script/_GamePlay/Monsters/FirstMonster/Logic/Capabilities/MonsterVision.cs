@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class MonsterVision : MonoBehaviour
 {
+    [Header("Global Overrides")]
+    [SerializeField] private BoolVariableSO isPlayerExposed;
     [Header("Settings")]
     [SerializeField] private MonsterConfig config;
     [SerializeField] private float detectionFrequency; 
@@ -39,20 +41,22 @@ public class MonsterVision : MonoBehaviour
     private void PerformVisionCheck()
     {
         // --- 1. GLOBAL EXPOSURE OVERRIDE ---
-        if (EyeMonsterManager.Instance != null && EyeMonsterManager.Instance.IsPlayerExposed)
+        if (isPlayerExposed != null && isPlayerExposed.Value)
         {
-            Transform player = EyeMonsterManager.Instance.PlayerTransform;
-            
-            // "Wallhack" enabled: Skip all raycasts and angles
-            canSeePlayerNow = true;
-            timeSinceLastSeen = 0f;
-            
-            // Update Brain immediately
-            if (brain != null) brain.OnPlayerSeen(player);
-            
-            return; // EXIT FUNCTION EARLY
+            if (brain != null && brain.CurrentPlayerTarget != null)
+            {
+                brain.OnPlayerSeen(brain.CurrentPlayerTarget);
+                canSeePlayerNow = true;
+                return;
+            }
+            Transform player = GameObject.FindWithTag("Player")?.transform;
+            if (player != null)
+            {
+                brain.OnPlayerSeen(player);
+                canSeePlayerNow = true;
+                return;
+            }
         }
-
         // --- 2. STANDARD VISION LOGIC ---
         // (This code only runs if the Eye is NOT exposing the player)
         Transform seenPlayer = ScanForPlayer();
