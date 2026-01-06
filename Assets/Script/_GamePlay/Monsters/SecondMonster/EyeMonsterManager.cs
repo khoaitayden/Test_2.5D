@@ -9,11 +9,11 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
     [SerializeField] private BoolVariableSO isPlayerExposed; 
+    [SerializeField] private TransformAnchorSO playerAnchor;
     [SerializeField] private GameEventSO unlockEvent;
     
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
-    [SerializeField] private Transform playerTransform; // You can decouple this later with a TransformAnchor, but keep for now.
 
     [SerializeField] private float minSpawnInterval = 180f;
     [SerializeField] private float maxSpawnInterval = 240f;
@@ -51,7 +51,6 @@ public class EyeMonsterManager : MonoBehaviour
         StartCoroutine(SpawnTimer());
     }
 
-    // ... SpawnTimer and TrySpawn logic remains the same ...
     private IEnumerator SpawnTimer()
     {
         while (isUnlocked)
@@ -83,11 +82,11 @@ public class EyeMonsterManager : MonoBehaviour
         }
     }
 
-    // ... FindValidPosition logic remains the same ...
     private Vector3 FindValidPosition(float radius)
     {
-        // (Paste your existing FindValidPosition logic here)
-        // Ensure you use 'playerTransform' which is serialized
+        if (playerAnchor == null || playerAnchor.Value == null) return Vector3.zero;
+
+        Transform playerTransform = playerAnchor.Value;
         for (int i = 0; i < 15; i++)
         {
             float randomAngle = Random.Range(0f, 360f);

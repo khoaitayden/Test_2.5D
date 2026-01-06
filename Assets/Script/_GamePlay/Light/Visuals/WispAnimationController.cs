@@ -2,8 +2,9 @@ using UnityEngine;
 
 public class WispAnimationController : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private TransformAnchorSO playerAnchor;
     [Header("References")]
-    [SerializeField] private Transform playerTransform;
     [SerializeField] private PlayerController playerController; 
     [SerializeField] private Transform mainCameraTransform;
 
@@ -39,8 +40,7 @@ public class WispAnimationController : MonoBehaviour
 
     void LateUpdate()
     {
-        if (playerTransform == null || mainCameraTransform == null) return;
-
+        Transform playerTransform=playerAnchor.Value;
         // 1. Calculate Orbit
         orbitAngle += orbitSpeed * Time.deltaTime;
         if (orbitAngle > 360f) orbitAngle -= 360f;

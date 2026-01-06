@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
     [SerializeField] private BoolVariableSO isSprinting;
+    [SerializeField] private TransformAnchorSO playerAnchor;
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 6f;
     [SerializeField] private float sprintSpeedMultiplier;
@@ -84,6 +85,8 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        if (playerAnchor != null)
+        playerAnchor.Provide(this.transform);
         controller = GetComponent<CharacterController>();
         mainCameraTransform = Camera.main.transform;
         
@@ -111,6 +114,7 @@ public class PlayerController : MonoBehaviour
         {
             InputManager.Instance.OnJumpTriggered -= HandleJumpTrigger;
         }
+        if (playerAnchor != null) playerAnchor.Unset();
     }
 
     // --- Ladder API ---

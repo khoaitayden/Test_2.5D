@@ -7,9 +7,9 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private BoolVariableSO isFlashlightOn;
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
+    [SerializeField] private TransformAnchorSO playerAnchor;
     [Header("References")]
     [SerializeField] private Light spotLight;
-    [SerializeField] private Transform playerTransform;
     [SerializeField] private PlayerController playerController; 
 
     [Header("Positioning")]
@@ -48,13 +48,12 @@ public class FlashlightController : MonoBehaviour
             spotLight.enabled = false;
         }
         
-        if (playerTransform != null && mainCam != null) UpdateTargetTransform(1000f);
+        UpdateTargetTransform(1000f);
     }
 
     void LateUpdate()
     {
-        if (playerTransform == null || mainCam == null) return;
-        
+        if (playerAnchor == null || playerAnchor.Value == null || mainCam == null) return;
         UpdateTargetTransform(Time.deltaTime);
 
         if (IsActive)
@@ -113,6 +112,7 @@ public class FlashlightController : MonoBehaviour
 
     void UpdateTargetTransform(float dt)
     {
+        Transform playerTransform = playerAnchor.Value;
         transform.rotation = Quaternion.Slerp(transform.rotation, mainCam.rotation, dt * rotationSmoothSpeed);
         Vector3 targetPos = playerTransform.position;
         targetPos += mainCam.right * offset.x; 

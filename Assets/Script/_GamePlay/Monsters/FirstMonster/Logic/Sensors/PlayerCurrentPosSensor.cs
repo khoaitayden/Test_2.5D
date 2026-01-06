@@ -6,34 +6,23 @@ namespace CrashKonijn.Goap.MonsterGen
 {
     public class PlayerCurrentPosSensor : LocalTargetSensorBase
     {
-        // Cache the transform so we don't search for it 60 times a second
-        private static Transform _cachedPlayer;
-
         public override void Created() { }
         public override void Update() { }
 
+        private MonsterConfig config;
+
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
-            // 1. Find Player if we lost the reference
-            if (_cachedPlayer == null)
+            if (config == null) config = references.GetCachedComponent<MonsterConfig>();
+
+            // We need to add 'playerAnchor' to MonsterConfig first! (See below)
+            if (config.playerAnchor != null && config.playerAnchor.Value != null)
             {
-                var playerObj = GameObject.FindWithTag("Player");
-                if (playerObj != null)
-                {
-                    _cachedPlayer = playerObj.transform;
-                }
+                return new TransformTarget(config.playerAnchor.Value);
             }
 
-            // 2. If Player is completely missing (Game Over?), fallback to self
-            if (_cachedPlayer == null)
-            {
-                return new PositionTarget(agent.Transform.position);
-            }
-
-            // 3. !!! THIS IS THE FIX !!!
-            // You MUST return 'TransformTarget'.
-            // If you return 'PositionTarget', the monster will run to the first spot it saw and stop.
-            return new TransformTarget(_cachedPlayer);
+            // Fallback
+            return new PositionTarget(agent.Transform.position);
         }
     }
 }

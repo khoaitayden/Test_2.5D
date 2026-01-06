@@ -3,8 +3,9 @@ using UnityEngine;
 
 public class MonsterVision : MonoBehaviour
 {
-    [Header("Global Overrides")]
+    [Header("Data")]
     [SerializeField] private BoolVariableSO isPlayerExposed;
+    [SerializeField] private TransformAnchorSO playerAnchor;
     [Header("Settings")]
     [SerializeField] private MonsterConfig config;
     [SerializeField] private float detectionFrequency; 
@@ -43,16 +44,10 @@ public class MonsterVision : MonoBehaviour
         // --- 1. GLOBAL EXPOSURE OVERRIDE ---
         if (isPlayerExposed != null && isPlayerExposed.Value)
         {
-            if (brain != null && brain.CurrentPlayerTarget != null)
+            // Access player securely via Anchor
+            if (playerAnchor != null && playerAnchor.Value != null)
             {
-                brain.OnPlayerSeen(brain.CurrentPlayerTarget);
-                canSeePlayerNow = true;
-                return;
-            }
-            Transform player = GameObject.FindWithTag("Player")?.transform;
-            if (player != null)
-            {
-                brain.OnPlayerSeen(player);
+                brain.OnPlayerSeen(playerAnchor.Value);
                 canSeePlayerNow = true;
                 return;
             }

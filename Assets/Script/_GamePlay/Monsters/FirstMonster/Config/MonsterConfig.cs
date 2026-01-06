@@ -5,8 +5,9 @@ using UnityEditor;
 
 public class MonsterConfig : MonoBehaviour
 {
-    [Header("Dependencies")]
+    [Header("Dependencies Data")]
     public TraceStorageSO traceStorage;
+    public TransformAnchorSO playerAnchor;
     [Header("Patrol Behavior")]
     [Tooltip("The MINIMUM distance the monster must travel when patrolling.")]
     public float minPatrolDistance; 
