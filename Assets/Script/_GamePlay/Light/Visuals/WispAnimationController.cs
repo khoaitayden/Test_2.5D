@@ -2,10 +2,13 @@ using UnityEngine;
 
 public class WispAnimationController : MonoBehaviour
 {
-    [Header("Data")]
+    [Header("Architecture")]
+    [Tooltip("Reference to the Player's Transform Anchor")]
     [SerializeField] private TransformAnchorSO playerAnchor;
+
     [Header("References")]
-    [SerializeField] private PlayerController playerController; 
+    [Tooltip("Needed to calculate the trail lag effect based on speed")]
+    [SerializeField] private PlayerMovement playerMovement; 
     [SerializeField] private Transform mainCameraTransform;
 
     [Header("Orbit Settings")]
@@ -40,7 +43,11 @@ public class WispAnimationController : MonoBehaviour
 
     void LateUpdate()
     {
-        Transform playerTransform=playerAnchor.Value;
+        // Safety Check: If player is dead/destroyed, stop updating to avoid errors
+        if (playerAnchor == null || playerAnchor.Value == null || mainCameraTransform == null) return;
+
+        Transform playerTransform = playerAnchor.Value;
+
         // 1. Calculate Orbit
         orbitAngle += orbitSpeed * Time.deltaTime;
         if (orbitAngle > 360f) orbitAngle -= 360f;
@@ -51,9 +58,11 @@ public class WispAnimationController : MonoBehaviour
             Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
         );
 
-        // 2. Calculate Lag
+        // 2. Calculate Lag (Trail behind player when moving)
         Vector3 lagOffset = Vector3.zero;
-        if (playerController != null && playerController.WorldSpaceMoveDirection.magnitude > 0.1f)
+        
+        // Use PlayerMovement component instead of the God-Class PlayerController
+        if (playerMovement != null && playerMovement.IsMoving)
         {
             lagOffset = -playerTransform.forward * followLag;
         }

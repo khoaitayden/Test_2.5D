@@ -1,410 +1,129 @@
-using System.Collections;
 using UnityEngine;
+using System.Collections;
 using UnityEngine.Events;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private TraceEventChannelSO traceChannel; 
-    [Header("Data")]
-    [SerializeField] private BoolVariableSO isFlashlightOn;
-    [SerializeField] private FloatVariableSO currentEnergy;
-    [SerializeField] private FloatVariableSO maxEnergy;
-    [SerializeField] private BoolVariableSO isSprinting;
+    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private PlayerGroundedChecker playerGroundedChecker;
+    [SerializeField] private PlayerClimbing playerClimbing;
+    [SerializeField] private PlayerState playerState;
+    
+    // Architectures
     [SerializeField] private TransformAnchorSO playerAnchor;
-    [Header("Movement Settings")]
-    [SerializeField] private float moveSpeed = 6f;
-    [SerializeField] private float sprintSpeedMultiplier;
-    [SerializeField] private float slowWalkSpeedMultiplier = 0.5f; 
-    [SerializeField] private float jumpHeight = 2f;
-    [SerializeField] private float gravity = -9.81f;
-    [SerializeField] private float rotationSpeed = 20f;
-
-    [Header("Climbing Settings")]
-    [SerializeField] private float climbSpeed = 3f;
-    [Tooltip("How long the smooth transition ONTO the ladder takes.")]
-    [SerializeField] private float ladderEntryDuration = 0.3f;
-    [Tooltip("How far from the top of the ladder the player will stop climbing.")]
-    [SerializeField] private float climbTopOffset = 0.5f;
-    [Tooltip("The UPWARD force when jumping off the top.")]
-    [SerializeField] private float topDismountUpwardForce = 10f;
-    [Tooltip("The BACKWARD force to clear the ladder when jumping off the top.")]
-    [SerializeField] private float topDismountBackwardForce = 3f;
-
-    [Header("Momentum Settings")]
-    [SerializeField] private float acceleration = 10f;
-    [SerializeField] private float deceleration = 15f;
-
-    [Header("Ground Detection")]
-    [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private float groundCheckDistance = 0.2f;
-
-    [Header("Advanced Gravity")]
-    [SerializeField] private float fallMultiplier = 2.5f;
-    [SerializeField] private float lowJumpMultiplier = 2f;
-    [SerializeField] private float terminalVelocity = 50f;
-
-    [Header("Reference")]
-    [SerializeField] private PlayerParticleController particleController;
-    [SerializeField] private PlayerAnimation playerAnimation;
-    [SerializeField] private UIManager uIManager;
-    [SerializeField] private PlayerAudio playerAudio;
+    [SerializeField] private TraceEventChannelSO traceChannel; 
     
-    // --- Internal Variables ---
-    private CharacterController controller;
-    private Vector3 velocity;
-    private Vector3 horizontalVelocity = Vector3.zero;
-    private bool isGrounded;
-    private Transform mainCameraTransform;
-    private float environmentSpeedMultiplier = 1f; 
-    private Coroutine slowCoroutine;
-    
-    // State Flags
-    private bool isDead;
+    // State Flags (Owned by PlayerController)
     private bool isInteractionLocked; 
-    private bool isClimbing;
-    private bool isEnteringLadder;
+    private Coroutine lockCoroutine; 
 
-    // Ladder Reference
-    private Ladder nearbyLadder;
-    private float _climbCooldownTimer=0f;
-
-    public Vector3 WorldSpaceMoveDirection { get; private set; }
-    public float CurrentHorizontalSpeed => horizontalVelocity.magnitude;
-    public bool IsDead => isDead; 
+    // Public API (Forwarded from sub-components)
+    public bool IsDead => playerState.IsDead; 
     public bool IsInteractionLocked => isInteractionLocked;
-    public bool IsClimbing => isClimbing;
-    public bool IsEnteringLadder => isEnteringLadder;
-    public bool IsGrounded => isGrounded;
-    public bool IsSlowWalking => InputManager.Instance.IsSlowWalking;
-    public bool IsSprinting => InputManager.Instance.IsSprinting;
-    
-    private bool wasGrounded;
-    private bool jumpRequest; 
+    public bool IsClimbing => playerClimbing.IsClimbing;
+    public bool IsEnteringLadder => playerClimbing.IsEnteringLadder;
+    public bool IsGrounded => playerGroundedChecker.IsGrounded;
+    public Vector3 WorldSpaceMoveDirection => playerMovement.WorldSpaceMoveDirection;
+    public float CurrentHorizontalSpeed => playerMovement.CurrentHorizontalSpeed;
+
+    void Awake()
+    {
+        if (playerMovement == null) playerMovement = GetComponent<PlayerMovement>();
+        if (playerGroundedChecker == null) playerGroundedChecker = GetComponent<PlayerGroundedChecker>();
+        if (playerClimbing == null) playerClimbing = GetComponent<PlayerClimbing>();
+        if (playerState == null) playerState = GetComponent<PlayerState>();
+    }
 
     void Start()
     {
-        if (playerAnchor != null)
-        playerAnchor.Provide(this.transform);
-        controller = GetComponent<CharacterController>();
-        mainCameraTransform = Camera.main.transform;
+        if (playerAnchor != null) playerAnchor.Provide(this.transform);
         
+        // Subscribe to input
+        if (InputManager.Instance != null)
+        {
+            InputManager.Instance.OnJumpTriggered += HandleJumpRequest;
+        }
+
+        // Initial setup
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
-        isDead = false;
-        isInteractionLocked = false;
-        isClimbing = false;
-
-        isGrounded = groundCheck();
-        wasGrounded = isGrounded;
-
-        particleController?.ToggleTrail(isGrounded, IsSlowWalking);
-
-        if (InputManager.Instance != null)
-        {
-            InputManager.Instance.OnJumpTriggered += HandleJumpTrigger;
-        }
+        // REMOVED: playerParticleController.ToggleTrail - ParticleController does this itself now!
     }
 
     void OnDestroy()
     {
+        if (playerAnchor != null) playerAnchor.Unset();
         if (InputManager.Instance != null)
         {
-            InputManager.Instance.OnJumpTriggered -= HandleJumpTrigger;
+            InputManager.Instance.OnJumpTriggered -= HandleJumpRequest;
         }
-        if (playerAnchor != null) playerAnchor.Unset();
     }
 
-    // --- Ladder API ---
-    public void SetLadderNearby(Ladder ladder)
+    private void HandleJumpRequest()
     {
-        nearbyLadder = ladder;
+        // PlayerGroundedChecker will handle the actual jump physics.
+        // We just emit a trace here IF the jump is allowed.
+        if (!IsClimbing && !IsEnteringLadder && !IsInteractionLocked && !IsDead)
+        {
+            if (playerGroundedChecker.IsGrounded && traceChannel != null)
+            {
+                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
+            }
+        }
     }
+    
+    // REMOVED: OnPlayerLanded()
+    // Reason: PlayerAudio and PlayerParticleController now listen directly 
+    // to PlayerGroundedChecker events. PlayerController doesn't need to micromanage them.
 
-    public void ClearLadderNearby()
-    {
-        nearbyLadder = null;
-        if (isClimbing) StopClimbing();
-    }
-
-    // --- Interaction Locking ---
     public void FreezeInteraction(float duration)
     {
-        if (!isDead) StartCoroutine(LockMovementRoutine(duration));
+        if (IsDead) return; 
+        if (lockCoroutine != null) StopCoroutine(lockCoroutine);
+        lockCoroutine = StartCoroutine(LockMovementRoutine(duration));
     }
 
     private IEnumerator LockMovementRoutine(float duration)
     {
         isInteractionLocked = true;
-        horizontalVelocity = Vector3.zero; 
         yield return new WaitForSeconds(duration);
         isInteractionLocked = false;
     }
 
-    private void HandleJumpTrigger()
-    {
-        if (isClimbing || isEnteringLadder || isInteractionLocked || isDead) return;
-
-        if (isGrounded)
-        { 
-            jumpRequest = true;
-            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
-        }
-    }
-
     void Update()
     {
-        if (isDead || isInteractionLocked || isEnteringLadder)
+        // Core state management
+        if (IsDead)
         {
-            if (isDead || isInteractionLocked) { ApplyGravityAndFall(); }
-            return; 
-        }
-
-        if (!isClimbing && nearbyLadder != null && Time.time > _climbCooldownTimer)
-        {
-            if (InputManager.Instance.MoveInput.y > 0.1f)
-            {
-                StartClimbing();
-                return;
-            }
-        }
-
-        if (isClimbing)
-        {
-            HandleClimbing();
+            playerGroundedChecker.ApplyGravityAndJump(false); 
             return;
         }
 
-        isGrounded = groundCheck();
-        ReportSprintStatus();
-
-        if (isGrounded && !wasGrounded)
+        if (IsInteractionLocked || IsEnteringLadder)
         {
-            float fallIntensity = Mathf.Abs(velocity.y);
-            particleController?.PlayLandEffect(fallIntensity);
-            particleController?.ToggleTrail(isGrounded, IsSlowWalking);
-            playerAnimation?.Land();
-            playerAudio?.PlayLand(fallIntensity);
-        }
-        wasGrounded = isGrounded;
-
-        if (isGrounded && velocity.y < 0) { velocity.y = -2f; }
-
-        HandleMovement();
-    }
-    private void ReportSprintStatus()
-    {
-        bool isPhysicallySprinting = IsSprinting && CurrentHorizontalSpeed > 0.1f && !IsClimbing;
-        if (isSprinting != null)
-        {
-            isSprinting.Value = isPhysicallySprinting;
-        }
-    }
-    private void ApplyGravityAndFall()
-    {
-        isGrounded = groundCheck();
-        if (isGrounded && velocity.y < 0) velocity.y = -2f;
-        ApplyGravity();
-        controller.Move(Vector3.up * velocity.y * Time.deltaTime);
-    }
-
-    // --- CLIMBING LOGIC ---
-    private void StartClimbing()
-    {
-        if (isEnteringLadder || nearbyLadder == null) return;
-        StartCoroutine(EnterLadderRoutine());
-    }
-
-    private IEnumerator EnterLadderRoutine()
-    {
-        isEnteringLadder = true;
-        isClimbing = false;
-        velocity = Vector3.zero;
-        horizontalVelocity = Vector3.zero;
-
-        float elapsedTime = 0f;
-        Vector3 startPos = transform.position;
-        Quaternion startRot = transform.rotation;
-
-        Vector3 ladderPos = nearbyLadder.transform.position;
-        Vector3 targetPos = new Vector3(ladderPos.x, transform.position.y, ladderPos.z);
-        targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
-        Quaternion targetRot = Quaternion.LookRotation(nearbyLadder.ClimbDirection);
-
-        while (elapsedTime < ladderEntryDuration)
-        {
-            if (nearbyLadder == null) { isEnteringLadder = false; yield break; }
-            float t = elapsedTime / ladderEntryDuration;
-            controller.enabled = false;
-            transform.position = Vector3.Lerp(startPos, targetPos, t);
-            transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
-            controller.enabled = true;
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-
-        isEnteringLadder = false;
-        isClimbing = true;
-    }
-
-   private void StopClimbing()
-    {
-        isClimbing = false;
-        isEnteringLadder = false;
-        _climbCooldownTimer = Time.time + 0.3f;
-    }
-
-    private void HandleClimbing()
-    {
-        if (nearbyLadder == null) { StopClimbing(); return; }
-
-        float feetY = transform.position.y - (controller.height * 0.5f);
-        float stopYPosition = nearbyLadder.GetLadderTopY() - climbTopOffset;
-        bool isAtTopPerch = (feetY >= stopYPosition);
-
-        if (isAtTopPerch && InputManager.Instance.IsJumpHeld)
-        {
-            StopClimbing();
-            velocity.y = topDismountUpwardForce;
-            horizontalVelocity = -transform.forward * topDismountBackwardForce;
+            playerGroundedChecker.ApplyGravityAndJump(false); 
+            playerMovement.HandleHorizontalMovement(true); // Stop movement
             return;
         }
 
-        float verticalInput = InputManager.Instance.MoveInput.y;
+        // Order of operations:
+        playerClimbing.TryStartClimbing(isInteractionLocked);
 
-        if (isAtTopPerch && verticalInput > 0)
+        if (playerClimbing.IsClimbing)
         {
-            verticalInput = 0;
-        }
-
-        if (Mathf.Abs(verticalInput) > 0.01f)
-        {
-            controller.Move(Vector3.up * verticalInput * climbSpeed * Time.deltaTime);
-        }
-
-        if (verticalInput < 0 && (controller.collisionFlags & CollisionFlags.Below) != 0)
-        {
-            StopClimbing();
-        }
-    }
-
-    // --- NORMAL MOVEMENT LOGIC ---
-    private void HandleMovement()
-    {
-        Vector2 moveInput = InputManager.Instance.MoveInput;
-
-        Vector3 camForward = mainCameraTransform.forward;
-        Vector3 camRight = mainCameraTransform.right;
-        camForward.y = 0; 
-        camRight.y = 0;
-        camForward.Normalize(); 
-        camRight.Normalize();
-        WorldSpaceMoveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
-
-        if (WorldSpaceMoveDirection.magnitude >= 0.1f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-        }
-
-        if (jumpRequest && isGrounded)
-        {
-            particleController?.PlayJumpEffect();
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            playerAnimation?.Jump();
-            playerAudio?.PlayJump();
-            jumpRequest = false; 
-        }
-
-        ApplyGravity();
-        
-        float currentMoveSpeed = moveSpeed;
-        bool hasEnergy = currentEnergy.Value > 0;
-
-        if (hasEnergy)
-        {
-            // Normal behavior: Player can sprint, walk, or slow walk.
-            if (IsSprinting) 
-            {
-                currentMoveSpeed *= sprintSpeedMultiplier;
-            }
-            else if (IsSlowWalking) 
-            {
-                currentMoveSpeed *= slowWalkSpeedMultiplier;
-            }
+            playerClimbing.HandleClimbingInput();
+            playerGroundedChecker.ApplyGravityAndJump(false); // No gravity while climbing
+            playerMovement.HandleHorizontalMovement(true);     // No horizontal move while climbing
         }
         else
         {
-            // NO ENERGY: Force player into slow walk speed.
-            currentMoveSpeed *= slowWalkSpeedMultiplier;
-        }
-        // ------------------------------------------
-        
-        currentMoveSpeed *= environmentSpeedMultiplier; 
-
-        Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * currentMoveSpeed;
-        float currentAcceleration = (WorldSpaceMoveDirection.magnitude > 0.1f) ? acceleration : deceleration;
-        horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, currentAcceleration * Time.deltaTime);
-        
-        if (horizontalVelocity.magnitude < 0.01f) 
-        {
-            horizontalVelocity = Vector3.zero;
+            playerMovement.HandleHorizontalMovement(isInteractionLocked);
+            playerGroundedChecker.ApplyGravityAndJump(true);   // Apply gravity and allow jump
         }
         
-        Vector3 totalVelocity = horizontalVelocity + (Vector3.up * velocity.y);
-        controller.Move(totalVelocity * Time.deltaTime);
-    }
-
-    private void ApplyGravity()
-    {
-        if (velocity.y < 0) 
-        { 
-            velocity.y += gravity * (fallMultiplier - 1) * Time.deltaTime; 
-        }
-        else if (velocity.y > 0 && !InputManager.Instance.IsJumpHeld) 
-        { 
-            velocity.y += gravity * (lowJumpMultiplier - 1) * Time.deltaTime; 
-        }
-        velocity.y += gravity * Time.deltaTime;
-        velocity.y = Mathf.Max(velocity.y, -terminalVelocity);
-    }
-
-    private bool groundCheck()
-    {
-        Vector3 sphereCheckPosition = transform.position + controller.center - Vector3.up * (controller.height / 2);
-        return Physics.CheckSphere(sphereCheckPosition, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (isDead == false && other.CompareTag("Monster"))
-        {
-            Die();
-        }
-    }
-    public void ApplyEnvironmentalSlow(float slowFactor, float duration)
-    {
-        if (slowCoroutine != null) StopCoroutine(slowCoroutine);
-        slowCoroutine = StartCoroutine(SlowRoutine(slowFactor, duration));
-    }
-
-    private IEnumerator SlowRoutine(float factor, float duration)
-    {
-        environmentSpeedMultiplier = factor;
-        yield return new WaitForSeconds(duration);
-        environmentSpeedMultiplier = 1f;
-        slowCoroutine = null;
-    }
-
-    private void Die()
-    {
-        Debug.Log("Killed");
-        isDead = true;
-        horizontalVelocity = Vector3.zero; 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-        uIManager.ToggleDeathScreen();
+        // REMOVED: playerParticleController.ToggleTrail - It updates itself in its own Update loop now.
     }
 }

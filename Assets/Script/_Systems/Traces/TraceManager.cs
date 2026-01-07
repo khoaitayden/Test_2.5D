@@ -17,7 +17,13 @@ public class TraceManager : MonoBehaviour
     [SerializeField] private bool showDebugGizmos = true;
     [SerializeField] private bool logToConsole = true;
 
-
+    private void Awake()
+    {
+        if (traceStorage != null)
+        {
+            traceStorage.ClearAll();
+        }
+    }
     private void OnEnable()
     {
         if (traceChannel != null)

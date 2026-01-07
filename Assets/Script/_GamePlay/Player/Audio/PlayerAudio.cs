@@ -1,12 +1,15 @@
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerController))]
 public class PlayerAudio : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private PlayerController playerController;
+    [Header("Dependencies")]
     [SerializeField] private CharacterController characterController;
+    [SerializeField] private PlayerGroundedChecker groundedChecker;
     [SerializeField] private Transform feetPosition;
+
+    [Header("State Data")]
+    [SerializeField] private BoolVariableSO isSprintingState;    // Drag "var_IsSprinting"
+    [SerializeField] private BoolVariableSO isSlowWalkingState;  // Create/Drag "var_IsSlowWalking"
 
     [Header("Step Settings")]
     [Tooltip("Distance traveled before playing a step when walking.")]
@@ -32,48 +35,40 @@ public class PlayerAudio : MonoBehaviour
 
     private void Start()
     {
-        if (playerController == null) playerController = GetComponent<PlayerController>();
         if (characterController == null) characterController = GetComponent<CharacterController>();
+        if (groundedChecker == null) groundedChecker = GetComponent<PlayerGroundedChecker>();
+
+        // Subscribe to the specific high-fidelity landing event from GroundedChecker
+        if (groundedChecker != null)
+        {
+            groundedChecker.OnLandWithFallIntensity += PlayLand;
+        }
     }
 
-    // --- NEW: IMMEDIATE TRIGGER LOGIC ---
-    // This fires the moment the player's collider touches the Branch/Log Trigger
-    private void OnTriggerEnter(Collider other)
+    private void OnDestroy()
     {
-        // 1. Check if the object has a Surface Identifier
-        SurfaceIdentifier surface = other.GetComponent<SurfaceIdentifier>();
-        
-        if (surface != null)
+        if (groundedChecker != null)
         {
-            // 2. Only force play for "Single Event" items (Branches and Logs)
-            // We don't want this for big floors (Wood/Stone) or we'd hear a step just by standing near a wall
-            if (surface.type == SurfaceType.TreeBranch || surface.type == SurfaceType.Log)
-            {
-                SoundDefinition soundToPlay = GetSoundForSurfaceType(surface.type);
-                PlaySoundInternal(soundToPlay);
-
-                // 3. Reset distance so we don't play a "Stride" step immediately after this
-                _distanceTraveled = 0f;
-            }
+            groundedChecker.OnLandWithFallIntensity -= PlayLand;
         }
     }
 
     private void Update()
     {
-        if (playerController == null) return;
-
-        if (playerController.IsDead || playerController.IsClimbing || !playerController.IsGrounded) 
-        {
-            _distanceTraveled = 0f;
-            return;
-        }
-
+        // Safety check if player is dead or special state (can check PlayerHealth here if needed)
+        // For now, assuming if velocity is zero, no steps.
+        
         HandleStrideFootsteps();
     }
 
-    // --- Public API ---
-    public void PlayJump() => PlaySoundInternal(sfx_Jump);
+    // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
     
+    public void PlayJump() 
+    {
+        PlaySoundInternal(sfx_Jump);
+    }
+    
+    // Called by C# Event from PlayerGroundedChecker
     public void PlayLand(float fallIntensity)
     {
         if (SoundManager.Instance != null && sfx_Land != null)
@@ -85,11 +80,35 @@ public class PlayerAudio : MonoBehaviour
 
     // --- Internal Logic ---
 
+    private void OnTriggerEnter(Collider other)
+    {
+        // Immediate trigger logic for branches/logs
+        SurfaceIdentifier surface = other.GetComponent<SurfaceIdentifier>();
+        
+        if (surface != null)
+        {
+            if (surface.type == SurfaceType.TreeBranch || surface.type == SurfaceType.Log)
+            {
+                SoundDefinition soundToPlay = GetSoundForSurfaceType(surface.type);
+                PlaySoundInternal(soundToPlay);
+                _distanceTraveled = 0f;
+            }
+        }
+    }
+
     private void HandleStrideFootsteps()
     {
+        // Use CharacterController velocity (includes external forces) or PlayerMovement velocity
         Vector3 horizontalVel = characterController.velocity;
         horizontalVel.y = 0;
         float speed = horizontalVel.magnitude;
+
+        // Don't play steps if not on ground
+        if (groundedChecker != null && !groundedChecker.IsGrounded)
+        {
+            _distanceTraveled = 0f;
+            return;
+        }
 
         _isMoving = speed > velocityThreshold;
 
@@ -99,7 +118,10 @@ public class PlayerAudio : MonoBehaviour
             return;
         }
 
-        float currentStride = playerController.IsSprinting ? strideSprint : strideWalk;
+        // Determine stride based on Data SO
+        bool isSprinting = isSprintingState != null && isSprintingState.Value;
+        float currentStride = isSprinting ? strideSprint : strideWalk;
+
         _distanceTraveled += speed * Time.deltaTime;
 
         if (_distanceTraveled >= currentStride)
@@ -114,7 +136,6 @@ public class PlayerAudio : MonoBehaviour
         SoundDefinition soundToPlay = sfx_GenericDirt; 
 
         RaycastHit hit;
-        // Note: QueryTriggerInteraction.Collide ensures we still hear steps if walking ALONG a long log
         if (Physics.Raycast(feetPosition.position + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, Physics.AllLayers, QueryTriggerInteraction.Collide))
         {
             SurfaceIdentifier surface = hit.collider.GetComponent<SurfaceIdentifier>();
@@ -138,7 +159,6 @@ public class PlayerAudio : MonoBehaviour
         PlaySoundInternal(soundToPlay);
     }
 
-    // Helper to keep the switch statement in one place
     private SoundDefinition GetSoundForSurfaceType(SurfaceType type)
     {
         switch (type)
@@ -152,7 +172,6 @@ public class PlayerAudio : MonoBehaviour
         }
     }
 
-    // The actual audio player that applies volume/pitch based on speed
     private void PlaySoundInternal(SoundDefinition soundDef)
     {
         if (soundDef == null) return;
@@ -160,12 +179,15 @@ public class PlayerAudio : MonoBehaviour
         float volMultiplier = 1f;
         float pitchMultiplier = 1f;
 
-        if (playerController.IsSprinting)
+        bool isSprinting = isSprintingState != null && isSprintingState.Value;
+        bool isSlowWalking = isSlowWalkingState != null && isSlowWalkingState.Value;
+
+        if (isSprinting)
         {
             volMultiplier = 1.2f;   
             pitchMultiplier = 1.1f; 
         }
-        else if (playerController.IsSlowWalking)
+        else if (isSlowWalking)
         {
             volMultiplier = 0.5f;   
             pitchMultiplier = 0.9f; 

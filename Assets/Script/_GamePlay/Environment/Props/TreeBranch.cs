@@ -3,47 +3,48 @@ using UnityEngine;
 public class TreeBranch : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private TraceEventChannelSO traceChannel; 
-    [Header("Settings")]
-    [Tooltip("How long the slow lasts (in seconds).")]
-    [SerializeField] private float slowDuration = 2.0f;
+    [SerializeField] private TraceEventChannelSO traceChannel; // Use channel instead of static bus if possible
 
-    [Header("Penalties")]
-    [Tooltip("Multiplier when Walking (e.g. 0.75 for 25% slow)")]
+    [Header("Settings")]
+    [SerializeField] private float slowDuration = 2.0f;
     [SerializeField] private float walkSlowMultiplier = 0.75f;
-    
-    [Tooltip("Multiplier when Sprinting (e.g. 0.50 for 50% slow)")]
     [SerializeField] private float sprintSlowMultiplier = 0.50f;
 
     void OnTriggerEnter(Collider other)
     {
-        PlayerController player = other.GetComponent<PlayerController>();
-
-        if (player != null)
+        // We need movement capability for the slow
+        PlayerMovement movement = other.GetComponent<PlayerMovement>();
+        
+        if (movement != null)
         {
-            // --- 1. SLOW WALK (Sneaking) ---
-            // Effect: No Slow, Weak Noise
-            if (player.IsSlowWalking)
+            // Read input directly from Manager (fastest fix) or inject SOs
+            bool isSneaking = InputManager.Instance.IsSlowWalking;
+            bool isSprinting = InputManager.Instance.IsSprinting;
+
+            // --- 1. SNEAKING ---
+            if (isSneaking) 
             {
-                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseWeak);
+                // TraceEventBus.Emit(...) -> Use your channel here if you want full decoupling
+                // For now, keeping static bus call to match your current Trace setup if you haven't fully switched yet
+                // Or better:
+                if (traceChannel != null) traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseWeak);
             }
             
-            // --- 2. SPRINTING (Running) ---
-            // Effect: Heavy Slow (50%), Strong Noise
-            else if (player.IsSprinting)
+            // --- 2. SPRINTING ---
+            else if (isSprinting)
             {
-                player.ApplyEnvironmentalSlow(sprintSlowMultiplier, slowDuration);
+                // Call ApplyEnvironmentalSlow on the MOVEMENT component, not controller
+                movement.ApplyEnvironmentalSlow(sprintSlowMultiplier, slowDuration);
                 
-                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
+                if (traceChannel != null) traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
             }
             
             // --- 3. NORMAL WALK ---
-            // Effect: Medium Slow (25%), Medium Noise
             else 
             {
-                player.ApplyEnvironmentalSlow(walkSlowMultiplier, slowDuration);
+                movement.ApplyEnvironmentalSlow(walkSlowMultiplier, slowDuration);
                 
-                traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
+                if (traceChannel != null) traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium); 
             }
         }
     }

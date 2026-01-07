@@ -1,4 +1,5 @@
 using UnityEngine;
+
 public class Ladder : MonoBehaviour
 {
     private BoxCollider boxCollider;
@@ -8,24 +9,33 @@ public class Ladder : MonoBehaviour
         boxCollider = GetComponent<BoxCollider>();
     }
 
-    // Direction to face (Blue arrow points into wall)
     public Vector3 ClimbDirection => -transform.forward; 
 
-    // Helper: Where is the top of this ladder in World Space?
     public float GetLadderTopY()
     {
-        // Top of the box collider
         return boxCollider.bounds.max.y;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        PlayerController player = other.GetComponent<PlayerController>();
-        if (player != null) player.SetLadderNearby(this);
+        // OLD: PlayerController player = other.GetComponent<PlayerController>();
+        // OLD: if (player != null) player.SetLadderNearby(this);
+
+        // NEW: Look for the specific capability
+        PlayerClimbing climber = other.GetComponent<PlayerClimbing>();
+        if (climber != null) 
+        {
+            climber.SetLadderNearby(this);
+        }
     }
+
     private void OnTriggerExit(Collider other)
     {
-        PlayerController player = other.GetComponent<PlayerController>();
-        if (player != null) player.ClearLadderNearby();
+        // NEW:
+        PlayerClimbing climber = other.GetComponent<PlayerClimbing>();
+        if (climber != null) 
+        {
+            climber.ClearLadderNearby();
+        }
     }
 }

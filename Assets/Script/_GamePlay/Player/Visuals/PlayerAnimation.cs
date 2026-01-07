@@ -3,13 +3,16 @@ using UnityEngine;
 public class PlayerAnimation : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private SpriteRenderer playerBodyRenderer; 
-    [SerializeField] private PlayerItemCarrier itemCarrier;   
+    [SerializeField] private SpriteRenderer playerBodyRenderer;
+    [SerializeField] private PlayerItemCarrier itemCarrier;     
+    
+    [Header("Dependencies")]
+    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private PlayerClimbing playerClimbing;
+    [SerializeField] private Transform playerRoot; // The parent object (Player)
 
     private Animator animator;
     private Transform mainCameraTransform;
-    private Transform playerParentTransform;
-    private PlayerController playerController;
 
     private readonly int animHorizontal = Animator.StringToHash("HorizontalInput");
     private readonly int animVertical = Animator.StringToHash("VerticalInput");
@@ -18,14 +21,15 @@ public class PlayerAnimation : MonoBehaviour
 
     void Start()
     {
-        playerController = GetComponentInParent<PlayerController>();
-        playerParentTransform = playerController.transform;
         animator = GetComponent<Animator>();
         mainCameraTransform = Camera.main.transform;
 
         // Auto-find references if not assigned
         if (playerBodyRenderer == null) playerBodyRenderer = GetComponent<SpriteRenderer>();
         if (itemCarrier == null) itemCarrier = GetComponentInParent<PlayerItemCarrier>();
+        if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
+        if (playerClimbing == null) playerClimbing = GetComponentInParent<PlayerClimbing>();
+        if (playerRoot == null) playerRoot = transform.parent;
     }
 
     void LateUpdate()
@@ -37,7 +41,7 @@ public class PlayerAnimation : MonoBehaviour
 
         float verticalInput = 0f;
         float horizontalInput = 0f;
-        bool isClimbing = playerController.IsClimbing || playerController.IsEnteringLadder;
+        bool isClimbing = playerClimbing != null && (playerClimbing.IsClimbing || playerClimbing.IsEnteringLadder);
 
         // 2. CALCULATE INPUTS
         if (isClimbing)
@@ -48,8 +52,9 @@ public class PlayerAnimation : MonoBehaviour
         }
         else
         {
-            Vector3 playerForward = playerParentTransform.forward;
-            Vector3 cameraDirection = playerParentTransform.position - mainCameraTransform.position;
+            // Use playerRoot forward, not local forward (which is billboarded)
+            Vector3 playerForward = playerRoot.forward;
+            Vector3 cameraDirection = playerRoot.position - mainCameraTransform.position;
             cameraDirection.y = 0;
             cameraDirection.Normalize();
 
@@ -61,39 +66,36 @@ public class PlayerAnimation : MonoBehaviour
         // 3. APPLY TO ANIMATOR
         animator.SetFloat(animVertical, verticalInput);
         animator.SetFloat(animHorizontal, horizontalInput);
-        animator.SetFloat(animSpeed, playerController.WorldSpaceMoveDirection.magnitude);
+        
+        // Get speed from PlayerMovement component
+        float speed = playerMovement != null ? playerMovement.CurrentHorizontalSpeed : 0f;
+        animator.SetFloat(animSpeed, speed);
+        animator.SetBool(animIsClimbing, isClimbing);
 
-        // --- 4. HANDLE ITEM SORTING (THE FIX) ---
+        // 4. HANDLE ITEM SORTING
         UpdateItemSorting(verticalInput);
     }
 
     private void UpdateItemSorting(float verticalVal)
     {
-        // If we don't have an item or references are missing, stop.
         if (itemCarrier == null || !itemCarrier.HasItem) return;
 
         SpriteRenderer itemRenderer = itemCarrier.GetBackSpriteRenderer();
         if (itemRenderer == null) return;
 
-        // LOGIC:
-        // verticalVal > 0.1 means the player is facing AWAY from camera (Back View).
-        // Item should be visible ON TOP of the player.
-        
-        // verticalVal < 0.1 means player is facing TOWARDS camera (Front/Side View).
-        // Item should be hidden BEHIND the player.
-
+        // verticalVal > 0.1 means facing AWAY from camera (Back View) -> Item on TOP
+        // verticalVal < 0.1 means facing TOWARDS camera (Front/Side View) -> Item BEHIND
         if (verticalVal > 0.1f) 
         {
-            // Show Item (Higher order than body)
             itemRenderer.sortingOrder = playerBodyRenderer.sortingOrder + 1;
         }
         else
         {
-            // Hide Item (Lower order than body)
             itemRenderer.sortingOrder = playerBodyRenderer.sortingOrder - 1;
         }
     }
 
+    // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
     public void Jump() { animator.SetTrigger("Jump"); }
     public void Land() { animator.SetTrigger("Land"); }
 }
