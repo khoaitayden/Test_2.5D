@@ -52,7 +52,6 @@ public class PlayerAnimation : MonoBehaviour
         }
         else
         {
-            // Use playerRoot forward, not local forward (which is billboarded)
             Vector3 playerForward = playerRoot.forward;
             Vector3 cameraDirection = playerRoot.position - mainCameraTransform.position;
             cameraDirection.y = 0;
