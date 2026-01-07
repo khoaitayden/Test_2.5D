@@ -10,11 +10,9 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Data")]
     [SerializeField] private FloatVariableSO currentEnergy;
-    [SerializeField] private BoolVariableSO isSprintingState; // Used to tell EnergyManager if player IS sprinting
-    [SerializeField] private BoolVariableSO isSlowWalkingState;
 
     [Header("Movement Settings")]
-    [SerializeField] private float baseMoveSpeed = 6f; // Renamed from moveSpeed
+    [SerializeField] private float baseMoveSpeed = 6f; 
     [SerializeField] private float sprintSpeedMultiplier = 1.5f;
     [SerializeField] private float slowWalkSpeedMultiplier = 0.5f; 
     [SerializeField] private float rotationSpeed = 20f;
@@ -31,7 +29,6 @@ public class PlayerMovement : MonoBehaviour
     public float CurrentHorizontalSpeed => horizontalVelocity.magnitude;
     public bool IsMoving => CurrentHorizontalSpeed > 0.01f;
 
-    // Input Booleans (Read directly from InputManager, or use SOs later)
     private bool IsSprintingInput => InputManager.Instance.IsSprinting;
     private bool IsSlowWalkingInput => InputManager.Instance.IsSlowWalking;
 
@@ -96,16 +93,6 @@ public class PlayerMovement : MonoBehaviour
         }
         
         controller.Move(horizontalVelocity * Time.deltaTime);
-        
-        // Report sprint status via SO
-        if (isSprintingState != null)
-        {
-            isSprintingState.Value = IsSprintingInput && IsMoving && !isLocked;
-        }
-        if (isSlowWalkingState != null) // Add this variable to your PlayerMovement script headers first!
-        {
-            isSlowWalkingState.Value = IsSlowWalkingInput && IsMoving && !isLocked;
-        }
     }
 
     public void ApplyEnvironmentalSlow(float slowFactor, float duration)

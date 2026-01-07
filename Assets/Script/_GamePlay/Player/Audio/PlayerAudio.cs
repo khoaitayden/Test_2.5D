@@ -7,10 +7,6 @@ public class PlayerAudio : MonoBehaviour
     [SerializeField] private PlayerGroundedChecker groundedChecker;
     [SerializeField] private Transform feetPosition;
 
-    [Header("State Data")]
-    [SerializeField] private BoolVariableSO isSprintingState;    // Drag "var_IsSprinting"
-    [SerializeField] private BoolVariableSO isSlowWalkingState;  // Create/Drag "var_IsSlowWalking"
-
     [Header("Step Settings")]
     [Tooltip("Distance traveled before playing a step when walking.")]
     [SerializeField] private float strideWalk = 0.5f;
@@ -38,7 +34,8 @@ public class PlayerAudio : MonoBehaviour
         if (characterController == null) characterController = GetComponent<CharacterController>();
         if (groundedChecker == null) groundedChecker = GetComponent<PlayerGroundedChecker>();
 
-        // Subscribe to the specific high-fidelity landing event from GroundedChecker
+        // Subscribe to the high-fidelity landing event from GroundedChecker
+        // We still use this because it gives us the "Fall Intensity" float data
         if (groundedChecker != null)
         {
             groundedChecker.OnLandWithFallIntensity += PlayLand;
@@ -55,14 +52,10 @@ public class PlayerAudio : MonoBehaviour
 
     private void Update()
     {
-        // Safety check if player is dead or special state (can check PlayerHealth here if needed)
-        // For now, assuming if velocity is zero, no steps.
-        
         HandleStrideFootsteps();
     }
 
     // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
-    
     public void PlayJump() 
     {
         PlaySoundInternal(sfx_Jump);
@@ -82,7 +75,6 @@ public class PlayerAudio : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Immediate trigger logic for branches/logs
         SurfaceIdentifier surface = other.GetComponent<SurfaceIdentifier>();
         
         if (surface != null)
@@ -98,7 +90,6 @@ public class PlayerAudio : MonoBehaviour
 
     private void HandleStrideFootsteps()
     {
-        // Use CharacterController velocity (includes external forces) or PlayerMovement velocity
         Vector3 horizontalVel = characterController.velocity;
         horizontalVel.y = 0;
         float speed = horizontalVel.magnitude;
@@ -118,8 +109,8 @@ public class PlayerAudio : MonoBehaviour
             return;
         }
 
-        // Determine stride based on Data SO
-        bool isSprinting = isSprintingState != null && isSprintingState.Value;
+        // Direct Input Access
+        bool isSprinting = InputManager.Instance.IsSprinting;
         float currentStride = isSprinting ? strideSprint : strideWalk;
 
         _distanceTraveled += speed * Time.deltaTime;
@@ -179,15 +170,13 @@ public class PlayerAudio : MonoBehaviour
         float volMultiplier = 1f;
         float pitchMultiplier = 1f;
 
-        bool isSprinting = isSprintingState != null && isSprintingState.Value;
-        bool isSlowWalking = isSlowWalkingState != null && isSlowWalkingState.Value;
-
-        if (isSprinting)
+        // Direct Input Access
+        if (InputManager.Instance.IsSprinting)
         {
             volMultiplier = 1.2f;   
             pitchMultiplier = 1.1f; 
         }
-        else if (isSlowWalking)
+        else if (InputManager.Instance.IsSlowWalking)
         {
             volMultiplier = 0.5f;   
             pitchMultiplier = 0.9f; 

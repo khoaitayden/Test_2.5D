@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.Events; // For events like OnLand
+using UnityEngine.Events;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerGroundedChecker : MonoBehaviour
@@ -19,19 +19,16 @@ public class PlayerGroundedChecker : MonoBehaviour
     [SerializeField] private float terminalVelocity = 50f;
 
     [Header("Events")]
-    [SerializeField] private GameEventSO onJumpEvent;   // Create this SO: "evt_PlayerJump"
-    [SerializeField] private GameEventSO onLandEvent;   // Create this SO: "evt_PlayerLand"
+    [SerializeField] private GameEventSO onJumpEvent;
+    [SerializeField] private GameEventSO onLandEvent; 
     
-    // For PlayerAudio/ParticleController to listen directly
-    public UnityAction<float> OnLandWithFallIntensity; // Raw C# event for specific data
+    public UnityAction<float> OnLandWithFallIntensity; 
 
-    // Internal State
     private Vector3 verticalVelocity;
     private bool isGrounded;
     private bool wasGrounded;
     private bool jumpRequest;
 
-    // Public API
     public bool IsGrounded => isGrounded;
     public Vector3 VerticalVelocity => verticalVelocity;
 
@@ -67,7 +64,6 @@ public class PlayerGroundedChecker : MonoBehaviour
 
     private void HandleJumpReleased()
     {
-        // For variable jump height
     }
 
     public void ApplyGravityAndJump(bool allowJump)
@@ -76,10 +72,9 @@ public class PlayerGroundedChecker : MonoBehaviour
 
         if (isGrounded && !wasGrounded)
         {
-            // Landing event
             float fallIntensity = Mathf.Abs(verticalVelocity.y);
-            OnLandWithFallIntensity?.Invoke(fallIntensity); // Raw event with data
-            if (onLandEvent != null) onLandEvent.Raise();  // Generic event without data
+            OnLandWithFallIntensity?.Invoke(fallIntensity);
+            if (onLandEvent != null) onLandEvent.Raise();
         }
         wasGrounded = isGrounded;
 

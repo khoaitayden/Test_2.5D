@@ -24,7 +24,6 @@ public class PlayerController : MonoBehaviour
     public bool IsInteractionLocked => isInteractionLocked;
     public bool IsClimbing => playerClimbing.IsClimbing;
     public bool IsEnteringLadder => playerClimbing.IsEnteringLadder;
-    public bool IsGrounded => playerGroundedChecker.IsGrounded;
     public Vector3 WorldSpaceMoveDirection => playerMovement.WorldSpaceMoveDirection;
     public float CurrentHorizontalSpeed => playerMovement.CurrentHorizontalSpeed;
 
@@ -95,6 +94,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        
         // Core state management
         if (IsDead)
         {

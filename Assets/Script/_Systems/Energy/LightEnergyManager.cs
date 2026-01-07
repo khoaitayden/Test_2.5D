@@ -6,8 +6,7 @@ public class LightEnergyManager : MonoBehaviour
 
     [Header("Data References")]
     [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
-    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"
-    [SerializeField] private BoolVariableSO isSprinting;    // Drag "var_IsSprinting"
+    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"    // Drag "var_IsSprinting"
     [SerializeField] private BoolVariableSO isFlashlightOn; // Drag "var_IsFlashlightOn"
 
     [Header("Base Settings")]
@@ -44,7 +43,7 @@ public class LightEnergyManager : MonoBehaviour
         if (isFlashlightOn.Value) 
             finalMultiplier *= flashlightCostMult;
 
-        if (isSprinting.Value) 
+        if (InputManager.Instance.IsSprinting) 
             finalMultiplier *= sprintCostMult;
 
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;

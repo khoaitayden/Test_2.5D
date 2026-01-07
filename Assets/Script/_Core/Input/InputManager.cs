@@ -12,23 +12,19 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
 
     private PlayerInput _playerInput;
 
-    // --- Data Properties ---
     public Vector2 MoveInput { get; private set; }
     public bool IsSprinting { get; private set; }
     public bool IsSlowWalking { get; private set; }
     public bool IsJumpHeld { get; private set; }
     public bool IsFlashlightHeld { get; private set; }
 
-    // --- Events ---
     public event Action OnJumpTriggered;
     public event Action OnJumpReleased;
     public event Action OnInteractTriggered; 
     
-    // Light Events
-    public event Action OnWispCycleTriggered;       // Short Press
-    public event Action OnWispPowerToggleTriggered; // Long Hold
+    public event Action OnWispCycleTriggered;
+    public event Action OnWispPowerToggleTriggered;
 
-    // Internal State
     private bool _isWispSwitchDown;
     private float _wispSwitchStartTime;
     private bool _wispHoldEventFired;
@@ -45,8 +41,6 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     private void OnEnable() => _playerInput.Player.Enable();
     private void OnDisable() => _playerInput.Player.Disable();
 
-    // --- FIX 1: HANDLE FOCUS LOSS ---
-    // If you Alt-Tab or click away, this forces all inputs to release immediately.
     private void OnApplicationFocus(bool hasFocus)
     {
         if (!hasFocus)
@@ -62,7 +56,6 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
 
     private void Update()
     {
-        // Handle "Hold" Logic
         if (_isWispSwitchDown && !_wispHoldEventFired)
         {
             if (Time.time - _wispSwitchStartTime >= lightToggleHoldDuration)
@@ -72,13 +65,8 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
             }
         }
     }
-
-    // --- IPlayerActions Implementation ---
-
-    // --- FIX 2: EXPLICIT MOVEMENT HANDLING ---
     public void OnMovement(InputAction.CallbackContext context) 
     {
-        // Explicitly check for canceled to guarantee zeroing out
         if (context.canceled)
         {
             MoveInput = Vector2.zero;
@@ -113,7 +101,6 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
 
     public void OnFlashLight(InputAction.CallbackContext context) 
     {
-        // ReadValueAsButton is usually fine, but explicit checks match the movement fix style
         IsFlashlightHeld = context.ReadValueAsButton();
     }
 
