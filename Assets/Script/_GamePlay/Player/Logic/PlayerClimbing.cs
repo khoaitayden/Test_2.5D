@@ -101,17 +101,19 @@ public class PlayerClimbing : MonoBehaviour
     private void CheckExits(float vInput)
     {
         // Condition A: Jump / Vault (Manual Exit)
-        if (InputManager.Instance.IsJumpHeld) // Using Held to ensure responsiveness, logic ensures single trigger
+        if (InputManager.Instance.IsJumpHeld)
         {
             PerformDirectionalDismount();
             return;
         }
 
-        // Condition B: Grounded (Walked off bottom) - Automatic Exit
-        if (vInput < 0 && groundedChecker.IsGrounded)
+        if (vInput < 0) 
         {
-            StopClimbing();
-            return;
+            if (groundedChecker.CheckGround())
+            {
+                StopClimbing();
+                return;
+            }
         }
     }
 

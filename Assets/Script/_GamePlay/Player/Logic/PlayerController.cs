@@ -111,8 +111,7 @@ public class PlayerController : MonoBehaviour
         if (playerClimbing.IsClimbing)
         {
             playerClimbing.HandleClimbingPhysics();
-            
-            playerGroundedChecker.SetVerticalVelocity(0f); 
+            playerGroundedChecker.SetVerticalVelocity(0f);
         }
         else
         {
@@ -120,7 +119,5 @@ public class PlayerController : MonoBehaviour
             playerMovement.HandleHorizontalMovement(isInteractionLocked);
             playerGroundedChecker.ApplyGravityAndJump(true);
         }
-        
-        // REMOVED: playerParticleController.ToggleTrail - It updates itself in its own Update loop now.
     }
 }

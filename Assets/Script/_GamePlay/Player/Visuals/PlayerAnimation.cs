@@ -9,7 +9,7 @@ public class PlayerAnimation : MonoBehaviour
     [Header("Dependencies")]
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private PlayerClimbing playerClimbing;
-    [SerializeField] private Transform playerRoot; // The parent object (Player)
+    [SerializeField] private Transform playerRoot;
 
     private Animator animator;
     private Transform mainCameraTransform;
@@ -24,7 +24,6 @@ public class PlayerAnimation : MonoBehaviour
         animator = GetComponent<Animator>();
         mainCameraTransform = Camera.main.transform;
 
-        // Auto-find references if not assigned
         if (playerBodyRenderer == null) playerBodyRenderer = GetComponent<SpriteRenderer>();
         if (itemCarrier == null) itemCarrier = GetComponentInParent<PlayerItemCarrier>();
         if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
@@ -43,10 +42,8 @@ public class PlayerAnimation : MonoBehaviour
         float horizontalInput = 0f;
         bool isClimbing = playerClimbing != null && (playerClimbing.IsClimbing || playerClimbing.IsEnteringLadder);
 
-        // 2. CALCULATE INPUTS
         if (isClimbing)
         {
-            // Climbing is always "Back View"
             verticalInput = 1.0f;
             horizontalInput = 0.0f;
         }
@@ -62,16 +59,13 @@ public class PlayerAnimation : MonoBehaviour
             horizontalInput = Vector3.Dot(cameraDirection, playerRight);
         }
 
-        // 3. APPLY TO ANIMATOR
         animator.SetFloat(animVertical, verticalInput);
         animator.SetFloat(animHorizontal, horizontalInput);
-        
-        // Get speed from PlayerMovement component
+
         float speed = playerMovement != null ? playerMovement.CurrentHorizontalSpeed : 0f;
         animator.SetFloat(animSpeed, speed);
         animator.SetBool(animIsClimbing, isClimbing);
 
-        // 4. HANDLE ITEM SORTING
         UpdateItemSorting(verticalInput);
     }
 
@@ -82,8 +76,6 @@ public class PlayerAnimation : MonoBehaviour
         SpriteRenderer itemRenderer = itemCarrier.GetBackSpriteRenderer();
         if (itemRenderer == null) return;
 
-        // verticalVal > 0.1 means facing AWAY from camera (Back View) -> Item on TOP
-        // verticalVal < 0.1 means facing TOWARDS camera (Front/Side View) -> Item BEHIND
         if (verticalVal > 0.1f) 
         {
             itemRenderer.sortingOrder = playerBodyRenderer.sortingOrder + 1;
@@ -94,7 +86,6 @@ public class PlayerAnimation : MonoBehaviour
         }
     }
 
-    // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
     public void Jump() { animator.SetTrigger("Jump"); }
     public void Land() { animator.SetTrigger("Land"); }
 }
