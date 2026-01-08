@@ -52,7 +52,7 @@ public class PlayerClimbing : MonoBehaviour
         }
     }
 
-    public void HandleClimbingPhysics()
+public void HandleClimbingPhysics()
     {
         if (!isClimbing || nearbyLadder == null) 
         {
@@ -60,44 +60,49 @@ public class PlayerClimbing : MonoBehaviour
             return;
         }
 
-        // 1. ROTATION: Face the ladder smoothly
+        // 1. ROTATION
         Quaternion targetRot = Quaternion.LookRotation(nearbyLadder.ClimbDirection);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
+        float currentHeadY = transform.position.y + controller.center.y + (controller.height * 0.5f);
+        float ladderTopY = nearbyLadder.TopY;
+        
+        float maxHeadY = ladderTopY + 0.1f; 
 
-        // 2. CHECK POSITION (Are we at the top?)
-        float feetY = transform.position.y - (controller.height * 0.5f);
-        // Allow a small buffer (0.1f) so we don't snap out of existence
-        bool atTop = feetY >= nearbyLadder.TopY - 0.1f; 
-
-        // 3. CALCULATE VELOCITY
-        Vector3 finalVelocity = Vector3.zero;
+        // 3. INPUT
         float vInput = InputManager.Instance.MoveInput.y;
+        Vector3 finalVelocity = Vector3.zero;
 
-        // A. Vertical Movement
-        if (atTop && vInput > 0)
+        // 4. VERTICAL LOGIC
+        // Check if we are trying to go UP past the limit
+        if (currentHeadY >= maxHeadY && vInput > 0)
         {
-            // HARD STOP at the top
             finalVelocity.y = 0;
+            float requiredY = maxHeadY - (controller.center.y + (controller.height * 0.5f));
+            
+            Vector3 clampedPos = transform.position;
+            clampedPos.y = requiredY;
+            transform.position = clampedPos;
         }
         else
         {
             finalVelocity.y = vInput * climbSpeed;
         }
 
-        // B. Horizontal Alignment (Suction towards ladder center)
+        // 5. HORIZONTAL SUCTION
         Vector3 targetPos = nearbyLadder.GetClosestPointOnLadder(transform.position);
         targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
         Vector3 moveDir = (targetPos - transform.position);
+        moveDir.y = 0; // Vital: Keep Y pure
+
         finalVelocity.x = moveDir.x * climbSnapSpeed;
         finalVelocity.z = moveDir.z * climbSnapSpeed;
 
-        // 4. APPLY MOVEMENT
+        // 6. APPLY
         controller.Move(finalVelocity * Time.deltaTime);
 
-        // 5. CHECK EXITS
+        // 7. EXITS
         CheckExits(vInput);
     }
-
     private void CheckExits(float vInput)
     {
         // Condition A: Jump / Vault (Manual Exit)
