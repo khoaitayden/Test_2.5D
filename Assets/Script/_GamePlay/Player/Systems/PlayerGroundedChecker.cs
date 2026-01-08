@@ -111,6 +111,7 @@ public class PlayerGroundedChecker : MonoBehaviour
     public bool CheckGround()
     {
         Vector3 sphereCheckPosition = transform.position + controller.center - Vector3.up * (controller.height / 2);
+        Debug.Log(Physics.CheckSphere(sphereCheckPosition, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore));
         return Physics.CheckSphere(sphereCheckPosition, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
     }
     public void SetVerticalVelocity(float velocity)

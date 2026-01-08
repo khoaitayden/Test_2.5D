@@ -3,14 +3,12 @@ using UnityEngine;
 public class PlayerAudio : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private CharacterController characterController;
+    [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private PlayerGroundedChecker groundedChecker;
     [SerializeField] private Transform feetPosition;
 
     [Header("Step Settings")]
-    [Tooltip("Distance traveled before playing a step when walking.")]
     [SerializeField] private float strideWalk = 0.5f;
-    [Tooltip("Distance traveled before playing a step when sprinting.")]
     [SerializeField] private float strideSprint = 0.8f;
     [SerializeField] private float velocityThreshold = 0.1f;
 
@@ -31,14 +29,21 @@ public class PlayerAudio : MonoBehaviour
 
     private void Start()
     {
-        if (characterController == null) characterController = GetComponent<CharacterController>();
+        // Auto-find PlayerMovement if you forgot to drag it in
+        if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
+        
         if (groundedChecker == null) groundedChecker = GetComponent<PlayerGroundedChecker>();
 
-        // Subscribe to the high-fidelity landing event from GroundedChecker
-        // We still use this because it gives us the "Fall Intensity" float data
         if (groundedChecker != null)
         {
             groundedChecker.OnLandWithFallIntensity += PlayLand;
+        }
+        
+        // Safety Check for Feet Position
+        if (feetPosition == null)
+        {
+            Debug.LogError("PlayerAudio: 'Feet Position' is empty! Please assign the Feet transform in the Inspector.");
+            this.enabled = false;
         }
     }
 
@@ -55,13 +60,12 @@ public class PlayerAudio : MonoBehaviour
         HandleStrideFootsteps();
     }
 
-    // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
+    // --- PUBLIC API ---
     public void PlayJump() 
     {
         PlaySoundInternal(sfx_Jump);
     }
     
-    // Called by C# Event from PlayerGroundedChecker
     public void PlayLand(float fallIntensity)
     {
         if (SoundManager.Instance != null && sfx_Land != null)
@@ -76,7 +80,6 @@ public class PlayerAudio : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         SurfaceIdentifier surface = other.GetComponent<SurfaceIdentifier>();
-        
         if (surface != null)
         {
             if (surface.type == SurfaceType.TreeBranch || surface.type == SurfaceType.Log)
@@ -90,9 +93,13 @@ public class PlayerAudio : MonoBehaviour
 
     private void HandleStrideFootsteps()
     {
-        Vector3 horizontalVel = characterController.velocity;
-        horizontalVel.y = 0;
-        float speed = horizontalVel.magnitude;
+        // FIX: Don't use CharacterController.velocity. 
+        // Use the calculated horizontal speed from our Logic script.
+        float speed = 0f;
+        if (playerMovement != null)
+        {
+            speed = playerMovement.CurrentHorizontalSpeed;
+        }
 
         // Don't play steps if not on ground
         if (groundedChecker != null && !groundedChecker.IsGrounded)
@@ -125,8 +132,9 @@ public class PlayerAudio : MonoBehaviour
     private void PlayRaycastFootstep()
     {
         SoundDefinition soundToPlay = sfx_GenericDirt; 
-
+        
         RaycastHit hit;
+        // Ensure feetPosition isn't null here
         if (Physics.Raycast(feetPosition.position + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, Physics.AllLayers, QueryTriggerInteraction.Collide))
         {
             SurfaceIdentifier surface = hit.collider.GetComponent<SurfaceIdentifier>();
@@ -141,6 +149,7 @@ public class PlayerAudio : MonoBehaviour
                 if (detector != null)
                 {
                     int textureIndex = detector.GetDominantTextureIndex(hit.point);
+                    // Adjust this index (3) based on your specific terrain layer setup
                     if (textureIndex == 3) soundToPlay = sfx_Grass;
                     else soundToPlay = sfx_GenericDirt; 
                 }
@@ -166,22 +175,6 @@ public class PlayerAudio : MonoBehaviour
     private void PlaySoundInternal(SoundDefinition soundDef)
     {
         if (soundDef == null) return;
-
-        float volMultiplier = 1f;
-        float pitchMultiplier = 1f;
-
-        // Direct Input Access
-        if (InputManager.Instance.IsSprinting)
-        {
-            volMultiplier = 1.2f;   
-            pitchMultiplier = 1.1f; 
-        }
-        else if (InputManager.Instance.IsSlowWalking)
-        {
-            volMultiplier = 0.5f;   
-            pitchMultiplier = 0.9f; 
-        }
-
-        SoundManager.Instance.PlaySound(soundDef, feetPosition.position, volMultiplier, pitchMultiplier);
+        SoundManager.Instance.PlaySound(soundDef, feetPosition.position);
     }
 }
