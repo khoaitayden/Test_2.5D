@@ -113,6 +113,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53b9b199c3703dad09f9be9b6404733e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeBranch
+  traceChannel: {fileID: 11400000, guid: 022c7b4816bd9121c9d4cc4a9a9d5323, type: 2}
   slowDuration: 2
   walkSlowMultiplier: 0.65
   sprintSlowMultiplier: 0.25
