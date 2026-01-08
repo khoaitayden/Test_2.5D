@@ -1,50 +1,39 @@
 using UnityEngine;
-using System.Collections;
 
-[RequireComponent(typeof(CharacterController))]
 public class PlayerClimbing : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private CharacterController controller;
-    [SerializeField] private PlayerGroundedChecker groundedChecker; // To check if grounded after dismount
+    [SerializeField] private PlayerGroundedChecker groundedChecker;
+    [SerializeField] private PlayerMovement playerMovement; // Added to get Move Direction
 
-    [Header("Climbing Settings")]
-    [SerializeField] private float climbSpeed = 3f;
-    [Tooltip("How long the smooth transition ONTO the ladder takes.")]
-    [SerializeField] private float ladderEntryDuration = 0.3f;
-    [Tooltip("How far from the top of the ladder the player will stop climbing.")]
-    [SerializeField] private float climbTopOffset = 0.5f;
-    [Tooltip("The UPWARD force when jumping off the top.")]
-    [SerializeField] private float topDismountUpwardForce = 10f;
-    [Tooltip("The BACKWARD force to clear the ladder when jumping off the top.")]
-    [SerializeField] private float topDismountBackwardForce = 3f;
+    [Header("Settings")]
+    [SerializeField] private float climbSpeed = 4f;
+    [SerializeField] private float climbSnapSpeed = 5f; 
+    
+    [Header("Dismount Settings")]
+    [Tooltip("How much force is applied horizontally when jumping off.")]
+    [SerializeField] private float jumpOffForceHorizontal = 4f;
+    [Tooltip("How much force is applied upward when jumping off.")]
+    [SerializeField] private float jumpOffForceUp = 5f;
 
-    // Internal State
+    // State
     private Ladder nearbyLadder;
-    private float _climbCooldownTimer = 0f;
     private bool isClimbing;
-    private bool isEnteringLadder;
+    private float cooldownTimer;
 
-    // Public API for PlayerController to read
+    // Public API
     public bool IsClimbing => isClimbing;
-    public bool IsEnteringLadder => isEnteringLadder;
+    public bool IsEnteringLadder => false; 
 
     void Awake()
     {
         if (controller == null) controller = GetComponent<CharacterController>();
+        if (playerMovement == null) playerMovement = GetComponent<PlayerMovement>();
     }
 
-    void Update()
-    {
-        // Auto-stop climbing if ladder is gone
-        if (isClimbing && nearbyLadder == null) StopClimbing();
-    }
-
-    public void SetLadderNearby(Ladder ladder)
-    {
-        nearbyLadder = ladder;
-    }
-
+    public void SetLadderNearby(Ladder ladder) => nearbyLadder = ladder;
+    
     public void ClearLadderNearby()
     {
         nearbyLadder = null;
@@ -53,89 +42,107 @@ public class PlayerClimbing : MonoBehaviour
 
     public void TryStartClimbing(bool isMovementLocked)
     {
-        if (isMovementLocked || isEnteringLadder) return;
-        if (!isClimbing && nearbyLadder != null && Time.time > _climbCooldownTimer)
+        if (isMovementLocked || isClimbing || nearbyLadder == null) return;
+        if (Time.time < cooldownTimer) return;
+
+        float vInput = InputManager.Instance.MoveInput.y;
+        if (Mathf.Abs(vInput) > 0.1f)
         {
-            if (InputManager.Instance.MoveInput.y > 0.1f)
-            {
-                StartCoroutine(EnterLadderRoutine());
-            }
+            isClimbing = true;
         }
     }
 
-    public void HandleClimbingInput()
+    public void HandleClimbingPhysics()
     {
-        if (!isClimbing || nearbyLadder == null) return;
-
-        float feetY = transform.position.y - (controller.height * 0.5f);
-        float stopYPosition = nearbyLadder.GetLadderTopY() - climbTopOffset;
-        bool isAtTopPerch = (feetY >= stopYPosition);
-
-        // Dismount by jumping from top
-        if (isAtTopPerch && InputManager.Instance.IsJumpHeld)
+        if (!isClimbing || nearbyLadder == null) 
         {
             StopClimbing();
-            // Apply dismount forces via PlayerMovement/GroundedChecker
-            // This requires PlayerController to pass these values on.
-            // For now, let's keep it simple: PlayerController will re-enable normal movement.
             return;
         }
 
-        float verticalInput = InputManager.Instance.MoveInput.y;
+        // 1. ROTATION: Face the ladder smoothly
+        Quaternion targetRot = Quaternion.LookRotation(nearbyLadder.ClimbDirection);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
 
-        // Prevent moving up past the top perch
-        if (isAtTopPerch && verticalInput > 0)
+        // 2. CHECK POSITION (Are we at the top?)
+        float feetY = transform.position.y - (controller.height * 0.5f);
+        // Allow a small buffer (0.1f) so we don't snap out of existence
+        bool atTop = feetY >= nearbyLadder.TopY - 0.1f; 
+
+        // 3. CALCULATE VELOCITY
+        Vector3 finalVelocity = Vector3.zero;
+        float vInput = InputManager.Instance.MoveInput.y;
+
+        // A. Vertical Movement
+        if (atTop && vInput > 0)
         {
-            verticalInput = 0;
+            // HARD STOP at the top
+            finalVelocity.y = 0;
+        }
+        else
+        {
+            finalVelocity.y = vInput * climbSpeed;
         }
 
-        if (Mathf.Abs(verticalInput) > 0.01f)
+        // B. Horizontal Alignment (Suction towards ladder center)
+        Vector3 targetPos = nearbyLadder.GetClosestPointOnLadder(transform.position);
+        targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
+        Vector3 moveDir = (targetPos - transform.position);
+        finalVelocity.x = moveDir.x * climbSnapSpeed;
+        finalVelocity.z = moveDir.z * climbSnapSpeed;
+
+        // 4. APPLY MOVEMENT
+        controller.Move(finalVelocity * Time.deltaTime);
+
+        // 5. CHECK EXITS
+        CheckExits(vInput);
+    }
+
+    private void CheckExits(float vInput)
+    {
+        // Condition A: Jump / Vault (Manual Exit)
+        if (InputManager.Instance.IsJumpHeld) // Using Held to ensure responsiveness, logic ensures single trigger
         {
-            controller.Move(Vector3.up * verticalInput * climbSpeed * Time.deltaTime);
+            PerformDirectionalDismount();
+            return;
         }
 
-        // Dismount by moving down past bottom
-        if (verticalInput < 0 && (controller.collisionFlags & CollisionFlags.Below) != 0)
+        // Condition B: Grounded (Walked off bottom) - Automatic Exit
+        if (vInput < 0 && groundedChecker.IsGrounded)
         {
             StopClimbing();
+            return;
         }
     }
 
-    private IEnumerator EnterLadderRoutine()
+    private void PerformDirectionalDismount()
     {
-        isEnteringLadder = true;
-        isClimbing = false;
-        // PlayerController will handle stopping horizontal/vertical movement from other components
+        StopClimbing();
 
-        float elapsedTime = 0f;
-        Vector3 startPos = transform.position;
-        Quaternion startRot = transform.rotation;
+        // 1. Determine Direction
+        // We use PlayerMovement because it already calculates direction relative to Camera
+        Vector3 vaultDir = playerMovement.WorldSpaceMoveDirection;
 
-        Vector3 ladderPos = nearbyLadder.transform.position;
-        Vector3 targetPos = new Vector3(ladderPos.x, transform.position.y, ladderPos.z);
-        targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
-        Quaternion targetRot = Quaternion.LookRotation(nearbyLadder.ClimbDirection);
-
-        while (elapsedTime < ladderEntryDuration)
+        // If player is not pressing any keys, default to jumping BACKWARDS away from ladder
+        if (vaultDir.magnitude < 0.1f)
         {
-            if (nearbyLadder == null) { isEnteringLadder = false; yield break; }
-            float t = elapsedTime / ladderEntryDuration;
-            controller.enabled = false; // Disable to teleport safely
-            transform.position = Vector3.Lerp(startPos, targetPos, t);
-            transform.rotation = Quaternion.Slerp(startRot, targetRot, t);
-            controller.enabled = true;
-            elapsedTime += Time.deltaTime;
-            yield return null;
+            vaultDir = -transform.forward;
         }
 
-        isEnteringLadder = false;
-        isClimbing = true;
+        // 2. Apply Force
+        // Horizontal push
+        Vector3 jumpForce = (vaultDir.normalized * jumpOffForceHorizontal) + (Vector3.up * jumpOffForceUp);
+        
+        // Move immediately so we clear the ladder collider/trigger area
+        controller.Move(jumpForce * Time.deltaTime); 
+        
+        // 3. Hand over vertical momentum to Gravity System
+        groundedChecker.SetVerticalVelocity(jumpOffForceUp);
     }
 
     private void StopClimbing()
     {
         isClimbing = false;
-        isEnteringLadder = false;
-        _climbCooldownTimer = Time.time + 0.3f; // Prevents re-entering immediately
+        cooldownTimer = Time.time + 0.5f; // Delay before we can grab it again
     }
 }

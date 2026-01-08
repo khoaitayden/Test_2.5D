@@ -74,9 +74,6 @@ public class PlayerController : MonoBehaviour
         }
     }
     
-    // REMOVED: OnPlayerLanded()
-    // Reason: PlayerAudio and PlayerParticleController now listen directly 
-    // to PlayerGroundedChecker events. PlayerController doesn't need to micromanage them.
 
     public void FreezeInteraction(float duration)
     {
@@ -111,17 +108,17 @@ public class PlayerController : MonoBehaviour
 
         // Order of operations:
         playerClimbing.TryStartClimbing(isInteractionLocked);
-
         if (playerClimbing.IsClimbing)
         {
-            playerClimbing.HandleClimbingInput();
-            playerGroundedChecker.ApplyGravityAndJump(false); // No gravity while climbing
-            playerMovement.HandleHorizontalMovement(true);     // No horizontal move while climbing
+            playerClimbing.HandleClimbingPhysics();
+            
+            playerGroundedChecker.SetVerticalVelocity(0f); 
         }
         else
         {
+            // --- NORMAL WALKING STATE ---
             playerMovement.HandleHorizontalMovement(isInteractionLocked);
-            playerGroundedChecker.ApplyGravityAndJump(true);   // Apply gravity and allow jump
+            playerGroundedChecker.ApplyGravityAndJump(true);
         }
         
         // REMOVED: playerParticleController.ToggleTrail - It updates itself in its own Update loop now.
