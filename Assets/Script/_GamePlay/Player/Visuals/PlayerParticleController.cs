@@ -10,9 +10,6 @@ public class PlayerParticleController : MonoBehaviour
     [SerializeField] private PlayerGroundedChecker groundedChecker;
     [SerializeField] private PlayerMovement playerMovement;
 
-    [Header("State Data")]
-    [SerializeField] private BoolVariableSO isSlowWalkingState; // Drag "var_IsSlowWalking"
-
     [Header("Landing Effect Settings")]
     [SerializeField] private float minFallIntensity = 5f;
     [SerializeField] private float maxFallIntensity = 20f;
@@ -47,7 +44,7 @@ public class PlayerParticleController : MonoBehaviour
 
         bool isGrounded = groundedChecker.IsGrounded;
         bool isMoving = playerMovement.IsMoving;
-        bool isSlowWalking = isSlowWalkingState != null && isSlowWalkingState.Value;
+        bool isSlowWalking = InputManager.Instance.IsSlowWalking;
 
         // Only show trail if grounded, moving, and NOT sneaking
         bool shouldPlay = isGrounded && isMoving && !isSlowWalking;

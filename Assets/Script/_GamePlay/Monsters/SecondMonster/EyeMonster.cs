@@ -6,25 +6,27 @@ public class EyeMonster : MonoBehaviour, ILitObject
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Sprite normalSprite;
     [SerializeField] private Sprite burnSprite;
-
     [Header("Mechanics")]
     [SerializeField] private float timeToExpose = 3.0f;
+    [SerializeField] private float exposureDuration = 5.0f; // NEW
+    [Header("Burn")]
     [SerializeField] private float timeToVanish = 2.0f;
     [SerializeField] private EyeMonsterManager manager;
 
     private Transform mainCameraTransform;
     private float currentHeat = 0f;
     private float exposeTimer = 0f;
+    private float activeExposureTimer = 0f; // NEW: Timer for how long alarm has been ringing
+    
     private bool isLitByFlashlight = false;
+    private bool isAlarmActive = false; // Is the alarm currently ringing?
 
     void Start()
     {
         if (Camera.main != null) mainCameraTransform = Camera.main.transform;
         if (manager == null) manager = FindFirstObjectByType<EyeMonsterManager>();
         
-        // Safety check for SpriteRenderer
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        
         OnEnable();
     }
 
@@ -32,10 +34,11 @@ public class EyeMonster : MonoBehaviour, ILitObject
     {
         currentHeat = 0f;
         exposeTimer = 0f;
+        activeExposureTimer = 0f;
         isLitByFlashlight = false;
-        if (manager != null) manager.SetExposureState(false);
+        isAlarmActive = false;
         
-        // Reset Sprite
+        if (manager != null) manager.SetExposureState(false);
         if (spriteRenderer != null) spriteRenderer.sprite = normalSprite;
     }
 
@@ -61,13 +64,15 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
     private void HandleBurning()
     {
-        if (manager != null) manager.SetExposureState(false);
-        
-        // --- CHANGE SPRITE: HURT ---
-        if (spriteRenderer != null && spriteRenderer.sprite != burnSprite)
+        // Stop alarm immediately if burned
+        if (isAlarmActive)
         {
-            spriteRenderer.sprite = burnSprite;
+            isAlarmActive = false;
+            if (manager != null) manager.SetExposureState(false);
         }
+
+        if (spriteRenderer != null && spriteRenderer.sprite != burnSprite)
+            spriteRenderer.sprite = burnSprite;
 
         exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime * 2f);
         currentHeat += Time.deltaTime;
@@ -77,26 +82,41 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
     private void HandleStaring()
     {
-        // --- CHANGE SPRITE: NORMAL ---
         if (spriteRenderer != null && spriteRenderer.sprite != normalSprite)
-        {
             spriteRenderer.sprite = normalSprite;
-        }
 
         if (currentHeat > 0) currentHeat = Mathf.Max(0, currentHeat - Time.deltaTime);
 
+        // --- ALARM LOGIC ---
+        if (isAlarmActive)
+        {
+            // The eye has already exposed the player. It keeps the alarm on for X seconds.
+            activeExposureTimer += Time.deltaTime;
+            
+            if (activeExposureTimer >= exposureDuration)
+            {
+                // Done exposing. Leave.
+                Vanish();
+            }
+            return; // Skip normal stare logic
+        }
+
+        // --- NORMAL STARE LOGIC ---
         if (CanSeePlayer())
         {
             exposeTimer += Time.deltaTime;
+            
+            // Trigger Alarm?
             if (exposeTimer >= timeToExpose)
             {
+                isAlarmActive = true;
+                activeExposureTimer = 0f; // Start the countdown
                 if (manager != null) manager.SetExposureState(true);
             }
         }
         else
         {
             exposeTimer = Mathf.Max(0, exposeTimer - Time.deltaTime);
-            if (manager != null) manager.SetExposureState(false);
         }
     }
 
