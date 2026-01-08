@@ -1,10 +1,16 @@
 using System.Collections;
 using UnityEngine;
+
 [RequireComponent(typeof(Animator))]
 public class DoorController : MonoBehaviour, IInteractable
 {
     [Header("Dependencies")]
-    [SerializeField] private TraceEventChannelSO traceChannel; 
+    [SerializeField] private TraceEventChannelSO traceChannel; // Drag "channel_TraceEvents"
+
+    [Header("Audio")]
+    [SerializeField] private SoundDefinition sfx_Open;
+    [SerializeField] private SoundDefinition sfx_Close;
+
     [Header("Door Settings")]
     [SerializeField] private bool isOpen = false;
     [SerializeField] private bool isLocked = false;
@@ -26,7 +32,7 @@ public class DoorController : MonoBehaviour, IInteractable
     
     private Animator animator;
     private int animBoolID;
-    private bool isBusy = false; // Controls the "Spam" lock
+    private bool isBusy = false; 
 
     void Awake()
     {
@@ -37,14 +43,14 @@ public class DoorController : MonoBehaviour, IInteractable
 
     public bool Interact(GameObject interactor)
     {
-        // 1. REJECT SPAM (Based on doorCooldownTime)
+        // 1. REJECT SPAM
         if (isBusy) return false;
 
         // 2. CHECK LOCK
         if (isLocked)
         {
-            // Add Inventory check logic here
-            // return false; 
+            // Optional: Play "Locked" sound here?
+            return false; 
         }
 
         // 3. START SEQUENCE
@@ -54,33 +60,44 @@ public class DoorController : MonoBehaviour, IInteractable
 
     private IEnumerator OperationRoutine(GameObject interactor)
     {
-        isBusy = true; // Lock the door immediately so it can't be clicked again
-        traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
-        // 1. FREEZE PLAYER (Uses the specific freeze duration)
+        isBusy = true; 
+        
+        // 1. EMIT NOISE (Medium radius because doors squeak/bang)
+        if (traceChannel != null)
+            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
+
+        // 2. FREEZE PLAYER
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null)
         {
             pc.FreezeInteraction(playerFreezeTime);
         }
 
-        // 2. PERFORM TOGGLE
+        // 3. PERFORM TOGGLE
         isOpen = !isOpen;
         animator.SetBool(animBoolID, isOpen);
         
-        // Play sound here...
+        // 4. PLAY SOUND
+        if (SoundManager.Instance != null)
+        {
+            SoundDefinition clipToPlay = isOpen ? sfx_Open : sfx_Close;
+            if (clipToPlay != null)
+            {
+                SoundManager.Instance.PlaySound(clipToPlay, transform.position);
+            }
+        }
         
         InteractionManager.Instance?.ReportInteraction(this.gameObject, isOpen ? "DoorOpened" : "DoorClosed");
 
-        // 3. WAIT FOR COOLDOWN
-        // The player might be able to move already, but the door is still finishing its animation
+        // 5. WAIT FOR COOLDOWN
         yield return new WaitForSeconds(doorCooldownTime);
         
-        isBusy = false; // Allow interaction again
+        isBusy = false; 
     }
 
     public string GetInteractionPrompt()
     {
-        if (isBusy) return ""; // Hide text while animating
+        if (isBusy) return "";
         if (isLocked) return lockedPrompt;
         return isOpen ? closePrompt : openPrompt;
     }

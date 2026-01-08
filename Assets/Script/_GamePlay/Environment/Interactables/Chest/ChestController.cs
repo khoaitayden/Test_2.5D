@@ -6,6 +6,12 @@ public class ChestController : MonoBehaviour, IInteractable
 {
     [Header("Dependencies")]
     [SerializeField] private TraceEventChannelSO traceChannel; 
+    
+    // --- 1. NEW AUDIO FIELDS ---
+    [Header("Audio")]
+    [SerializeField] private SoundDefinition sfx_Open;
+    // --------------------------
+
     [Header("Chest Settings")]
     [SerializeField] private bool isOpen = false;
     [SerializeField] private bool isLocked = false;
@@ -18,7 +24,6 @@ public class ChestController : MonoBehaviour, IInteractable
     [SerializeField] private float itemRiseDelay = 0.5f; 
     
     [Header("Item Container")]
-    // CHANGED: Reference the Script, not GameObject
     [SerializeField] private ChestItemDisplay itemDisplayScript; 
 
     [Header("Feedback")]
@@ -36,7 +41,6 @@ public class ChestController : MonoBehaviour, IInteractable
         animBoolID = Animator.StringToHash("IsOpen"); 
         animator.SetBool(animBoolID, isOpen);
         
-        // Initialize Item State
         if (itemDisplayScript != null)
             itemDisplayScript.SetItemState(isOpen);
     }
@@ -51,7 +55,11 @@ public class ChestController : MonoBehaviour, IInteractable
     private IEnumerator OperationRoutine(GameObject interactor)
     {
         isBusy = true; 
-        traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
+        
+        // Emit Trace (Noise)
+        if(traceChannel != null)
+            traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
+            
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null) pc.FreezeInteraction(playerFreezeTime);
 
@@ -61,24 +69,26 @@ public class ChestController : MonoBehaviour, IInteractable
         if (isOpen)
         {
             // --- OPENING ---
-            animator.SetBool(animBoolID, true); // Start Lid Opening
+            animator.SetBool(animBoolID, true); 
             
-            // Wait for lid to clear the item
+            // 2. PLAY OPEN SOUND
+            if (SoundManager.Instance != null && sfx_Open != null)
+            {
+                SoundManager.Instance.PlaySound(sfx_Open, transform.position);
+            }
+
             yield return new WaitForSeconds(itemRiseDelay);
             
-            // Tell Item to Rise
             if(itemDisplayScript != null) itemDisplayScript.SetItemState(true);
         }
         else
         {
             // --- CLOSING ---
-            // Tell Item to Sink FIRST
             if(itemDisplayScript != null) itemDisplayScript.SetItemState(false);
             
-            // Wait for item to sink (approx same as rise delay or shorter)
             yield return new WaitForSeconds(0.3f); 
             
-            animator.SetBool(animBoolID, false); // Start Lid Closing
+            animator.SetBool(animBoolID, false); 
         }
 
         InteractionManager.Instance?.ReportInteraction(this.gameObject, isOpen ? "ChestOpened" : "ChestClosed");
