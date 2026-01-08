@@ -3,8 +3,9 @@ using UnityEngine;
 public class PlayerAudio : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private PlayerMovement playerMovement; 
     [SerializeField] private PlayerGroundedChecker groundedChecker;
+    [SerializeField] private PlayerClimbing playerClimbing; // NEW DEPENDENCY
     [SerializeField] private Transform feetPosition;
 
     [Header("Step Settings")]
@@ -29,21 +30,14 @@ public class PlayerAudio : MonoBehaviour
 
     private void Start()
     {
-        // Auto-find PlayerMovement if you forgot to drag it in
+        // Auto-find references
         if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
-        
-        if (groundedChecker == null) groundedChecker = GetComponent<PlayerGroundedChecker>();
+        if (groundedChecker == null) groundedChecker = GetComponentInParent<PlayerGroundedChecker>();
+        if (playerClimbing == null) playerClimbing = GetComponentInParent<PlayerClimbing>();
 
         if (groundedChecker != null)
         {
             groundedChecker.OnLandWithFallIntensity += PlayLand;
-        }
-        
-        // Safety Check for Feet Position
-        if (feetPosition == null)
-        {
-            Debug.LogError("PlayerAudio: 'Feet Position' is empty! Please assign the Feet transform in the Inspector.");
-            this.enabled = false;
         }
     }
 
@@ -60,7 +54,6 @@ public class PlayerAudio : MonoBehaviour
         HandleStrideFootsteps();
     }
 
-    // --- PUBLIC API ---
     public void PlayJump() 
     {
         PlaySoundInternal(sfx_Jump);
@@ -74,8 +67,6 @@ public class PlayerAudio : MonoBehaviour
             SoundManager.Instance.PlaySound(sfx_Land, transform.position, volMod);
         }
     }
-
-    // --- Internal Logic ---
 
     private void OnTriggerEnter(Collider other)
     {
@@ -93,20 +84,23 @@ public class PlayerAudio : MonoBehaviour
 
     private void HandleStrideFootsteps()
     {
-        // FIX: Don't use CharacterController.velocity. 
-        // Use the calculated horizontal speed from our Logic script.
-        float speed = 0f;
-        if (playerMovement != null)
+        // --- 1. CLIMBING CHECK (FIX) ---
+        // If we are climbing, silence all footsteps immediately.
+        if (playerClimbing != null && playerClimbing.IsClimbing)
         {
-            speed = playerMovement.CurrentHorizontalSpeed;
+            _distanceTraveled = 0f;
+            return;
         }
 
-        // Don't play steps if not on ground
+        // --- 2. GROUND CHECK ---
         if (groundedChecker != null && !groundedChecker.IsGrounded)
         {
             _distanceTraveled = 0f;
             return;
         }
+
+        // --- 3. SPEED CHECK ---
+        float speed = (playerMovement != null) ? playerMovement.CurrentHorizontalSpeed : 0f;
 
         _isMoving = speed > velocityThreshold;
 
@@ -134,7 +128,6 @@ public class PlayerAudio : MonoBehaviour
         SoundDefinition soundToPlay = sfx_GenericDirt; 
         
         RaycastHit hit;
-        // Ensure feetPosition isn't null here
         if (Physics.Raycast(feetPosition.position + Vector3.up * 0.5f, Vector3.down, out hit, 1.5f, Physics.AllLayers, QueryTriggerInteraction.Collide))
         {
             SurfaceIdentifier surface = hit.collider.GetComponent<SurfaceIdentifier>();
@@ -149,7 +142,6 @@ public class PlayerAudio : MonoBehaviour
                 if (detector != null)
                 {
                     int textureIndex = detector.GetDominantTextureIndex(hit.point);
-                    // Adjust this index (3) based on your specific terrain layer setup
                     if (textureIndex == 3) soundToPlay = sfx_Grass;
                     else soundToPlay = sfx_GenericDirt; 
                 }
