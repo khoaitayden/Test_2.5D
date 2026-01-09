@@ -4,12 +4,36 @@ using System.Collections.Generic;
 public class WispController : MonoBehaviour
 {
     [Header("Data")]
-    [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
-    [SerializeField] private FloatVariableSO maxEnergy;  
-    [Header("Lights")]
-    [SerializeField] private Light innerGlowLight;
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
+    [SerializeField] private TransformAnchorSO playerAnchor; // Moved Here
+    [SerializeField] private TransformAnchorSO objectiveAnchor;
+
+    [Header("References")]
+    [SerializeField] private WispAnimationController animationController;
+    [SerializeField] private PlayerMovement playerMovement; // Moved Here
+    [SerializeField] private Transform mainCameraTransform; // Moved Here
+    
+    [Header("Guidance Settings")]
+    [Tooltip("How directly must the player look at the objective? (1.0 = Perfect, 0.7 = 45 degrees)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float lookThreshold = 0.85f;
+    [Header("Area Light (Interaction Range)")]
     [SerializeField] private Light areaMapLight; 
-    [SerializeField] private SpriteRenderer spriteRenderer;
+
+    [Header("Orbit & Movement Settings")]
+    [SerializeField] private float orbitRadius = 2f;
+    [SerializeField] private float orbitHeight = 1.5f;
+    [SerializeField] private float orbitSpeed = 40f;
+    [SerializeField] private float followLag = 0.5f;
+    [SerializeField] private float bobSpeed = 2f;
+    [SerializeField] private float bobHeight = 0.3f;
+    [SerializeField] private float minDistanceFromCamera = 1.0f;
+
+    [Header("Obstacle Avoidance")]
+    [SerializeField] private LayerMask obstacleLayer; 
+    [SerializeField] private float collisionRadius = 0.5f;
+    [SerializeField] private float avoidanceStrength = 5f;
 
     [Header("Soul Collection")]
     [SerializeField] private LayerMask detectionLayer;   
@@ -21,59 +45,150 @@ public class WispController : MonoBehaviour
     private TombstoneController _currentTargetTombstone;
     private HashSet<ILitObject> _currentlyLitObjects = new HashSet<ILitObject>();
     
-    private float _initInnerIntensity;
     private float _initAreaIntensity;
     private float _initAreaRange;
     private float energyFactor;
 
+    // Movement State
+    private Vector3 currentVelocity = Vector3.zero;
+    private float orbitAngle;
+    private Collider[] hitColliders = new Collider[5]; 
+    private PlayerMovement cachedPlayerMovement;
+    private Transform cachedPlayerTransform;
 
     void Start()
     {
-        if (innerGlowLight) _initInnerIntensity = innerGlowLight.intensity;
+        if (mainCameraTransform == null && Camera.main != null) 
+            mainCameraTransform = Camera.main.transform;
+
         if (areaMapLight)
         {
             _initAreaIntensity = areaMapLight.intensity;
             _initAreaRange = areaMapLight.range;
         }
+        
+        // Auto-find animation controller if on same object
+        if (animationController == null) animationController = GetComponent<WispAnimationController>();
+
+        orbitAngle = Random.Range(0f, 360f);
     }
 
     void Update()
     {
-        if (currentEnergy.Value<=0)
+        if (currentEnergy.Value <= 0)
         {
             HandleDeath();
             return;
         }
+
         energyFactor = currentEnergy.Value / maxEnergy.Value;
-        UpdateLights();
+        
+        UpdateAreaLight();
         UpdateInteractions();
+        
+        // --- NEW: INSTRUCTOR LOGIC ---
+        CheckObjectiveGuidance();
     }
 
-    // --- 1. LIGHT VISUALS (UPDATED) ---
-    void UpdateLights()
+    private void CheckObjectiveGuidance()
     {
-        // Sprite
-        if (spriteRenderer) spriteRenderer.enabled = true;
-
-        // Inner Light (Pulse)
-        if (innerGlowLight)
+        if (animationController == null) return;
+        
+        // If no objective exists, default face
+        if (objectiveAnchor == null || objectiveAnchor.Value == null)
         {
-            innerGlowLight.enabled = true;
-            float pulse = Mathf.Lerp(0.8f, 1.2f, Mathf.PerlinNoise(Time.time * 3f, 0f));
-            innerGlowLight.intensity = Mathf.Lerp(0f, _initInnerIntensity, energyFactor) * pulse;
+            animationController.SetFaceExpression(false);
+            return;
         }
 
-        // Area Light (Dimming)
+        // Calculate direction from Camera to Objective
+        Vector3 camPos = mainCameraTransform.position;
+        Vector3 targetPos = objectiveAnchor.Value.position;
+        Vector3 dirToTarget = (targetPos - camPos).normalized;
+        Vector3 camForward = mainCameraTransform.forward;
+
+        // Check alignment
+        float dot = Vector3.Dot(camForward, dirToTarget);
+        
+        // Update Face
+        bool isLooking = dot >= lookThreshold;
+        animationController.SetFaceExpression(isLooking);
+    }
+
+    // --- MOVEMENT LOGIC (Moved from AnimationController) ---
+    void LateUpdate()
+    {
+        if (currentEnergy.Value <= 0) return; // Stop moving if dead
+        
+        // Safety Check
+        if (playerAnchor == null || playerAnchor.Value == null || mainCameraTransform == null) return;
+
+        Transform currentPlayer = playerAnchor.Value;
+
+        // Dynamic Cache: If the player transform changed (respawn), get the new Movement component
+        if (currentPlayer != cachedPlayerTransform)
+        {
+            cachedPlayerTransform = currentPlayer;
+            cachedPlayerMovement = currentPlayer.GetComponent<PlayerMovement>();
+            // Fallback if not on the exact object (try parent/child logic if needed)
+            if(cachedPlayerMovement == null) cachedPlayerMovement = playerMovement; 
+        }
+
+        // 1. Calculate Orbit
+        orbitAngle += orbitSpeed * Time.deltaTime;
+        if (orbitAngle > 360f) orbitAngle -= 360f;
+
+        Vector3 orbitOffset = new Vector3(
+            Mathf.Cos(orbitAngle * Mathf.Deg2Rad) * orbitRadius,
+            orbitHeight,
+            Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
+        );
+
+        // 2. Calculate Lag
+        Vector3 lagOffset = Vector3.zero;
+        if (cachedPlayerMovement != null && cachedPlayerMovement.IsMoving)
+        {
+            lagOffset = -currentPlayer.forward * followLag;
+        }
+
+        Vector3 targetPos = currentPlayer.position + orbitOffset + lagOffset + Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
+
+        // 3. Obstacle Avoidance
+        int numHits = Physics.OverlapSphereNonAlloc(transform.position, collisionRadius, hitColliders, obstacleLayer);
+        Vector3 avoidance = Vector3.zero;
+        if (numHits > 0)
+        {
+            for (int i = 0; i < numHits; i++)
+            {
+                if (hitColliders[i] == null) continue;
+                Vector3 pushDir = transform.position - hitColliders[i].ClosestPoint(transform.position);
+                if (pushDir.sqrMagnitude < 0.001f) pushDir = Vector3.up;
+                avoidance += pushDir.normalized * (1f - Mathf.Clamp01(pushDir.magnitude / collisionRadius)) * avoidanceStrength;
+            }
+        }
+
+        // 4. Final Position & Camera Clip
+        Vector3 finalPos = targetPos + avoidance;
+        Vector3 toWisp = finalPos - mainCameraTransform.position;
+        if (toWisp.magnitude < minDistanceFromCamera)
+        {
+            finalPos = mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
+        }
+
+        transform.position = Vector3.SmoothDamp(transform.position, finalPos, ref currentVelocity, 0.2f);
+    }
+
+    void UpdateAreaLight()
+    {
+
         if (areaMapLight)
         {
             areaMapLight.enabled = true;
-            // Linear scaling: 50% energy = 50% intensity
             areaMapLight.intensity = Mathf.Lerp(0f, _initAreaIntensity, energyFactor);
             areaMapLight.range = Mathf.Lerp(5f, _initAreaRange, energyFactor);
         }
     }
 
-    // --- 2. INTERACTION & COLLECTION ---
     void UpdateInteractions()
     {
         float detectionRange = areaMapLight != null ? areaMapLight.range : 5f;
@@ -163,8 +278,6 @@ public class WispController : MonoBehaviour
 
     void HandleDeath()
     {
-        if (spriteRenderer) spriteRenderer.enabled = false;
-        if (innerGlowLight) innerGlowLight.enabled = false;
         if (areaMapLight) areaMapLight.enabled = false;
 
         foreach (var obj in _currentlyLitObjects)
@@ -173,5 +286,11 @@ public class WispController : MonoBehaviour
         }
         _currentlyLitObjects.Clear();
         _currentTargetTombstone = null;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, collisionRadius);
     }
 }

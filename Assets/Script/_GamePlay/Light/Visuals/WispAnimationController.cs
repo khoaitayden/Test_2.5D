@@ -2,106 +2,91 @@ using UnityEngine;
 
 public class WispAnimationController : MonoBehaviour
 {
-    [Header("Architecture")]
-    [Tooltip("Reference to the Player's Transform Anchor")]
-    [SerializeField] private TransformAnchorSO playerAnchor;
+    [Header("Data")]
+    [SerializeField] private FloatVariableSO currentEnergy;
+    [SerializeField] private FloatVariableSO maxEnergy;
+    
+    [SerializeField] private IntVariableSO monstersWatchingCount;
 
     [Header("References")]
-    [Tooltip("Needed to calculate the trail lag effect based on speed")]
-    [SerializeField] private PlayerMovement playerMovement; 
     [SerializeField] private Transform mainCameraTransform;
+    [SerializeField] private Animator fireAnimator; 
+    [SerializeField] private SpriteRenderer faceRenderer;
 
-    [Header("Orbit Settings")]
-    [SerializeField] private float orbitRadius = 2f;
-    [SerializeField] private float orbitHeight = 1.5f;
-    [SerializeField] private float orbitSpeed = 40f;
-    [SerializeField] private float followLag = 0.5f;
+    [Header("Visual Settings")]
+    [SerializeField] private Sprite faceNormal;
+    [SerializeField] private Sprite faceObjectiveFound;
+    [SerializeField] private Light innerGlowLight;
+    [SerializeField] private bool lockYAxis = true;
 
-    [Header("Lively Motion")]
-    [SerializeField] private float bobSpeed = 2f;
-    [SerializeField] private float bobHeight = 0.3f;
-
-    [Header("Obstacle Avoidance")]
-    [SerializeField] private LayerMask obstacleLayer; 
-    [SerializeField] private float collisionRadius = 0.5f;
-    [SerializeField] private float avoidanceStrength = 5f;
-
-    [Header("Camera Safety")]
-    [SerializeField] private float minDistanceFromCamera = 1.0f;
-
-    private Vector3 currentVelocity = Vector3.zero;
-    private float orbitAngle;
-    private Collider[] hitColliders = new Collider[5]; 
+    private float _initInnerIntensity;
+    
+    private int _animLookHash; 
 
     void Start()
     {
         if (mainCameraTransform == null && Camera.main != null) 
             mainCameraTransform = Camera.main.transform;
-            
-        orbitAngle = Random.Range(0f, 360f);
+
+        if (innerGlowLight) 
+            _initInnerIntensity = innerGlowLight.intensity;
+
+        // CHANGED: Hash for "IsBeingLook"
+        _animLookHash = Animator.StringToHash("IsBeingLook");
+    }
+
+    void Update()
+    {
+        HandleInnerGlow();
+        HandleFireState();
     }
 
     void LateUpdate()
     {
-        // Safety Check: If player is dead/destroyed, stop updating to avoid errors
-        if (playerAnchor == null || playerAnchor.Value == null || mainCameraTransform == null) return;
+        HandleBillboarding();
+    }
 
-        Transform playerTransform = playerAnchor.Value;
+    public void SetFaceExpression(bool isLookingAtObjective)
+    {
+        if (faceRenderer == null) return;
+        Sprite targetSprite = isLookingAtObjective ? faceObjectiveFound : faceNormal;
+        if (faceRenderer.sprite != targetSprite) faceRenderer.sprite = targetSprite;
+    }
 
-        // 1. Calculate Orbit
-        orbitAngle += orbitSpeed * Time.deltaTime;
-        if (orbitAngle > 360f) orbitAngle -= 360f;
+    private void HandleFireState()
+    {
+        if (fireAnimator == null || monstersWatchingCount == null) return;
 
-        Vector3 orbitOffset = new Vector3(
-            Mathf.Cos(orbitAngle * Mathf.Deg2Rad) * orbitRadius,
-            orbitHeight,
-            Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
-        );
-
-        // 2. Calculate Lag (Trail behind player when moving)
-        Vector3 lagOffset = Vector3.zero;
+        bool isBeingLookedAt = monstersWatchingCount.Value > 0;
         
-        // Use PlayerMovement component instead of the God-Class PlayerController
-        if (playerMovement != null && playerMovement.IsMoving)
-        {
-            lagOffset = -playerTransform.forward * followLag;
-        }
+        fireAnimator.SetBool(_animLookHash, isBeingLookedAt);
+    }
 
-        Vector3 targetPos = playerTransform.position + orbitOffset + lagOffset + Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
-
-        // 3. Obstacle Avoidance
-        int numHits = Physics.OverlapSphereNonAlloc(transform.position, collisionRadius, hitColliders, obstacleLayer);
-        Vector3 avoidance = Vector3.zero;
-        if (numHits > 0)
+    private void HandleInnerGlow()
+    {
+        if (innerGlowLight)
         {
-            for (int i = 0; i < numHits; i++)
+            if (currentEnergy != null && currentEnergy.Value > 0)
             {
-                if (hitColliders[i] == null) continue;
-                Vector3 pushDir = transform.position - hitColliders[i].ClosestPoint(transform.position);
-                if (pushDir.sqrMagnitude < 0.001f) pushDir = Vector3.up;
-                avoidance += pushDir.normalized * (1f - Mathf.Clamp01(pushDir.magnitude / collisionRadius)) * avoidanceStrength;
+                innerGlowLight.enabled = true;
+                float energyFactor = (maxEnergy != null && maxEnergy.Value > 0) ? currentEnergy.Value / maxEnergy.Value : 1f;
+                float pulse = Mathf.Lerp(0.8f, 1.2f, Mathf.PerlinNoise(Time.time * 3f, 0f));
+                innerGlowLight.intensity = Mathf.Lerp(0f, _initInnerIntensity, energyFactor) * pulse;
+            }
+            else
+            {
+                innerGlowLight.enabled = false;
             }
         }
-
-        // 4. Final Position & Camera Clip
-        Vector3 finalPos = targetPos + avoidance;
-        Vector3 toWisp = finalPos - mainCameraTransform.position;
-        if (toWisp.magnitude < minDistanceFromCamera)
-        {
-            finalPos = mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
-        }
-
-        transform.position = Vector3.SmoothDamp(transform.position, finalPos, ref currentVelocity, 0.2f);
-
-        // 5. Billboarding
-        Vector3 flatForward = mainCameraTransform.forward;
-        flatForward.y = 0;
-        if (flatForward.magnitude > 0.1f) transform.rotation = Quaternion.LookRotation(flatForward);
     }
-    
-    void OnDrawGizmosSelected()
+
+    private void HandleBillboarding()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, collisionRadius);
+        if (mainCameraTransform != null)
+        {
+            Vector3 lookDir = mainCameraTransform.forward;
+            if (lockYAxis) lookDir.y = 0;
+            if (lookDir.magnitude > 0.01f) transform.rotation = Quaternion.LookRotation(lookDir);
+        }
     }
 }

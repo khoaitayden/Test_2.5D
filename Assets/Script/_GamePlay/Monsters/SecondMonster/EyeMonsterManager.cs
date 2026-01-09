@@ -9,7 +9,7 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private FloatVariableSO maxEnergy;
     [SerializeField] private BoolVariableSO isPlayerExposed; 
     [SerializeField] private TransformAnchorSO playerAnchor;
-    //[SerializeField] private GameEventSO unlockEvent;
+    [SerializeField] private IntVariableSO monstersWatchingCount;
     
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
@@ -72,6 +72,7 @@ public class EyeMonsterManager : MonoBehaviour
         {
             eyeObject.transform.position = spawnPos;
             eyeObject.SetActive(true);
+            if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(1);
         }
     }
 
@@ -105,6 +106,9 @@ public class EyeMonsterManager : MonoBehaviour
     {
         SetExposureState(false);
         if (eyeObject != null) eyeObject.SetActive(false);
+        
+        // NEW: Notify Wisp
+        if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(-1);
     }
     
     public void SetExposureState(bool exposed)
