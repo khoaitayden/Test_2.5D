@@ -3,7 +3,7 @@ using UnityEngine;
 public class ChestQuest : MonoBehaviour
 {
     [Header("Data")]
-    [SerializeField] private TransformSetSO activeChestsSet; // Drag "set_ActiveChests"
+    [SerializeField] private TransformSetSO activeChestsSet; 
 
     [Header("References")]
     [SerializeField] private ChestItemDisplay itemDisplay;

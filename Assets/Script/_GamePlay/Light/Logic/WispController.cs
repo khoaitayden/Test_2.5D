@@ -13,14 +13,14 @@ public class WispController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private WispAnimationController animationController;
-    [SerializeField] private PlayerMovement playerMovement; // Moved Here
-    [SerializeField] private Transform mainCameraTransform; // Moved Here
+    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private Transform mainCameraTransform;
+    [SerializeField] private SpriteRenderer spriteRenderer;
     
     [Header("Guidance Settings")]
-    [Tooltip("How directly must the player look at the objective? (1.0 = Perfect, 0.7 = 45 degrees)")]
-    [Range(0f, 1f)]
-    [SerializeField] private float lookThreshold = 0.85f;
-    [Header("Area Light (Interaction Range)")]
+    [Range(0f, 1f)] [SerializeField] private float lookThreshold = 0.85f;
+
+    [Header("Area Light")]
     [SerializeField] private Light areaMapLight; 
 
     [Header("Orbit & Movement Settings")]
@@ -40,12 +40,11 @@ public class WispController : MonoBehaviour
     [Header("Soul Collection")]
     [SerializeField] private LayerMask detectionLayer;   
     [SerializeField] private LayerMask obstructionLayer; 
-    [Tooltip("Stops collecting if Energy % is higher than this (0.0 to 1.0)")]
     [SerializeField] private float energyThreshold = 0.8f;
 
     // --- State ---
-    private TombstoneController _currentTargetTombstone;
     private HashSet<ILitObject> _currentlyLitObjects = new HashSet<ILitObject>();
+    private TombstoneController _currentTargetTombstone;
     
     private float _initAreaIntensity;
     private float _initAreaRange;
@@ -54,24 +53,13 @@ public class WispController : MonoBehaviour
     // Movement State
     private Vector3 currentVelocity = Vector3.zero;
     private float orbitAngle;
-    private Collider[] hitColliders = new Collider[5]; 
+    private Collider[] hitColliders = new Collider[5]; // Fixed array for non-alloc physics
     private PlayerMovement cachedPlayerMovement;
     private Transform cachedPlayerTransform;
 
     void Start()
     {
-        if (mainCameraTransform == null && Camera.main != null) 
-            mainCameraTransform = Camera.main.transform;
-
-        if (areaMapLight)
-        {
-            _initAreaIntensity = areaMapLight.intensity;
-            _initAreaRange = areaMapLight.range;
-        }
-        
-        // Auto-find animation controller if on same object
-        if (animationController == null) animationController = GetComponent<WispAnimationController>();
-
+        InitializeReferences();
         orbitAngle = Random.Range(0f, 360f);
     }
 
@@ -83,13 +71,122 @@ public class WispController : MonoBehaviour
             return;
         }
 
+        // 1. Calculate Global State
         energyFactor = currentEnergy.Value / maxEnergy.Value;
         
+        // 2. Update Visuals & Logic
         UpdateAreaLight();
         UpdateInteractions();
-        
-        // --- NEW LOGIC HERE ---
         CheckObjectiveGuidance();
+    }
+
+    void LateUpdate()
+    {
+        if (currentEnergy.Value <= 0) return;
+        
+        // 1. Get Valid Player
+        Transform currentPlayer = GetPlayerTransform();
+        if (currentPlayer == null) return;
+
+        // 2. Calculate Desired Position Pipeline
+        UpdateOrbitAngle();
+        Vector3 basePos = CalculateOrbitPosition(currentPlayer);
+        Vector3 lagOffset = CalculateLagOffset(currentPlayer);
+        Vector3 bobOffset = Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
+
+        Vector3 targetPos = basePos + lagOffset + bobOffset;
+
+        // 3. Apply Physical Constraints
+        Vector3 avoidance = CalculateObstacleAvoidance(transform.position);
+        Vector3 finalPos = targetPos + avoidance;
+        
+        finalPos = ApplyCameraClipping(finalPos);
+
+        // 4. Move
+        transform.position = Vector3.SmoothDamp(transform.position, finalPos, ref currentVelocity, 0.2f);
+    }
+
+    private Transform GetPlayerTransform()
+    {
+        if (playerAnchor == null || playerAnchor.Value == null || mainCameraTransform == null) return null;
+
+        Transform currentPlayer = playerAnchor.Value;
+
+        // Refresh cache if player object changed (respawn)
+        if (currentPlayer != cachedPlayerTransform)
+        {
+            cachedPlayerTransform = currentPlayer;
+            cachedPlayerMovement = currentPlayer.GetComponent<PlayerMovement>();
+            if(cachedPlayerMovement == null) cachedPlayerMovement = playerMovement; 
+        }
+        return currentPlayer;
+    }
+
+    private void UpdateOrbitAngle()
+    {
+        orbitAngle += orbitSpeed * Time.deltaTime;
+        if (orbitAngle > 360f) orbitAngle -= 360f;
+    }
+
+    private Vector3 CalculateOrbitPosition(Transform player)
+    {
+        return player.position + new Vector3(
+            Mathf.Cos(orbitAngle * Mathf.Deg2Rad) * orbitRadius,
+            orbitHeight,
+            Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
+        );
+    }
+
+    private Vector3 CalculateLagOffset(Transform player)
+    {
+        if (cachedPlayerMovement != null && cachedPlayerMovement.IsMoving)
+        {
+            return -player.forward * followLag;
+        }
+        return Vector3.zero;
+    }
+
+    private Vector3 CalculateObstacleAvoidance(Vector3 currentPos)
+    {
+        // FIX: Replaced 'null' with 'hitColliders' array to prevent garbage allocation
+        int numHits = Physics.OverlapSphereNonAlloc(currentPos, collisionRadius, hitColliders, obstacleLayer);
+        Vector3 avoidance = Vector3.zero;
+
+        for (int i = 0; i < numHits; i++)
+        {
+            if (hitColliders[i] == null) continue;
+            Vector3 pushDir = currentPos - hitColliders[i].ClosestPoint(currentPos);
+            
+            if (pushDir.sqrMagnitude < 0.001f) pushDir = Vector3.up; // Prevent divide by zero inside collider
+            
+            avoidance += pushDir.normalized * (1f - Mathf.Clamp01(pushDir.magnitude / collisionRadius)) * avoidanceStrength;
+        }
+        return avoidance;
+    }
+
+    private Vector3 ApplyCameraClipping(Vector3 targetPos)
+    {
+        Vector3 toWisp = targetPos - mainCameraTransform.position;
+        if (toWisp.magnitude < minDistanceFromCamera)
+        {
+            return mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
+        }
+        return targetPos;
+    }
+
+
+    private void InitializeReferences()
+    {
+        if (mainCameraTransform == null && Camera.main != null) 
+            mainCameraTransform = Camera.main.transform;
+
+        if (areaMapLight)
+        {
+            _initAreaIntensity = areaMapLight.intensity;
+            _initAreaRange = areaMapLight.range;
+        }
+        
+        if (animationController == null) animationController = GetComponent<WispAnimationController>();
     }
 
     private void CheckObjectiveGuidance()
@@ -98,30 +195,22 @@ public class WispController : MonoBehaviour
 
         bool isLookingAtInterestingThing = false;
 
-        // MODE 1: RETURN TO BEACON (If carrying Item)
+        // MODE 1: RETURN TO BEACON
         if (isCarryingItem != null && isCarryingItem.Value)
         {
             if (beaconAnchor != null && beaconAnchor.Value != null)
-            {
                 isLookingAtInterestingThing = IsLookingAt(beaconAnchor.Value.position);
-            }
         }
-        // MODE 2: FIND CHESTS (If empty handed)
-        else
+        // MODE 2: FIND CHESTS
+        else if (activeChestsSet != null)
         {
-            if (activeChestsSet != null)
+            List<Transform> chests = activeChestsSet.GetItems();
+            foreach (Transform chest in chests)
             {
-                // Check ALL chests. If we are looking at ANY of them, make the face excited.
-                List<Transform> chests = activeChestsSet.GetItems();
-                foreach (Transform chest in chests)
+                if (chest != null && IsLookingAt(chest.position))
                 {
-                    if (chest == null) continue;
-                    
-                    if (IsLookingAt(chest.position))
-                    {
-                        isLookingAtInterestingThing = true;
-                        break; // Found one, no need to check the rest
-                    }
+                    isLookingAtInterestingThing = true;
+                    break;
                 }
             }
         }
@@ -134,77 +223,112 @@ public class WispController : MonoBehaviour
         Vector3 camPos = mainCameraTransform.position;
         Vector3 dirToTarget = (targetPos - camPos).normalized;
         Vector3 camForward = mainCameraTransform.forward;
-
-        float dot = Vector3.Dot(camForward, dirToTarget);
-        return dot >= lookThreshold;
+        return Vector3.Dot(camForward, dirToTarget) >= lookThreshold;
     }
 
-    // --- MOVEMENT LOGIC (Moved from AnimationController) ---
-    void LateUpdate()
+    void UpdateInteractions()
     {
-        if (currentEnergy.Value <= 0) return; // Stop moving if dead
+        float detectionRange = areaMapLight != null ? areaMapLight.range : 5f;
         
-        // Safety Check
-        if (playerAnchor == null || playerAnchor.Value == null || mainCameraTransform == null) return;
-
-        Transform currentPlayer = playerAnchor.Value;
-
-        // Dynamic Cache: If the player transform changed (respawn), get the new Movement component
-        if (currentPlayer != cachedPlayerTransform)
+        // 1. Scan Area
+        HashSet<ILitObject> visibleObjects = ScanForLitObjects(detectionRange);
+        
+        // 2. Determine Priority Target (Tombstones)
+        TombstoneController bestTombstone = null;
+        if (energyFactor < energyThreshold)
         {
-            cachedPlayerTransform = currentPlayer;
-            cachedPlayerMovement = currentPlayer.GetComponent<PlayerMovement>();
-            // Fallback if not on the exact object (try parent/child logic if needed)
-            if(cachedPlayerMovement == null) cachedPlayerMovement = playerMovement; 
+            bestTombstone = FindBestTombstone(visibleObjects);
         }
 
-        // 1. Calculate Orbit
-        orbitAngle += orbitSpeed * Time.deltaTime;
-        if (orbitAngle > 360f) orbitAngle -= 360f;
+        // 3. Apply States
+        ApplyLitStates(visibleObjects, bestTombstone);
+        
+        _currentTargetTombstone = bestTombstone;
+    }
 
-        Vector3 orbitOffset = new Vector3(
-            Mathf.Cos(orbitAngle * Mathf.Deg2Rad) * orbitRadius,
-            orbitHeight,
-            Mathf.Sin(orbitAngle * Mathf.Deg2Rad) * orbitRadius
-        );
+    private HashSet<ILitObject> ScanForLitObjects(float range)
+    {
+        HashSet<ILitObject> foundObjects = new HashSet<ILitObject>();
+        Collider[] hits = Physics.OverlapSphere(transform.position, range, detectionLayer);
 
-        // 2. Calculate Lag
-        Vector3 lagOffset = Vector3.zero;
-        if (cachedPlayerMovement != null && cachedPlayerMovement.IsMoving)
+        foreach (var col in hits)
         {
-            lagOffset = -currentPlayer.forward * followLag;
-        }
-
-        Vector3 targetPos = currentPlayer.position + orbitOffset + lagOffset + Vector3.up * (Mathf.Sin(Time.time * bobSpeed) * bobHeight);
-
-        // 3. Obstacle Avoidance
-        int numHits = Physics.OverlapSphereNonAlloc(transform.position, collisionRadius, hitColliders, obstacleLayer);
-        Vector3 avoidance = Vector3.zero;
-        if (numHits > 0)
-        {
-            for (int i = 0; i < numHits; i++)
+            if (col == null) continue;
+            Vector3 dir = col.bounds.center - transform.position;
+            
+            // Line of Sight check
+            if (!Physics.Raycast(transform.position, dir, dir.magnitude, obstructionLayer))
             {
-                if (hitColliders[i] == null) continue;
-                Vector3 pushDir = transform.position - hitColliders[i].ClosestPoint(transform.position);
-                if (pushDir.sqrMagnitude < 0.001f) pushDir = Vector3.up;
-                avoidance += pushDir.normalized * (1f - Mathf.Clamp01(pushDir.magnitude / collisionRadius)) * avoidanceStrength;
+                ILitObject litObj = col.GetComponent<ILitObject>();
+                if (litObj != null) foundObjects.Add(litObj);
+            }
+        }
+        return foundObjects;
+    }
+
+    private TombstoneController FindBestTombstone(HashSet<ILitObject> objects)
+    {
+        TombstoneController best = null;
+        float minDst = float.MaxValue;
+
+        foreach (var obj in objects)
+        {
+            if (obj is TombstoneController tomb && tomb.CurrentEnergy > 0)
+            {
+                float d = Vector3.Distance(transform.position, tomb.transform.position);
+                if (d < minDst) { minDst = d; best = tomb; }
+            }
+        }
+        return best;
+    }
+
+    private void ApplyLitStates(HashSet<ILitObject> visibleObjects, TombstoneController priorityTarget)
+    {
+        // A. Handle objects currently in view
+        foreach (var obj in visibleObjects)
+        {
+            // Special handling for Tombstones (only light 1 at a time if prioritized)
+            if (obj is TombstoneController tomb)
+            {
+                bool isPriority = (tomb == priorityTarget);
+                
+                if (isPriority && !_currentlyLitObjects.Contains(tomb))
+                    tomb.OnLit(LightSourceType.Wisp);
+                else if (!isPriority && _currentlyLitObjects.Contains(tomb))
+                    tomb.OnUnlit(LightSourceType.Wisp);
+            }
+            // Standard objects
+            else if (!_currentlyLitObjects.Contains(obj))
+            {
+                obj.OnLit(LightSourceType.Wisp);
             }
         }
 
-        // 4. Final Position & Camera Clip
-        Vector3 finalPos = targetPos + avoidance;
-        Vector3 toWisp = finalPos - mainCameraTransform.position;
-        if (toWisp.magnitude < minDistanceFromCamera)
+        // B. Handle objects that LEFT the view
+        foreach (var oldObj in _currentlyLitObjects)
         {
-            finalPos = mainCameraTransform.position + toWisp.normalized * minDistanceFromCamera;
+            if (!visibleObjects.Contains(oldObj)) oldObj.OnUnlit(LightSourceType.Wisp);
         }
 
-        transform.position = Vector3.SmoothDamp(transform.position, finalPos, ref currentVelocity, 0.2f);
+        // C. Update Cache
+        _currentlyLitObjects.Clear();
+        foreach (var obj in visibleObjects)
+        {
+            // Only add tombstones if they are the priority one
+            if (obj is TombstoneController tomb)
+            {
+                if (tomb == priorityTarget) _currentlyLitObjects.Add(obj);
+            }
+            else
+            {
+                _currentlyLitObjects.Add(obj);
+            }
+        }
     }
 
     void UpdateAreaLight()
     {
-
+        if (spriteRenderer) spriteRenderer.enabled = true;
         if (areaMapLight)
         {
             areaMapLight.enabled = true;
@@ -213,101 +337,11 @@ public class WispController : MonoBehaviour
         }
     }
 
-    void UpdateInteractions()
-    {
-        float detectionRange = areaMapLight != null ? areaMapLight.range : 5f;
-        
-        HashSet<ILitObject> visibleObjects = new HashSet<ILitObject>();
-        HashSet<TombstoneController> visibleTombstones = new HashSet<TombstoneController>();
-
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, detectionLayer);
-
-        foreach (var col in hits)
-        {
-            if (col == null) continue;
-
-            Vector3 targetCenter = col.bounds.center;
-            Vector3 dir = targetCenter - transform.position;
-            if (!Physics.Raycast(transform.position, dir, dir.magnitude, obstructionLayer))
-            {
-                ILitObject litObj = col.GetComponent<ILitObject>();
-                if (litObj != null)
-                {
-                    visibleObjects.Add(litObj);
-                    if (litObj is TombstoneController tomb && tomb.CurrentEnergy > 0)
-                    {
-                        visibleTombstones.Add(tomb);
-                    }
-                }
-            }
-        }
-
-        TombstoneController bestTombstone = null;
-        if (energyFactor < energyThreshold)
-        {
-            float minDst = float.MaxValue;
-            foreach (var t in visibleTombstones)
-            {
-                float d = Vector3.Distance(transform.position, t.transform.position);
-                if (d < minDst)
-                {
-                    minDst = d;
-                    bestTombstone = t;
-                }
-            }
-        }
-
-        foreach (var obj in visibleObjects)
-        {
-            if (obj is TombstoneController tomb)
-            {
-                if (tomb == bestTombstone)
-                {
-                    if (!_currentlyLitObjects.Contains(tomb)) tomb.OnLit(LightSourceType.Wisp);
-                }
-                else
-                {
-                    if (_currentlyLitObjects.Contains(tomb)) tomb.OnUnlit(LightSourceType.Wisp);
-                }
-            }
-            else
-            {
-                if (!_currentlyLitObjects.Contains(obj)) obj.OnLit(LightSourceType.Wisp);
-            }
-        }
-
-        foreach (var oldObj in _currentlyLitObjects)
-        {
-            if (!visibleObjects.Contains(oldObj))
-            {
-                oldObj.OnUnlit(LightSourceType.Wisp);
-            }
-        }
-
-        _currentlyLitObjects.Clear();
-        foreach (var obj in visibleObjects)
-        {
-            if (obj is TombstoneController tomb)
-            {
-                if (tomb == bestTombstone) _currentlyLitObjects.Add(obj);
-            }
-            else
-            {
-                _currentlyLitObjects.Add(obj);
-            }
-        }
-        
-        _currentTargetTombstone = bestTombstone;
-    }
-
     void HandleDeath()
     {
+        if (spriteRenderer) spriteRenderer.enabled = false;
         if (areaMapLight) areaMapLight.enabled = false;
-
-        foreach (var obj in _currentlyLitObjects)
-        {
-            obj.OnUnlit(LightSourceType.Wisp);
-        }
+        foreach (var obj in _currentlyLitObjects) obj.OnUnlit(LightSourceType.Wisp);
         _currentlyLitObjects.Clear();
         _currentTargetTombstone = null;
     }

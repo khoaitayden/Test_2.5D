@@ -42,57 +42,85 @@ public class PlayerMovement : MonoBehaviour
     {
         if (isLocked)
         {
-            horizontalVelocity = Vector3.zero;
+            StopMovement();
             return;
         }
 
-        Vector2 moveInput = InputManager.Instance.MoveInput;
+        // 1. Calculate Direction relative to Camera
+        WorldSpaceMoveDirection = GetCameraRelativeInput();
 
-        Vector3 camForward = mainCameraTransform.forward;
+        // 2. Rotate Player
+        HandleRotation();
+
+        // 3. Calculate Speed & Velocity
+        float targetSpeed = CalculateTargetSpeed();
+        CalculateHorizontalVelocity(targetSpeed);
+
+        // 4. Move Controller
+        controller.Move(horizontalVelocity * Time.deltaTime);
+        
+    }
+    private void StopMovement()
+    {
+        horizontalVelocity = Vector3.zero;
+    }
+    private Vector3 GetCameraRelativeInput()
+    {
+        Vector2 input = InputManager.Instance.MoveInput;
+        if (input.sqrMagnitude < 0.01f) return Vector3.zero;
+
+        Vector3 camFwd = mainCameraTransform.forward;
         Vector3 camRight = mainCameraTransform.right;
-        camForward.y = 0; 
+        camFwd.y = 0;
         camRight.y = 0;
-        camForward.Normalize(); 
-        camRight.Normalize();
-        WorldSpaceMoveDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
+        
+        return (camFwd.normalized * input.y + camRight.normalized * input.x).normalized;
+    }
 
-        if (WorldSpaceMoveDirection.magnitude >= 0.1f)
+    private void HandleRotation()
+    {
+        if (WorldSpaceMoveDirection.sqrMagnitude >= 0.01f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(WorldSpaceMoveDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
+    }
 
-        float currentMoveSpeed = baseMoveSpeed;
+    private float CalculateTargetSpeed()
+    {
+        // Base Speed
+        float speed = baseMoveSpeed;
+
+        // Modifiers
         bool hasEnergy = currentEnergy.Value > 0;
+        
+        if (!hasEnergy)
+        {
+            speed *= slowWalkSpeedMultiplier;
+        }
+        else if (IsSprintingInput)
+        {
+            speed *= sprintSpeedMultiplier;
+        }
+        else if (IsSlowWalkingInput)
+        {
+            speed *= slowWalkSpeedMultiplier;
+        }
 
-        if (hasEnergy)
-        {
-            if (IsSprintingInput) 
-            {
-                currentMoveSpeed *= sprintSpeedMultiplier;
-            }
-            else if (IsSlowWalkingInput) 
-            {
-                currentMoveSpeed *= slowWalkSpeedMultiplier;
-            }
-        }
-        else
-        {
-            currentMoveSpeed *= slowWalkSpeedMultiplier; // Force slow walk
-        }
-        
-        currentMoveSpeed *= environmentSpeedMultiplier; 
+        return speed * environmentSpeedMultiplier;
+    }
 
-        Vector3 targetHorizontalVelocity = WorldSpaceMoveDirection * currentMoveSpeed;
-        float currentAcceleration = (WorldSpaceMoveDirection.magnitude > 0.1f) ? acceleration : deceleration;
-        horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetHorizontalVelocity, currentAcceleration * Time.deltaTime);
+    private void CalculateHorizontalVelocity(float targetSpeed)
+    {
+        Vector3 targetVel = WorldSpaceMoveDirection * targetSpeed;
         
-        if (horizontalVelocity.magnitude < 0.01f) 
-        {
-            horizontalVelocity = Vector3.zero;
-        }
+        // Acceleration / Deceleration
+        float accelRate = (WorldSpaceMoveDirection.sqrMagnitude > 0.01f) ? acceleration : deceleration;
         
-        controller.Move(horizontalVelocity * Time.deltaTime);
+        horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetVel, accelRate * Time.deltaTime);
+
+        // Snap to zero if very slow
+        if (horizontalVelocity.sqrMagnitude < 0.01f) horizontalVelocity = Vector3.zero;
     }
 
     public void ApplyEnvironmentalSlow(float slowFactor, float duration)

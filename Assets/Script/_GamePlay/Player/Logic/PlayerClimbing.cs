@@ -52,7 +52,7 @@ public class PlayerClimbing : MonoBehaviour
         }
     }
 
-public void HandleClimbingPhysics()
+    public void HandleClimbingPhysics()
     {
         if (!isClimbing || nearbyLadder == null) 
         {
@@ -60,48 +60,80 @@ public void HandleClimbingPhysics()
             return;
         }
 
-        // 1. ROTATION
+        // 1. Orient Player
+        RotateTowardsLadder();
+
+        // 2. Calculate Movement
+        float vInput = InputManager.Instance.MoveInput.y;
+        Vector3 finalVelocity = CalculateClimbingVelocity(vInput);
+
+        // 3. Enforce Limits (Prevents climbing over the top)
+        finalVelocity = EnforceHeadLimit(finalVelocity, vInput);
+
+        // 4. Apply
+        controller.Move(finalVelocity * Time.deltaTime);
+
+        // 5. Check Exits
+        CheckExits(vInput);
+    }
+
+    // --- HELPER METHODS ---
+
+    private void RotateTowardsLadder()
+    {
         Quaternion targetRot = Quaternion.LookRotation(nearbyLadder.ClimbDirection);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
-        float currentHeadY = transform.position.y + controller.center.y + (controller.height * 0.5f);
-        float ladderTopY = nearbyLadder.TopY;
+    }
+
+    private Vector3 CalculateClimbingVelocity(float vInput)
+    {
+        Vector3 velocity = Vector3.zero;
+
+        // A. Vertical (Input based)
+        velocity.y = vInput * climbSpeed;
+
+        // B. Horizontal (Suction towards ladder center)
+        Vector3 targetPos = nearbyLadder.GetClosestPointOnLadder(transform.position);
+        targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
         
-        float maxHeadY = ladderTopY + 0.1f; 
+        Vector3 moveDir = (targetPos - transform.position);
+        moveDir.y = 0; // Important: Keep Y pure
 
-        // 3. INPUT
-        float vInput = InputManager.Instance.MoveInput.y;
-        Vector3 finalVelocity = Vector3.zero;
+        velocity.x = moveDir.x * climbSnapSpeed;
+        velocity.z = moveDir.z * climbSnapSpeed;
 
-        // 4. VERTICAL LOGIC
-        // Check if we are trying to go UP past the limit
-        if (currentHeadY >= maxHeadY && vInput > 0)
+        return velocity;
+    }
+
+    private Vector3 EnforceHeadLimit(Vector3 currentVelocity, float vInput)
+    {
+        // If going down, no limits needed
+        if (vInput <= 0) return currentVelocity;
+
+        float currentHeadY = transform.position.y + controller.center.y + (controller.height * 0.5f);
+        float maxHeadY = nearbyLadder.TopY + 0.1f;
+
+        if (currentHeadY >= maxHeadY)
         {
-            finalVelocity.y = 0;
-            float requiredY = maxHeadY - (controller.center.y + (controller.height * 0.5f));
-            
+            // Kill Vertical Velocity
+            currentVelocity.y = 0;
+
+            // Hard Clamp Transform to fix overshoots
+            SnapPositionToLimit(maxHeadY);
+        }
+
+        return currentVelocity;
+    }
+
+    private void SnapPositionToLimit(float maxHeadY)
+    {
+        float requiredY = maxHeadY - (controller.center.y + (controller.height * 0.5f));
+        if (Mathf.Abs(transform.position.y - requiredY) > 0.001f)
+        {
             Vector3 clampedPos = transform.position;
             clampedPos.y = requiredY;
             transform.position = clampedPos;
         }
-        else
-        {
-            finalVelocity.y = vInput * climbSpeed;
-        }
-
-        // 5. HORIZONTAL SUCTION
-        Vector3 targetPos = nearbyLadder.GetClosestPointOnLadder(transform.position);
-        targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
-        Vector3 moveDir = (targetPos - transform.position);
-        moveDir.y = 0; // Vital: Keep Y pure
-
-        finalVelocity.x = moveDir.x * climbSnapSpeed;
-        finalVelocity.z = moveDir.z * climbSnapSpeed;
-
-        // 6. APPLY
-        controller.Move(finalVelocity * Time.deltaTime);
-
-        // 7. EXITS
-        CheckExits(vInput);
     }
     private void CheckExits(float vInput)
     {
