@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class PlayerItemCarrier : MonoBehaviour
 {
+    [Header("State Data")]
+    [SerializeField] private BoolVariableSO isCarryingItem;
     [Header("Visuals")]
     [Tooltip("The SpriteRenderer on the player's back")]
     [SerializeField] private SpriteRenderer backSpriteRenderer;
@@ -28,10 +30,19 @@ public class PlayerItemCarrier : MonoBehaviour
     {
         MissionItemSO oldItem = currentItem;
         currentItem = newItem;
+        
         UpdateVisuals();
+        UpdateState(); // NEW
+        
         return oldItem;
     }
-
+    private void UpdateState()
+    {
+        if (isCarryingItem != null)
+        {
+            isCarryingItem.Value = (currentItem != null);
+        }
+    }
     private void UpdateVisuals()
     {
         if (currentItem != null)

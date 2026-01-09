@@ -6,6 +6,7 @@ public class MonsterVision : MonoBehaviour
     [Header("Data")]
     [SerializeField] private BoolVariableSO isPlayerExposed;
     [SerializeField] private TransformAnchorSO playerAnchor;
+    [SerializeField] private IntVariableSO monstersWatchingCount;
     [Header("Settings")]
     [SerializeField] private MonsterConfig config;
     [SerializeField] private float detectionFrequency; 
@@ -18,8 +19,7 @@ public class MonsterVision : MonoBehaviour
     private MonsterBrain brain;
     private float scanTimer;
     private float timeSinceLastSeen;
-
-    // Reusable array to save memory (GC Optimization)
+    private bool isContributingToCount = false; 
     private Collider[] _overlapBuffer = new Collider[10];
 
     private void Awake()
@@ -27,7 +27,14 @@ public class MonsterVision : MonoBehaviour
         brain = GetComponent<MonsterBrain>();
         if(config == null) config = GetComponent<MonsterConfig>();
     }
-
+    private void OnDisable()
+    {
+        if (isContributingToCount && monstersWatchingCount != null)
+        {
+            monstersWatchingCount.ApplyChange(-1);
+            isContributingToCount = false;
+        }
+    }
     private void Update()
     {
         scanTimer += Time.deltaTime;
@@ -39,25 +46,30 @@ public class MonsterVision : MonoBehaviour
         }
     }
 
+
     private void PerformVisionCheck()
     {
-        // --- 1. GLOBAL EXPOSURE OVERRIDE ---
+        // 1. GLOBAL OVERRIDE CHECK
         if (isPlayerExposed != null && isPlayerExposed.Value)
         {
-            // Access player securely via Anchor
+            // If the Eye exposes the player, this monster technically "sees" them too.
+            // But usually, the EyeManager handles the count for the Eye itself.
+            // Let's stick to local vision logic so we don't double count unnecessarily,
+            // OR simply update brain and return.
+            
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 brain.OnPlayerSeen(playerAnchor.Value);
-                canSeePlayerNow = true;
+                UpdateWatchingStatus(true); // Treat as seen
                 return;
             }
         }
-        // --- 2. STANDARD VISION LOGIC ---
-        // (This code only runs if the Eye is NOT exposing the player)
-        Transform seenPlayer = ScanForPlayer();
-        canSeePlayerNow = seenPlayer != null;
 
-        if (canSeePlayerNow)
+        // 2. STANDARD VISION
+        Transform seenPlayer = ScanForPlayer();
+        bool currentlySeeing = seenPlayer != null;
+
+        if (currentlySeeing)
         {
             timeSinceLastSeen = 0f;
             brain.OnPlayerSeen(seenPlayer);
@@ -70,8 +82,28 @@ public class MonsterVision : MonoBehaviour
                 brain.OnPlayerLost();
             }
         }
-    }
 
+        // 3. UPDATE WISP STATUS
+        UpdateWatchingStatus(currentlySeeing);
+    }
+    private void UpdateWatchingStatus(bool isNowSeeing)
+    {
+        if (monstersWatchingCount == null) return;
+
+        // State Change Detection
+        if (isNowSeeing && !isContributingToCount)
+        {
+            // Just started seeing
+            monstersWatchingCount.ApplyChange(1);
+            isContributingToCount = true;
+        }
+        else if (!isNowSeeing && isContributingToCount)
+        {
+            // Just stopped seeing
+            monstersWatchingCount.ApplyChange(-1);
+            isContributingToCount = false;
+        }
+    }
      private Transform ScanForPlayer()
     {
         // 1. USE HEAD POSITION INSTEAD OF TRANSFORM.POSITION
