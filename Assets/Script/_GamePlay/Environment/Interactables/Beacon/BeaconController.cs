@@ -60,10 +60,7 @@ public class BeaconController : MonoBehaviour, IInteractable
         
         // Mark as filled
         filledLayers[index] = true;
-        if (unlockEyeEvent != null)
-        {
-            unlockEyeEvent.Raise();
-        }
+        unlockEyeEvent.Raise();
         // Emit Trace/Sound
         traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseStrong);
         Debug.Log($"Placed Layer {index}");
@@ -78,15 +75,14 @@ public class BeaconController : MonoBehaviour, IInteractable
     {
         foreach (bool isFilled in filledLayers)
         {
-            if (!isFilled) return; // Not done yet
+            if (!isFilled) return;
         }
 
         Debug.Log("PUZZLE COMPLETED!");
-        // Trigger Win Event / Cutscene here
     }
 
     public string GetInteractionPrompt()
     {
-        return "Place Fragment"; // Changed from "lmao" for clarity :)
+        return "Place Fragment";
     }
 }

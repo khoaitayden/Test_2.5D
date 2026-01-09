@@ -3,14 +3,13 @@ using System.Collections;
 
 public class EyeMonsterManager : MonoBehaviour
 {
-    // REMOVED: public static EyeMonsterManager Instance { get; private set; }
 
     [Header("Data & Events")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
     [SerializeField] private BoolVariableSO isPlayerExposed; 
     [SerializeField] private TransformAnchorSO playerAnchor;
-    [SerializeField] private GameEventSO unlockEvent;
+    //[SerializeField] private GameEventSO unlockEvent;
     
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
@@ -25,12 +24,6 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private float maxSpawnHeight = 4.0f; 
 
     private bool isUnlocked = false;
-    private void OnEnable()
-    {
-        if (unlockEvent != null) 
-            unlockEvent.RegisterListener(new GameEventListener() { Response = new UnityEngine.Events.UnityEvent() });
-    }
-
     void Awake()
     {
         // Reset state on load
