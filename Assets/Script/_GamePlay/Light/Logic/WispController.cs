@@ -6,8 +6,10 @@ public class WispController : MonoBehaviour
     [Header("Data")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
-    [SerializeField] private TransformAnchorSO playerAnchor; // Moved Here
-    [SerializeField] private TransformAnchorSO objectiveAnchor;
+    [SerializeField] private TransformAnchorSO playerAnchor; 
+    [SerializeField] private TransformAnchorSO beaconAnchor;   
+    [SerializeField] private BoolVariableSO isCarryingItem; 
+    [SerializeField] private TransformSetSO activeChestsSet;
 
     [Header("References")]
     [SerializeField] private WispAnimationController animationController;
@@ -86,33 +88,55 @@ public class WispController : MonoBehaviour
         UpdateAreaLight();
         UpdateInteractions();
         
-        // --- NEW: INSTRUCTOR LOGIC ---
+        // --- NEW LOGIC HERE ---
         CheckObjectiveGuidance();
     }
 
     private void CheckObjectiveGuidance()
     {
-        if (animationController == null) return;
-        
-        // If no objective exists, default face
-        if (objectiveAnchor == null || objectiveAnchor.Value == null)
+        if (animationController == null || mainCameraTransform == null) return;
+
+        bool isLookingAtInterestingThing = false;
+
+        // MODE 1: RETURN TO BEACON (If carrying Item)
+        if (isCarryingItem != null && isCarryingItem.Value)
         {
-            animationController.SetFaceExpression(false);
-            return;
+            if (beaconAnchor != null && beaconAnchor.Value != null)
+            {
+                isLookingAtInterestingThing = IsLookingAt(beaconAnchor.Value.position);
+            }
+        }
+        // MODE 2: FIND CHESTS (If empty handed)
+        else
+        {
+            if (activeChestsSet != null)
+            {
+                // Check ALL chests. If we are looking at ANY of them, make the face excited.
+                List<Transform> chests = activeChestsSet.GetItems();
+                foreach (Transform chest in chests)
+                {
+                    if (chest == null) continue;
+                    
+                    if (IsLookingAt(chest.position))
+                    {
+                        isLookingAtInterestingThing = true;
+                        break; // Found one, no need to check the rest
+                    }
+                }
+            }
         }
 
-        // Calculate direction from Camera to Objective
+        animationController.SetFaceExpression(isLookingAtInterestingThing);
+    }
+
+    private bool IsLookingAt(Vector3 targetPos)
+    {
         Vector3 camPos = mainCameraTransform.position;
-        Vector3 targetPos = objectiveAnchor.Value.position;
         Vector3 dirToTarget = (targetPos - camPos).normalized;
         Vector3 camForward = mainCameraTransform.forward;
 
-        // Check alignment
         float dot = Vector3.Dot(camForward, dirToTarget);
-        
-        // Update Face
-        bool isLooking = dot >= lookThreshold;
-        animationController.SetFaceExpression(isLooking);
+        return dot >= lookThreshold;
     }
 
     // --- MOVEMENT LOGIC (Moved from AnimationController) ---
