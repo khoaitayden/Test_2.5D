@@ -34,10 +34,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // 2. Stalk Player (Fallback if visible but unreachable)
             builder.AddAction<StalkPlayerAction>()
                 .SetTarget<PlayerTarget>()
-                
                 .AddEffect<IsPlayerReachable>(EffectType.Increase) 
-                
-                // Conditions
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
                 

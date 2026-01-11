@@ -17,7 +17,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (config == null) config = references.GetCachedComponent<MonsterConfig>();
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
 
-            var traces = config.traceStorage.GetTraces();
+            var traces = brain.TraceStorage.GetTraces();
             Vector3 eyes = agent.Transform.position;
             Vector3 facing = agent.Transform.forward;
             float timeFloor = brain.HandledNoiseTimestamp;
@@ -26,7 +26,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             foreach (var t in traces)
             {
-                // 1. Filter: Must be unhandled and valid
                 if (t.IsExpired || t.Timestamp <= timeFloor) continue;
 
                 bool isDetected = false;

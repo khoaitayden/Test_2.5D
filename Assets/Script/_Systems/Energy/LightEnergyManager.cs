@@ -4,23 +4,27 @@ public class LightEnergyManager : MonoBehaviour
 {
     // REMOVED: public static LightEnergyManager Instance;
 
+    [Header("Events")]
+    [SerializeField] private GameEventSO onEmptyEnergyEvent; 
     [Header("Data References")]
     [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
-    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"    // Drag "var_IsSprinting"
+    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"    
     [SerializeField] private BoolVariableSO isFlashlightOn; // Drag "var_IsFlashlightOn"
+    [SerializeField] private BoolVariableSO isPlayerExpose;
 
     [Header("Base Settings")]
     [SerializeField] private float maxDuration = 100f; // This sets the MaxEnergy SO
     [SerializeField] private float startingPercentage = 0.5f;
 
     [Header("Drain Multipliers")]
-    [SerializeField] private float flashlightCostMult = 1.5f;
-    [SerializeField] private float sprintCostMult = 2.0f;
+    [SerializeField] private float flashlightCostMult = 3f;
+    [SerializeField] private float sprintCostMult = 2f;
+    [SerializeField] private float exposedCostMult = 3f;
 
     [Header("Debug")]
     [SerializeField] private bool isDrainPaused = false;
     private float drainRateBase = 1.0f;
-
+    private bool isEnergyDepleted = false;
     void Awake()
     {
         // Initialize the Data assets
@@ -35,7 +39,7 @@ public class LightEnergyManager : MonoBehaviour
 
     void Update()
     {
-        if (isDrainPaused || currentEnergy == null) return;
+        if (isDrainPaused || currentEnergy == null||isEnergyDepleted) return;
 
         float finalMultiplier = 1.0f;
 
@@ -45,13 +49,21 @@ public class LightEnergyManager : MonoBehaviour
 
         if (InputManager.Instance.IsSprinting) 
             finalMultiplier *= sprintCostMult;
+            
+        if (isPlayerExpose.Value)
+            finalMultiplier *= exposedCostMult;
 
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;
         currentEnergy.ApplyChange(-drain, 0f, maxEnergy.Value);
-
-    
+        Debug.Log($"Light Energy: {currentEnergy.Value}/{maxEnergy.Value}");
+        //Raise empty event
+        if (currentEnergy.Value <= 0f)
+        {
+            isEnergyDepleted = true;
+            currentEnergy.Value = 0f;
+            if (onEmptyEnergyEvent != null) onEmptyEnergyEvent.Raise();
+        }   
     }
-
     public void SetDrainPaused(bool isPaused)
     {
         isDrainPaused = isPaused;

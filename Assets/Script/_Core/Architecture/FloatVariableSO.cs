@@ -9,7 +9,6 @@ public class FloatVariableSO : ScriptableObject
 
     private void OnDisable() => Value = 0f;
 
-    // Helper to modify energy safely
     public void ApplyChange(float amount, float min, float max)
     {
         Value = Mathf.Clamp(Value + amount, min, max);

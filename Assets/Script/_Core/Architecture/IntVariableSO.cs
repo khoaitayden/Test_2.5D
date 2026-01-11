@@ -9,8 +9,8 @@ public class IntVariableSO : ScriptableObject
     public void ApplyChange(int amount)
     {
         Value += amount;
-        if (Value < 0) Value = 0; // Safety clamp
+        if (Value < 0) Value = 0; 
     }
 
-    private void OnDisable() => Value = 0; // Reset on stop
+    private void OnDisable() => Value = 0;
 }

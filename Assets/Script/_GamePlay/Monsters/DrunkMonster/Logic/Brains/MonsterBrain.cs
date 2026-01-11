@@ -6,7 +6,12 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
-    // --- EXISTING MEMORY ---
+    [Header("Architecture Dependencies")]
+    [SerializeField] private TraceStorageSO traceStorage;
+    [SerializeField] private TransformAnchorSO playerAnchor;
+
+    public TraceStorageSO TraceStorage => traceStorage;
+    public TransformAnchorSO PlayerAnchor => playerAnchor;
     public bool IsPlayerVisible { get; private set; }
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }

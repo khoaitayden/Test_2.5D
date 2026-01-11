@@ -9,31 +9,18 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
-        private MonsterBrain brain; // Added
+        private MonsterBrain brain;
 
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
-            // Cache components
-            movement = agent.GetComponent<MonsterMovement>();
-            config = agent.GetComponent<MonsterConfig>();
-            brain = agent.GetComponent<MonsterBrain>(); // Fetch Brain here
-
+            InitializeDependencies(agent);
             
             brain.IsAttacking = true;
             data.startTime = Time.time;
 
-            Transform targetTransform = null;
-            if (data.Target is TransformTarget tt && tt.Transform != null)
-            {
-                targetTransform = tt.Transform;
-            }
-            else
-            {
-                var player = GameObject.FindWithTag("Player");
-                if (player != null) targetTransform = player.transform;
-            }
+            Transform targetTransform = ResolveTarget(data);
 
             if (targetTransform != null)
             {
@@ -43,12 +30,9 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // 2. Timeout / Failure
             if (Time.time > data.startTime + config.maxChaseTime)
             {
-                // Call the new Brain method to search here
-                if (brain != null) brain.OnMovementStuck();
-                
+                brain?.OnMovementStuck();
                 return ActionRunState.Stop;
             }
 
@@ -59,7 +43,29 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement.Stop();
             if (brain != null) brain.IsAttacking = false;
+        }
 
+
+        private void InitializeDependencies(IMonoAgent agent)
+        {
+            movement = agent.GetComponent<MonsterMovement>();
+            config = agent.GetComponent<MonsterConfig>();
+            brain = agent.GetComponent<MonsterBrain>();
+        }
+
+        private Transform ResolveTarget(Data data)
+        {
+            if (data.Target is TransformTarget tt && tt.Transform != null)
+                return tt.Transform;
+            if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null)
+            {
+                return brain.PlayerAnchor.Value;
+            }
+
+            if (brain != null && brain.CurrentPlayerTarget != null)
+                return brain.CurrentPlayerTarget;
+
+            return null;
         }
 
         public class Data : IActionData

@@ -9,7 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfig config;
-        private MonsterBrain brain; // Added reference
+        private MonsterBrain brain;
 
         public override void Created() { }
 
@@ -17,7 +17,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfig>();
-            brain = agent.GetComponent<MonsterBrain>(); // Fetch it here
+            brain = agent.GetComponent<MonsterBrain>();
 
             if (data.Target != null)
             {
@@ -35,7 +35,6 @@ namespace CrashKonijn.Goap.MonsterGen
                 return ActionRunState.Completed; 
             }
 
-            // --- STUCK / ARRIVAL LOGIC ---
             if (movement.HasArrivedOrStuck())
             {
                 // If we stopped but are far away (> 5m), we are stuck. Flee!

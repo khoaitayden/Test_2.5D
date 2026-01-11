@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-
+using System.Collections;
 public class SoundManager : MonoBehaviour
 {
     public static SoundManager Instance;
@@ -37,7 +37,6 @@ public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volume
         source.clip = def.clips[Random.Range(0, def.clips.Length)];
         source.outputAudioMixerGroup = def.mixerGroup;
         
-        // Pitch & Volume Math
         float finalPitch = (def.pitch + Random.Range(-def.pitchVariance, def.pitchVariance)) * pitchMult;
         if (finalPitch < 0.1f) finalPitch = 0.1f; // Safety
 
@@ -51,20 +50,16 @@ public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volume
         
         source.Play();
 
-        // --- THE FIX ---
-        // 1. Calculate how long the clip actually takes to play (Length / Pitch)
         float clipDuration = source.clip.length / Mathf.Abs(finalPitch);
 
-        // 2. Add the "Tail" time for Echo/Reverb
         float totalLifeTime = clipDuration + def.tailSeconds;
         
-        // 3. Wait for that full time before killing the object
         StartCoroutine(DisableSourceDelayed(source, totalLifeTime));
         
         return source;
     }
 
-    private System.Collections.IEnumerator DisableSourceDelayed(AudioSource source, float time)
+    private IEnumerator DisableSourceDelayed(AudioSource source, float time)
     {
         yield return new WaitForSeconds(time);
         source.Stop();
@@ -72,7 +67,6 @@ public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volume
     }
     private System.Collections.IEnumerator DisableSourceWithFade(AudioSource source, float duration, float startVolume)
     {
-        // Wait until near the end of the clip (minus 0.5 seconds for fade out)
         float fadeDuration = 0.5f;
         float waitTime = duration - fadeDuration;
 
@@ -81,7 +75,6 @@ public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volume
             yield return new WaitForSeconds(waitTime);
         }
 
-        // --- FADE OUT LOGIC ---
         float timer = 0f;
         while (timer < fadeDuration)
         {
@@ -114,7 +107,7 @@ public AudioSource PlaySound(SoundDefinition def, Vector3 position, float volume
     private AudioSource GetFreeSource()
     {
         foreach (var s in pool) if (!s.gameObject.activeInHierarchy) return s;
-        return pool[0]; // Recycle oldest if full
+        return pool[0];
     }
 
     private System.Collections.IEnumerator DisableSource(AudioSource s, float t)

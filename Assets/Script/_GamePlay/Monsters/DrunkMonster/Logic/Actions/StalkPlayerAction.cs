@@ -76,8 +76,6 @@ namespace CrashKonijn.Goap.MonsterGen
             // If we are further than the ideal stalking range...
             if (distToPlayer > config.idealStalkingRange)
             {
-                // ...move towards the player.
-                // MonsterMovement will handle snapping to the nearest valid point (the wall).
                 movement.MoveTo(brain.CurrentPlayerTarget.position, config.investigateSpeed);
             }
             // PHASE 2: ORBIT

@@ -10,18 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f319e6b0018a76231b977bf9adf5de77, type: 3}
-  m_Name: FirstMonsterRoar
+  m_Name: DrunkMonsterPlayerGrab
   m_EditorClassIdentifier: Assembly-CSharp::SoundDefinition
   clips:
-  - {fileID: 8300000, guid: 614ceac4dc4e34085bde996ca8115e2d, type: 3}
-  - {fileID: 8300000, guid: 4b1f158eff50ba77ab8b45e7bbf97c48, type: 3}
-  - {fileID: 8300000, guid: 6c20c73eba767dcc3a78d971ce8ff1fa, type: 3}
-  mixerGroup: {fileID: -4037818589245871841, guid: af6319a4422cf05ab822ef238b837492, type: 2}
+  - {fileID: 8300000, guid: 99bd3ba1d5fbb20e59dc16853687a049, type: 3}
+  mixerGroup: {fileID: 6018927166039805170, guid: af6319a4422cf05ab822ef238b837492, type: 2}
   volume: 0.8
   pitch: 1
-  volumeVariance: 0.2
+  volumeVariance: 0.1
   pitchVariance: 0.1
-  spatialBlend: 1
+  spatialBlend: 0
   minDistance: 1
-  maxDistance: 80
-  tailSeconds: 3
+  maxDistance: 30

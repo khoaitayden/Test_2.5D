@@ -43,17 +43,13 @@ public class DoorController : MonoBehaviour, IInteractable
 
     public bool Interact(GameObject interactor)
     {
-        // 1. REJECT SPAM
         if (isBusy) return false;
 
-        // 2. CHECK LOCK
         if (isLocked)
         {
-            // Optional: Play "Locked" sound here?
             return false; 
         }
 
-        // 3. START SEQUENCE
         StartCoroutine(OperationRoutine(interactor));
         return true;
     }

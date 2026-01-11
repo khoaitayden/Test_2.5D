@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -9,13 +11,15 @@ public class PlayerState : MonoBehaviour
     [Header("State")]
     [SerializeField] private bool isDead = false;
 
+    [Header("Settings")]
+    [SerializeField] private float deathDelayOnEmptyEnergy = 5.0f;
     [Header("Events")]
-    [SerializeField] private GameEventSO onDeathEvent; // Create: "evt_PlayerDeath"
+    [SerializeField] private GameEventSO onDeathEvent; 
 
     // Public API
     public bool IsDead => isDead;
 
-    public void TakeDamage(int amount = 1) // Or pass a damage source, etc.
+    public void GotAttack()
     {
         if (isDead) return;
 
@@ -34,11 +38,24 @@ public class PlayerState : MonoBehaviour
         if (onDeathEvent != null) onDeathEvent.Raise();
     }
 
+    public IEnumerator OnEmptyEnergyRoutine()
+    {
+        yield return new WaitForSeconds(deathDelayOnEmptyEnergy);
+        Die();
+        yield return null;
+    }
+
+    public void OnEmptyEnergy()
+    {
+        StartCoroutine(OnEmptyEnergyRoutine());
+    }
+
     void OnTriggerEnter(Collider other)
     {
         if (isDead == false && other.CompareTag("Monster"))
         {
-            TakeDamage();
+            GotAttack();
         }
     }
+
 }

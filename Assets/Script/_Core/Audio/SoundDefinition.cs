@@ -18,7 +18,6 @@ public class SoundDefinition : ScriptableObject
     public float minDistance = 1f;
     public float maxDistance = 50f;
 
-    // --- ADD THIS ---
     [Header("Effects")]
     [Tooltip("Extra seconds to keep the object active after the sound finishes. INCREASE THIS for Echo/Reverb.")]
     public float tailSeconds = 0f; 

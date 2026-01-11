@@ -49,7 +49,6 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
-        // REMOVED: playerParticleController.ToggleTrail - ParticleController does this itself now!
     }
 
     void OnDestroy()
@@ -63,8 +62,6 @@ public class PlayerController : MonoBehaviour
 
     private void HandleJumpRequest()
     {
-        // PlayerGroundedChecker will handle the actual jump physics.
-        // We just emit a trace here IF the jump is allowed.
         if (!IsClimbing && !IsEnteringLadder && !IsInteractionLocked && !IsDead)
         {
             if (playerGroundedChecker.IsGrounded && traceChannel != null)

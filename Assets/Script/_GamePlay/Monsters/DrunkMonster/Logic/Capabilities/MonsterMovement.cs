@@ -64,9 +64,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             Vector3 finalDestination = targetPos;
             bool foundValidPoint = false;
 
-            // --- 1. FIND VALID NAVMESH POINT (Iterative Fallback) ---
-            // Try increasing radii to ensure we find SOMETHING valid.
-            // 5m -> Snap Radius -> Fallback Radius -> 50m Panic Search
             float[] searchRadii = new float[] { 
                 5.0f, 
                 config != null ? config.traceNavMeshSnapRadius : 10f, 
@@ -87,8 +84,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             if (!foundValidPoint)
             {
-                // Panic: Point is completely off the map (e.g. infinite void)
-                // Just stay here or return failure.
                 Debug.LogWarning("[MonsterMovement] Target is completely unreachable/off-mesh.");
                 agent.ResetPath();
                 return false; 

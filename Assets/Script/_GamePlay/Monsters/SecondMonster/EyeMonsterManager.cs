@@ -21,7 +21,13 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private float radiusAtFullLight = 30f;
     [SerializeField] private float radiusAtNoLight = 8f;
     [SerializeField] private float minSpawnHeight = 1.5f;
-    [SerializeField] private float maxSpawnHeight = 4.0f; 
+    [SerializeField] private float maxSpawnHeight = 4.0f;
+
+    [Header("Collision Safety")]
+    [Tooltip("Layers that the Eye cannot spawn inside (Trees, Buildings, Walls)")]
+    [SerializeField] private LayerMask obstacleLayers; 
+    [Tooltip("Radius of the empty space required around the Eye")]
+    [SerializeField] private float spawnSafetyRadius = 0.8f;
 
     private bool isUnlocked = false;
     void Awake()
@@ -79,21 +85,31 @@ public class EyeMonsterManager : MonoBehaviour
     private Vector3 FindValidPosition(float radius)
     {
         if (playerAnchor == null || playerAnchor.Value == null) return Vector3.zero;
+        Transform playerTx = playerAnchor.Value;
 
-        Transform playerTransform = playerAnchor.Value;
         for (int i = 0; i < 15; i++)
         {
             float randomAngle = Random.Range(0f, 360f);
             Vector3 direction = Quaternion.Euler(0, randomAngle, 0) * Vector3.forward;
-            Vector3 attemptPos = playerTransform.position + direction * radius;
+            Vector3 attemptPos = playerTx.position + direction * radius;
 
+            // 1. Raycast Down to find ground
+            // Note: We start high up (+20) to clear trees/terrain
             if (Physics.Raycast(attemptPos + Vector3.up * 20f, Vector3.down, out RaycastHit hit, 40f))
             {
                 float randomHeight = Random.Range(minSpawnHeight, maxSpawnHeight);
                 Vector3 finalPos = hit.point + Vector3.up * randomHeight;
-                Vector3 toEye = finalPos - playerTransform.position;
-                
-                if (!Physics.Raycast(playerTransform.position, toEye.normalized, toEye.magnitude * 0.9f))
+
+                // --- 2. NEW: VOLUME CHECK ---
+                // Check if the specific point we chose is inside a collider
+                if (Physics.CheckSphere(finalPos, spawnSafetyRadius, obstacleLayers))
+                {
+                    continue; // Blocked! Try next random spot.
+                }
+
+                // 3. Line of Sight Check (Player to Eye)
+                Vector3 toEye = finalPos - playerTx.position;
+                if (!Physics.Raycast(playerTx.position, toEye.normalized, toEye.magnitude * 0.9f)) // 0.9f to avoid hitting the eye itself
                 {
                     return finalPos; 
                 }
@@ -107,7 +123,6 @@ public class EyeMonsterManager : MonoBehaviour
         SetExposureState(false);
         if (eyeObject != null) eyeObject.SetActive(false);
         
-        // NEW: Notify Wisp
         if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(-1);
     }
     

@@ -9,19 +9,17 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void Created() { }
         public override void Update() { }
 
-        private MonsterConfig config;
+        private MonsterBrain brain;
 
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
-            if (config == null) config = references.GetCachedComponent<MonsterConfig>();
+            if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
 
-            // We need to add 'playerAnchor' to MonsterConfig first! (See below)
-            if (config.playerAnchor != null && config.playerAnchor.Value != null)
+            if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null)
             {
-                return new TransformTarget(config.playerAnchor.Value);
+                return new TransformTarget(brain.PlayerAnchor.Value);
             }
 
-            // Fallback
             return new PositionTarget(agent.Transform.position);
         }
     }
