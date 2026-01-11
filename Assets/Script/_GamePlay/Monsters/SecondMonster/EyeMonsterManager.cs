@@ -30,15 +30,15 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private float spawnSafetyRadius = 0.8f;
 
     private bool isUnlocked = false;
-    void Awake()
+    void OnEnable()
     {
-        // Reset state on load
-        if (isPlayerExposed != null) isPlayerExposed.Value = false;
+        UnlockEyeSpawning();
     }
 
-    void Start()
+    void OnDisable()
     {
-        if (eyeObject != null) eyeObject.SetActive(false);
+        StopAllCoroutines();
+        DespawnEye();
     }
 
     // Public method called by the GameEventListener Component
@@ -46,7 +46,7 @@ public class EyeMonsterManager : MonoBehaviour
     {
         if (isUnlocked) return;
         isUnlocked = true;
-        Debug.Log("[EyeManager] Unlocked via Event.");
+        Debug.Log("[EyeManager] Unlocked");
         StartCoroutine(SpawnTimer());
     }
 

@@ -2,15 +2,13 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Animator))]
-public class ChestController : MonoBehaviour, IInteractable
+public class ObjectiveController : MonoBehaviour, IInteractable
 {
     [Header("Dependencies")]
     [SerializeField] private TraceEventChannelSO traceChannel; 
     
-    // --- 1. NEW AUDIO FIELDS ---
     [Header("Audio")]
     [SerializeField] private SoundDefinition sfx_Open;
-    // --------------------------
 
     [Header("Chest Settings")]
     [SerializeField] private bool isOpen = false;
@@ -18,17 +16,16 @@ public class ChestController : MonoBehaviour, IInteractable
     
     [Header("Timing Settings")]
     [SerializeField] private float playerFreezeTime = 1.0f;
-    [SerializeField] private float chestCooldownTime = 1.5f;
+    [SerializeField] private float chestCooldownTime = 1.5f; // Time until animation finishes
 
     [Tooltip("Delay before item starts rising (so lid opens first).")]
     [SerializeField] private float itemRiseDelay = 0.5f; 
     
     [Header("Item Container")]
-    [SerializeField] private ChestItemDisplay itemDisplayScript; 
+    [SerializeField] private ObjectiveItemDisplay itemDisplayScript; 
 
     [Header("Feedback")]
     [SerializeField] private string openPrompt = "Open Chest";
-    [SerializeField] private string closePrompt = "Close Chest";
     [SerializeField] private string lockedPrompt = "Locked";
     
     private Animator animator;
@@ -47,7 +44,9 @@ public class ChestController : MonoBehaviour, IInteractable
 
     public bool Interact(GameObject interactor)
     {
-        if (isBusy || isLocked) return false;
+        // 1. New Condition: If already open, do nothing.
+        if (isBusy || isLocked || isOpen) return false;
+        
         StartCoroutine(OperationRoutine(interactor));
         return true;
     }
@@ -63,35 +62,26 @@ public class ChestController : MonoBehaviour, IInteractable
         PlayerController pc = interactor.GetComponent<PlayerController>();
         if (pc != null) pc.FreezeInteraction(playerFreezeTime);
 
-        // Toggle State
-        isOpen = !isOpen;
+        // 2. Set State (One way only)
+        isOpen = true;
 
-        if (isOpen)
+        // --- OPENING ---
+        animator.SetBool(animBoolID, true); 
+        
+        // Play Open Sound
+        if (SoundManager.Instance != null && sfx_Open != null)
         {
-            // --- OPENING ---
-            animator.SetBool(animBoolID, true); 
-            
-            // 2. PLAY OPEN SOUND
-            if (SoundManager.Instance != null && sfx_Open != null)
-            {
-                SoundManager.Instance.PlaySound(sfx_Open, transform.position);
-            }
-
-            yield return new WaitForSeconds(itemRiseDelay);
-            
-            if(itemDisplayScript != null) itemDisplayScript.SetItemState(true);
-        }
-        else
-        {
-            // --- CLOSING ---
-            if(itemDisplayScript != null) itemDisplayScript.SetItemState(false);
-            
-            yield return new WaitForSeconds(0.3f); 
-            
-            animator.SetBool(animBoolID, false); 
+            SoundManager.Instance.PlaySound(sfx_Open, transform.position);
         }
 
-        InteractionManager.Instance?.ReportInteraction(this.gameObject, isOpen ? "ChestOpened" : "ChestClosed");
+        // Wait for lid to clear
+        yield return new WaitForSeconds(itemRiseDelay);
+        
+        // Show Item
+        if(itemDisplayScript != null) itemDisplayScript.SetItemState(true);
+
+        InteractionManager.Instance?.ReportInteraction(this.gameObject, "ChestOpened");
+        
         yield return new WaitForSeconds(chestCooldownTime);
         isBusy = false; 
     }
@@ -100,6 +90,10 @@ public class ChestController : MonoBehaviour, IInteractable
     {
         if (isBusy) return ""; 
         if (isLocked) return lockedPrompt;
-        return isOpen ? closePrompt : openPrompt;
+        
+        // 3. If open, return empty string so no UI prompt appears
+        if (isOpen) return "";
+        
+        return openPrompt;
     }
 }

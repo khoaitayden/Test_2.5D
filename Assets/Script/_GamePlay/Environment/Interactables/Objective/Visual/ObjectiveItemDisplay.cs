@@ -2,16 +2,14 @@ using UnityEngine;
 
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BoxCollider))] 
-public class ChestItemDisplay : MonoBehaviour, IInteractable
+public class ObjectiveItemDisplay : MonoBehaviour, IInteractable
 {
     [Header("Data")]
     [SerializeField] private MissionItemSO heldItem;
 
     [Header("References")]
-    // NEW: Reference to the logic script
-    [SerializeField] private ChestQuest questChestLogic; 
+    [SerializeField] private ObjectiveQuest questObjectiveLogic; 
 
-    // ... (Keep your Floating/Visual Settings here) ...
     [Header("Floating Settings")]
     [SerializeField] private float riseHeight = 1.0f;
     [SerializeField] private float riseSpeed = 2f;
@@ -24,13 +22,15 @@ public class ChestItemDisplay : MonoBehaviour, IInteractable
     private Collider itemCollider;
     private bool isRaised = false;
 
-    // Helper property for QuestChest to check on Start
     public bool HasItem => heldItem != null;
 
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         itemCollider = GetComponent<Collider>();
+        
+        if (questObjectiveLogic == null) 
+            questObjectiveLogic = GetComponentInParent<ObjectiveQuest>();
 
         hiddenPos = transform.localPosition;
         targetBasePos = hiddenPos;
@@ -55,27 +55,34 @@ public class ChestItemDisplay : MonoBehaviour, IInteractable
         if (itemCollider != null) itemCollider.enabled = showItem;
     }
 
-    // --- UPDATED INTERACT LOGIC ---
+    // --- MODIFIED INTERACT LOGIC ---
     public bool Interact(GameObject interactor)
     {
+        // 1. Is the chest empty?
         if (heldItem == null) return false;
 
         PlayerItemCarrier carrier = interactor.GetComponent<PlayerItemCarrier>();
         if (carrier != null)
         {
-            MissionItemSO playersOldItem = carrier.SwapItem(heldItem);
-            heldItem = playersOldItem; // Usually null if player hand was empty
+            // 2. NEW CHECK: Are the player's hands full?
+            if (carrier.HasItem)
+            {
+                // Optional: Feedback (Sound effect or UI message)
+                Debug.Log("Hands full! Cannot take item.");
+                return false; // Reject interaction
+            }
+
+            // 3. Take Item
+            // Since carrier is empty, SwapItem just gives us null back
+            carrier.SwapItem(heldItem);
+            heldItem = null; // Chest is now empty
             
             UpdateVisuals();
 
-            // NEW: Check if the chest is now empty
-            if (heldItem == null)
+            // 4. Notify Logic (Remove from Objectives)
+            if (questObjectiveLogic != null)
             {
-                // Notify the logic script
-                if (questChestLogic != null)
-                {
-                    questChestLogic.OnItemTaken();
-                }
+                questObjectiveLogic.OnItemTaken();
             }
 
             return true;

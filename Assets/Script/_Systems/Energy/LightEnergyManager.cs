@@ -55,8 +55,7 @@ public class LightEnergyManager : MonoBehaviour
 
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;
         currentEnergy.ApplyChange(-drain, 0f, maxEnergy.Value);
-        Debug.Log($"Light Energy: {currentEnergy.Value}/{maxEnergy.Value}");
-        //Raise empty event
+        //Debug.Log($"Light Energy: {currentEnergy.Value}/{maxEnergy.Value}");
         if (currentEnergy.Value <= 0f)
         {
             isEnergyDepleted = true;

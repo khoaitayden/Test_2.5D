@@ -1,12 +1,12 @@
 using UnityEngine;
 
-public class ChestQuest : MonoBehaviour
+public class ObjectiveQuest : MonoBehaviour
 {
     [Header("Data")]
     [SerializeField] private TransformSetSO activeChestsSet; 
 
     [Header("References")]
-    [SerializeField] private ChestItemDisplay itemDisplay;
+    [SerializeField] private ObjectiveItemDisplay itemDisplay;
 
     private bool isRegistered = false;
 
