@@ -3,14 +3,38 @@ using UnityEngine;
 public class ObjectiveArt : MonoBehaviour, IInteractable
 {
     [Header("Configuration")]
-    [SerializeField] private AreaDefinitionSO areaData; // Define which area this is
+    [SerializeField] private AreaDefinitionSO areaData; 
     [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
+    
+    [Header("Architecture")]
+    [SerializeField] private ArtRegistrySO artRegistry; // Drag "registry_ObjectiveArts"
+    [SerializeField] private TransformSetSO activeObjectivesSet; // Drag "set_ActiveObjectives"
 
     [Header("Visuals")]
     [SerializeField] private SpriteRenderer itemRenderer;
     [SerializeField] private GameObject visualRoot;
 
     private bool hasItem = true;
+
+    // --- REGISTRATION LOGIC ---
+    void OnEnable()
+    {
+        // 1. Register self so Manager can find me
+        if (artRegistry != null) artRegistry.Register(areaData, this);
+
+        // 2. Tell Wisp I exist (if I have the item)
+        if (hasItem && activeObjectivesSet != null)
+        {
+            activeObjectivesSet.Add(this.transform);
+        }
+    }
+
+    void OnDisable()
+    {
+        if (artRegistry != null) artRegistry.Unregister(areaData);
+        if (activeObjectivesSet != null) activeObjectivesSet.Remove(this.transform);
+    }
+    // ---------------------------
 
     void Start()
     {
@@ -21,6 +45,9 @@ public class ObjectiveArt : MonoBehaviour, IInteractable
     {
         hasItem = true;
         UpdateVisuals();
+        
+        // Add back to Wisp
+        if (activeObjectivesSet != null) activeObjectivesSet.Add(this.transform);
     }
 
     public bool Interact(GameObject interactor)
@@ -29,23 +56,20 @@ public class ObjectiveArt : MonoBehaviour, IInteractable
 
         PlayerItemCarrier carrier = interactor.GetComponent<PlayerItemCarrier>();
         
-        // 1. Logic: Can only pick up if hands are empty
         if (carrier != null && !carrier.HasItem)
         {
-            // Give item to player
             carrier.SwapItem(areaData.associatedItem);
-            
-            // Remove from pedestal
             hasItem = false;
             UpdateVisuals();
 
-            // 2. FIRE EVENT -> Spawns Monster
+            // Remove from Wisp
+            if (activeObjectivesSet != null) activeObjectivesSet.Remove(this.transform);
+
             if (objectiveEvents != null)
                 objectiveEvents.RaiseItemPickedUp(areaData);
 
             return true;
         }
-
         return false;
     }
 

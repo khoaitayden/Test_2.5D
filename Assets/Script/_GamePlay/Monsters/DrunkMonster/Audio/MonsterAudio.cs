@@ -16,21 +16,56 @@ public class MonsterAudio : MonoBehaviour
     [SerializeField] private float breathOverlap = 0.25f;
 
     private float _nextRoar;
-    private bool _wasVisible, _isRoaring;
+    private bool _wasVisible;
+    private bool _isRoaring; // This was getting stuck
     private AudioSource _breathSource;
+
+    void Awake()
+    {
+        if (!brain) brain = GetComponent<MonsterBrain>();
+    }
 
     void Start()
     {
-        if (!brain) brain = GetComponent<MonsterBrain>();
-        
-        // Setup Breathing Loop
+        // Create the AudioSource once per lifetime of the object
         if (SoundManager.Instance && sfx_Breath)
         {
             _breathSource = SoundManager.Instance.CreateLoop(sfx_Breath, head ? head : transform);
             _breathSource.volume = 0f;
         }
-        ResetTimer();
     }
+
+    // --- FIX: FORCE RESET ON RESPAWN ---
+    void OnEnable()
+    {
+        _isRoaring = false;
+        _wasVisible = false;
+        ResetTimer();
+
+        // Resume breathing if it exists
+        if (_breathSource != null)
+        {
+            _breathSource.volume = 0f; // Start silent and fade in
+            if (!_breathSource.isPlaying) _breathSource.Play();
+        }
+    }
+
+    void OnDisable()
+    {
+        // 1. Kill the Roar Coroutine immediately
+        StopAllCoroutines();
+        
+        // 2. Reset Flags
+        _isRoaring = false;
+        _wasVisible = false;
+
+        // 3. Silence Breathing
+        if (_breathSource != null)
+        {
+            _breathSource.Stop();
+        }
+    }
+    // -----------------------------------
 
     void Update()
     {
@@ -38,10 +73,12 @@ public class MonsterAudio : MonoBehaviour
         Vector3 pos = head ? head.position : transform.position;
 
         // 1. Handle Breathing (Volume Ducking)
-        // If visible and NOT roaring, target is max volume. Otherwise (lost player or roaring), target is 0.
-        float targetVol = (visible && !_isRoaring) ? sfx_Breath.volume : 0f;
         if (_breathSource) 
+        {
+            // Target is 0 if roaring OR if disabled/lost player (optional preference)
+            float targetVol = (visible && !_isRoaring) ? sfx_Breath.volume : 0f;
             _breathSource.volume = Mathf.MoveTowards(_breathSource.volume, targetVol, Time.deltaTime * breathFadeSpeed);
+        }
 
         // 2. Handle Roaring
         if (visible && !_isRoaring)
@@ -52,7 +89,7 @@ public class MonsterAudio : MonoBehaviour
         }
         else if (!visible && _wasVisible)
         {
-            _nextRoar = Time.time + lostSightDelay; // Delay if we just lost them
+            _nextRoar = Time.time + lostSightDelay; 
         }
 
         _wasVisible = visible;
@@ -61,14 +98,13 @@ public class MonsterAudio : MonoBehaviour
     private IEnumerator RoarRoutine(Vector3 pos)
     {
         _isRoaring = true;
-        float waitTime = 2.0f; // Fallback
+        float waitTime = 2.0f; 
 
         if (SoundManager.Instance && sfx_Roar)
         {
             var source = SoundManager.Instance.PlaySound(sfx_Roar, pos);
             if (source && source.clip)
             {
-                // Calculate duration: (Length / Pitch) - Overlap
                 waitTime = (source.clip.length / Mathf.Abs(source.pitch)) - breathOverlap;
             }
         }
@@ -79,5 +115,8 @@ public class MonsterAudio : MonoBehaviour
         _isRoaring = false;
     }
 
-    private void ResetTimer() => _nextRoar = Time.time + Random.Range(minRoarTime, maxRoarTime);
+    private void ResetTimer()
+    {
+        _nextRoar = Time.time + Random.Range(minRoarTime, maxRoarTime);
+    }
 }
