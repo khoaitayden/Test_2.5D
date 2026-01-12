@@ -6,6 +6,7 @@ public class BeaconController : MonoBehaviour, IInteractable
     [SerializeField] private TraceEventChannelSO traceChannel; 
     [Header("Events")]
     [SerializeField] private GameEventSO unlockEyeEvent;
+    [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
     [Header("Visuals")]
     [Tooltip("The parent object holding the layers (the one that rotates/floats).")]
     [SerializeField] private GameObject displayRoot;
@@ -28,7 +29,38 @@ public class BeaconController : MonoBehaviour, IInteractable
             if(layer != null) layer.enabled = false;
         }
     }
+    void OnEnable()
+    {
+        if (objectiveEvents != null)
+            objectiveEvents.OnAreaReset += HandleAreaReset;
+    }
 
+    void OnDisable()
+    {
+        if (objectiveEvents != null)
+            objectiveEvents.OnAreaReset -= HandleAreaReset;
+    }
+    private void HandleAreaReset(AreaDefinitionSO area)
+    {
+        if (area == null || area.associatedItem == null) return;
+
+        // Find which layer corresponds to this item
+        int index = area.associatedItem.puzzleLayerIndex;
+
+        if (index >= 0 && index < pictureLayers.Length)
+        {
+            // Turn off the visual
+            if (pictureLayers[index] != null)
+            {
+                pictureLayers[index].enabled = false;
+            }
+
+            // Mark as empty so player can place it again
+            filledLayers[index] = false;
+            
+            Debug.Log($"[Beacon] Removed visual for {area.areaName} due to penalty.");
+        }
+    }
     public bool Interact(GameObject interactor)
     {
         // 1. Get Player Carrier

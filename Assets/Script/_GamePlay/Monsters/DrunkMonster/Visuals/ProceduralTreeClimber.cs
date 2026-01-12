@@ -124,7 +124,10 @@ public class ProceduralMonsterController : MonoBehaviour
         animator.SetFloat(leftGripHash, 1f);
         animator.SetFloat(rightGripHash, 1f);
     }
-
+    void OnEnable()
+    {
+        ForceReset();
+    }
     void DetectInitialTree(Vector3 pos, ref Collider treeRef)
     {
         Collider[] hits = Physics.OverlapSphere(pos, 1f, treeLayer);
@@ -392,7 +395,47 @@ public class ProceduralMonsterController : MonoBehaviour
 
         return bestTree;
     }
+    public void ForceReset()
+    {
+        // 1. Kill any active swings or grabs immediately
+        StopAllCoroutines();
+        isHandMoving = false;
 
+        // 2. Forget the player
+        heldPlayerRight = null;
+        heldPlayerLeft = null;
+
+        // 3. Reset Physics/Speed
+        if (movementController != null) 
+            movementController.AnimationSpeedFactor = 1.0f;
+        
+        currentSurge = 0f;
+        bodyVelocity = Vector3.zero;
+
+        // 4. Snap Hands back to Monster's current location
+        // (Prevents hands from being stuck 100 meters away where player died)
+        Vector3 resetPosLeft = transform.position + transform.forward + (-transform.right * 0.5f);
+        Vector3 resetPosRight = transform.position + transform.forward + (transform.right * 0.5f);
+
+        leftHandPos = resetPosLeft;
+        rightHandPos = resetPosRight;
+        leftHandRot = transform.rotation;
+        rightHandRot = transform.rotation;
+
+        // 5. Re-grab environment immediately
+        DetectInitialTree(leftHandPos, ref leftTreeCollider);
+        DetectInitialTree(rightHandPos, ref rightTreeCollider);
+
+        // 6. Reset Grips
+        if (animator != null)
+        {
+            animator.SetFloat(leftGripHash, 1f);
+            animator.SetFloat(rightGripHash, 1f);
+        }
+
+        // 7. Apply immediately
+        UpdateIKTargets();
+    }
     IEnumerator SwingHand(bool isRight, Collider targetTree, Transform targetPlayer)
     {
         isHandMoving = true;

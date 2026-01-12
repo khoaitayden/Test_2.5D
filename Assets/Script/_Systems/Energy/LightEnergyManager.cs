@@ -67,4 +67,12 @@ public class LightEnergyManager : MonoBehaviour
     {
         isDrainPaused = isPaused;
     }
+    public void ResetEnergy()
+    {
+        if (currentEnergy != null && maxEnergy != null)
+        {
+            // Reset to starting percentage or full
+            currentEnergy.Value = maxEnergy.Value * startingPercentage;
+        }
+    }
 }
