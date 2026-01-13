@@ -6,9 +6,14 @@ public class EyeMonster : MonoBehaviour, ILitObject
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Sprite normalSprite;
     [SerializeField] private Sprite burnSprite;
+    
+    // ---------------- NEW FIELD ----------------
+    [SerializeField] private GameObject xRayOutlineObject; 
+    // -------------------------------------------
+
     [Header("Mechanics")]
     [SerializeField] private float timeToExpose = 3.0f;
-    [SerializeField] private float exposureDuration = 5.0f; // NEW
+    [SerializeField] private float exposureDuration = 5.0f;
     [Header("Burn")]
     [SerializeField] private float timeToVanish = 2.0f;
     [SerializeField] private EyeMonsterManager manager;
@@ -16,10 +21,10 @@ public class EyeMonster : MonoBehaviour, ILitObject
     private Transform mainCameraTransform;
     private float currentHeat = 0f;
     private float exposeTimer = 0f;
-    private float activeExposureTimer = 0f; // NEW: Timer for how long alarm has been ringing
+    private float activeExposureTimer = 0f;
     
     private bool isLitByFlashlight = false;
-    private bool isAlarmActive = false; // Is the alarm currently ringing?
+    private bool isAlarmActive = false;
 
     void Start()
     {
@@ -40,6 +45,11 @@ public class EyeMonster : MonoBehaviour, ILitObject
         
         if (manager != null) manager.SetExposureState(false);
         if (spriteRenderer != null) spriteRenderer.sprite = normalSprite;
+
+        // ---------------- RESET OUTLINE ----------------
+        // Ensure outline is hidden when the monster first spawns/respawns
+        if (xRayOutlineObject != null) xRayOutlineObject.SetActive(false);
+        // -----------------------------------------------
     }
 
     void OnDisable()
@@ -69,6 +79,11 @@ public class EyeMonster : MonoBehaviour, ILitObject
         {
             isAlarmActive = false;
             if (manager != null) manager.SetExposureState(false);
+            
+            // ---------------- HIDE OUTLINE ----------------
+            // If we burn it, stop the xray effect
+            if (xRayOutlineObject != null) xRayOutlineObject.SetActive(false);
+            // ----------------------------------------------
         }
 
         if (spriteRenderer != null && spriteRenderer.sprite != burnSprite)
@@ -95,10 +110,9 @@ public class EyeMonster : MonoBehaviour, ILitObject
             
             if (activeExposureTimer >= exposureDuration)
             {
-                // Done exposing. Leave.
                 Vanish();
             }
-            return; // Skip normal stare logic
+            return; 
         }
 
         // --- NORMAL STARE LOGIC ---
@@ -110,8 +124,13 @@ public class EyeMonster : MonoBehaviour, ILitObject
             if (exposeTimer >= timeToExpose)
             {
                 isAlarmActive = true;
-                activeExposureTimer = 0f; // Start the countdown
+                activeExposureTimer = 0f; 
                 if (manager != null) manager.SetExposureState(true);
+
+                // ---------------- SHOW OUTLINE ----------------
+                // The player is now exposed, turn on the XRay object
+                if (xRayOutlineObject != null) xRayOutlineObject.SetActive(true);
+                // ----------------------------------------------
             }
         }
         else

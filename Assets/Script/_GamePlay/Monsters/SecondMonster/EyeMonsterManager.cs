@@ -46,7 +46,6 @@ public class EyeMonsterManager : MonoBehaviour
     {
         if (isUnlocked) return;
         isUnlocked = true;
-        Debug.Log("[EyeManager] Unlocked");
         StartCoroutine(SpawnTimer());
     }
 
@@ -73,7 +72,6 @@ public class EyeMonsterManager : MonoBehaviour
 
         float currentRadius = Mathf.Lerp(radiusAtNoLight, radiusAtFullLight, lightFraction);
         Vector3 spawnPos = FindValidPosition(currentRadius);
-
         if (spawnPos != Vector3.zero)
         {
             eyeObject.transform.position = spawnPos;
