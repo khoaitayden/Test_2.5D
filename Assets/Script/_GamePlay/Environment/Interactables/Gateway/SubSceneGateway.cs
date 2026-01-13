@@ -5,21 +5,34 @@ using System.Collections;
 public class SubSceneGateway : MonoBehaviour, IInteractable
 {
     [Header("Configuration")]
-    [SerializeField] private string subSceneName; // Name in Build Settings
+    [SerializeField] private string subSceneName; 
     [SerializeField] private AreaDefinitionSO associatedArea;
-    [Tooltip("Where the player stands after returning to main map")]
     [SerializeField] private Transform returnPoint;
 
     [Header("Dependencies")]
     [SerializeField] private TransformAnchorSO playerAnchor;
-    [SerializeField] private TransformAnchorSO subSceneSpawnAnchor; // Drag "anchor_SubSceneSpawn"
+    [SerializeField] private TransformAnchorSO subSceneSpawnAnchor; 
     [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
+    
+    // NEW: The Set the Wisp reads from
+    [SerializeField] private TransformSetSO activeObjectivesSet; // Drag "set_ActiveObjectives"
 
     [Header("Visuals")]
-    [SerializeField] private GameObject doorVisuals; // Optional: To show open/closed state
+    [SerializeField] private GameObject doorVisuals; 
 
     private bool isOpen = true;
     private bool isPlayerInside = false;
+
+    // --- INITIALIZATION ---
+    void Start()
+    {
+        // If the door is open at start, it should be a target for the Wisp
+        // (Assuming linear game progress, or you can check a save state here)
+        if (isOpen && activeObjectivesSet != null)
+        {
+            activeObjectivesSet.Add(this.transform);
+        }
+    }
 
     void OnEnable()
     {
@@ -37,11 +50,18 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
             objectiveEvents.OnAreaItemPickedUp -= HandleItemPickedUp;
             objectiveEvents.OnAreaReset -= HandleAreaReset;
         }
+        
+        // Safety: Always remove self when destroyed/disabled
+        if (activeObjectivesSet != null) activeObjectivesSet.Remove(this.transform);
     }
 
+    // --- INTERACTION ---
     public bool Interact(GameObject interactor)
     {
         if (!isOpen || isPlayerInside) return false;
+
+        // 1. Remove Door from Wisp Targets (We are going inside now)
+        if (activeObjectivesSet != null) activeObjectivesSet.Remove(this.transform);
 
         StartCoroutine(EnterSubSceneRoutine());
         return true;
@@ -52,36 +72,27 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
         return isOpen ? $"Enter {associatedArea.areaName}" : "Sealed";
     }
 
-    // --- LOGIC: ENTERING ---
+    // --- ROUTINES ---
     private IEnumerator EnterSubSceneRoutine()
     {
         isPlayerInside = true;
         
-        // 1. Load Scene Additively
         if (!SceneManager.GetSceneByName(subSceneName).isLoaded)
         {
             AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(subSceneName, LoadSceneMode.Additive);
             while (!asyncLoad.isDone) yield return null;
         }
 
-        // 2. Wait a frame for the SubScene's AnchorProvider to register itself
         yield return null; 
 
-        // 3. Teleport Player IN
         if (subSceneSpawnAnchor != null && subSceneSpawnAnchor.Value != null)
         {
             TeleportPlayer(subSceneSpawnAnchor.Value.position);
         }
-        else
-        {
-            Debug.LogError($"SubScene {subSceneName} loaded, but no Spawn Anchor found!");
-        }
     }
 
-    // --- LOGIC: EXITING (Triggered by Pickup) ---
     private void HandleItemPickedUp(AreaDefinitionSO area)
     {
-        // Only react if it's MY area's item
         if (area == associatedArea && isPlayerInside)
         {
             StartCoroutine(ExitSubSceneRoutine());
@@ -90,23 +101,21 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
 
     private IEnumerator ExitSubSceneRoutine()
     {
-        // 1. Teleport Player OUT (Back to Main Map)
         TeleportPlayer(returnPoint.position);
 
-        // 2. Unload Scene
         if (SceneManager.GetSceneByName(subSceneName).isLoaded)
         {
             AsyncOperation asyncUnload = SceneManager.UnloadSceneAsync(subSceneName);
             while (!asyncUnload.isDone) yield return null;
         }
 
-        // 3. Lock Door
         isPlayerInside = false;
         isOpen = false;
         UpdateVisuals();
+        
+        // Note: We do NOT add back to set here, because the item is taken.
     }
 
-    // --- LOGIC: RESET (Triggered by Death) ---
     private void HandleAreaReset(AreaDefinitionSO area)
     {
         if (area == associatedArea)
@@ -114,25 +123,22 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
             isOpen = true;
             isPlayerInside = false;
             
-            // Ensure scene is unloaded just in case
             if (SceneManager.GetSceneByName(subSceneName).isLoaded)
-            {
                 SceneManager.UnloadSceneAsync(subSceneName);
-            }
             
             UpdateVisuals();
+
+            // NEW: Add Door back to Wisp Targets (Player must try again)
+            if (activeObjectivesSet != null) activeObjectivesSet.Add(this.transform);
         }
     }
 
     private void TeleportPlayer(Vector3 targetPos)
     {
         if (playerAnchor == null || playerAnchor.Value == null) return;
-
         CharacterController controller = playerAnchor.Value.GetComponent<CharacterController>();
         if (controller != null) controller.enabled = false;
-        
         playerAnchor.Value.position = targetPos;
-        
         if (controller != null) controller.enabled = true;
     }
 

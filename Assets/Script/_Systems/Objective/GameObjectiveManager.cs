@@ -4,12 +4,10 @@ using System.Collections.Generic;
 public class GameObjectiveManager : MonoBehaviour
 {
     [Header("Data")]
-    [SerializeField] private ArtRegistrySO artRegistry;
     [SerializeField] private BoolVariableSO isCarryingItem;
 
     [Header("Events")]
     [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
-    [SerializeField] private GameEventSO respawnEvent;
 
     [Header("Scene References")]
     [SerializeField] private PlayerItemCarrier playerCarrier;
@@ -68,22 +66,6 @@ public class GameObjectiveManager : MonoBehaviour
 
     private void ResetArea(AreaDefinitionSO area)
     {
-        // 1. Try to find the Art in the Registry
-        ObjectiveArt art = artRegistry.GetArt(area);
-
-        // If the sub-scene is loaded, the art is registered and we reset it.
-        if (art != null)
-        {
-            art.ResetArt();
-        }
-        else
-        {
-            Debug.Log($"Area {area.areaName} reset, but scene is unloaded. Art will reset on next load.");
-            // Logic Note: When the scene loads next time, ObjectiveArt.Start() 
-            // sets hasItem = true by default, so we don't need to do anything else here!
-        }
-
-        // 2. Broadcast Reset
         if (objectiveEvents != null)
         {
             objectiveEvents.RaiseAreaReset(area);
