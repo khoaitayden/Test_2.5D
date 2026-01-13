@@ -8,28 +8,37 @@ public class MonsterSpawnManager : MonoBehaviour
     [System.Serializable]
     public struct MonsterMapping {
         public MonsterType type;
-        public GameObject monsterObject; // Or Prefab if instantiating
+        public GameObject monsterObject; 
     }
+
+    // Track active types so we don't try to disable things that aren't there
     private List<MonsterType> activeMonsters = new List<MonsterType>();
+    
     [SerializeField] private List<MonsterMapping> monsters;
 
     void OnEnable()
     {
         if (objectiveEvents != null)
+        {
             objectiveEvents.OnAreaItemPickedUp += EnableMonster;
+            // Listen to the specific reset event again
+            // This event is now delayed until Respawn because GameObjectiveManager controls it
+            objectiveEvents.OnAreaReset += DisableMonster; 
+        }
     }
 
     void OnDisable()
     {
         if (objectiveEvents != null)
+        {
             objectiveEvents.OnAreaItemPickedUp -= EnableMonster;
-    }
-    public void OnPlayerRespawn()
-    {
-        DisableAllActiveMonsters();
+            objectiveEvents.OnAreaReset -= DisableMonster;
+        }
     }
 
-     private void EnableMonster(AreaDefinitionSO area)
+    // Removed OnPlayerRespawn(). We don't need the generic signal anymore.
+
+    private void EnableMonster(AreaDefinitionSO area)
     {
         MonsterType typeToSpawn = area.associatedMonsterType;
 
@@ -41,7 +50,6 @@ public class MonsterSpawnManager : MonoBehaviour
                 {
                     m.monsterObject.SetActive(true);
                     
-                    // Track it
                     if (!activeMonsters.Contains(typeToSpawn))
                         activeMonsters.Add(typeToSpawn);
                         
@@ -51,19 +59,24 @@ public class MonsterSpawnManager : MonoBehaviour
         }
     }
 
-    private void DisableAllActiveMonsters()
+    private void DisableMonster(AreaDefinitionSO area)
     {
-        foreach (var type in activeMonsters)
+        MonsterType typeToDespawn = area.associatedMonsterType;
+
+        foreach(var m in monsters)
         {
-            foreach(var m in monsters)
+            if (m.type == typeToDespawn)
             {
-                if (m.type == type && m.monsterObject != null)
+                if(m.monsterObject != null && m.monsterObject.activeSelf) 
                 {
                     m.monsterObject.SetActive(false);
+                    
+                    if (activeMonsters.Contains(typeToDespawn))
+                        activeMonsters.Remove(typeToDespawn);
+
+                    Debug.Log($"[MonsterManager] Despawned {typeToDespawn} because Area {area.areaName} was reset.");
                 }
             }
         }
-        activeMonsters.Clear();
-        Debug.Log("[MonsterManager] All monsters cleared on respawn.");
     }
 }

@@ -23,6 +23,8 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/Scenes/Main map 1.unity
   - m_enabled: 1
+    m_path: Assets/Scenes/House Map 1.unity
+  - m_enabled: 1
     m_path: Assets/Scenes/School Map 1.unity
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
