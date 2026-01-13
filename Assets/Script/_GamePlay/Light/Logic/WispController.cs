@@ -9,13 +9,12 @@ public class WispController : MonoBehaviour
     [SerializeField] private TransformAnchorSO playerAnchor; 
     [SerializeField] private TransformAnchorSO beaconAnchor;   
     [SerializeField] private BoolVariableSO isCarryingItem; 
-    [SerializeField] private TransformSetSO activeChestsSet;
+    [SerializeField] private TransformSetSO activeObjectivesSet;
 
     [Header("References")]
     [SerializeField] private WispAnimationController animationController;
     [SerializeField] private PlayerMovement playerMovement;
     [SerializeField] private Transform mainCameraTransform;
-    [SerializeField] private SpriteRenderer spriteRenderer;
     
     [Header("Guidance Settings")]
     [Range(0f, 1f)] [SerializeField] private float lookThreshold = 0.85f;
@@ -195,22 +194,32 @@ public class WispController : MonoBehaviour
 
         bool isLookingAtInterestingThing = false;
 
-        // MODE 1: RETURN TO BEACON
+        // MODE 1: RETURN TO BEACON (If carrying Item)
         if (isCarryingItem != null && isCarryingItem.Value)
         {
             if (beaconAnchor != null && beaconAnchor.Value != null)
-                isLookingAtInterestingThing = IsLookingAt(beaconAnchor.Value.position);
-        }
-        // MODE 2: FIND CHESTS
-        else if (activeChestsSet != null)
-        {
-            List<Transform> chests = activeChestsSet.GetItems();
-            foreach (Transform chest in chests)
             {
-                if (chest != null && IsLookingAt(chest.position))
+                isLookingAtInterestingThing = IsLookingAt(beaconAnchor.Value.position);
+            }
+        }
+        // MODE 2: FIND ANY ACTIVE AREA (If empty handed)
+        else
+        {
+            if (activeObjectivesSet != null)
+            {
+                // Iterate through the Runtime Set
+                List<Transform> objectives = activeObjectivesSet.GetItems();
+                
+                foreach (Transform target in objectives)
                 {
-                    isLookingAtInterestingThing = true;
-                    break;
+                    if (target == null) continue;
+                    
+                    // If we match ANY of the active objectives, get excited
+                    if (IsLookingAt(target.position))
+                    {
+                        isLookingAtInterestingThing = true;
+                        break; 
+                    }
                 }
             }
         }
@@ -328,7 +337,6 @@ public class WispController : MonoBehaviour
 
     void UpdateAreaLight()
     {
-        if (spriteRenderer) spriteRenderer.enabled = true;
         if (areaMapLight)
         {
             areaMapLight.enabled = true;
@@ -339,7 +347,6 @@ public class WispController : MonoBehaviour
 
     void HandleDeath()
     {
-        if (spriteRenderer) spriteRenderer.enabled = false;
         if (areaMapLight) areaMapLight.enabled = false;
         foreach (var obj in _currentlyLitObjects) obj.OnUnlit(LightSourceType.Wisp);
         _currentlyLitObjects.Clear();

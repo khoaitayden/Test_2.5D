@@ -7,6 +7,8 @@ public class PlayerState : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private UIManager uIManager; // Direct ref for now, can be event later
+    [SerializeField] private CharacterController controller;
+    [SerializeField] private TransformAnchorSO respawnPointAnchor;
 
     [Header("State")]
     [SerializeField] private bool isDead = false;
@@ -43,6 +45,23 @@ public class PlayerState : MonoBehaviour
         yield return new WaitForSeconds(deathDelayOnEmptyEnergy);
         Die();
         yield return null;
+    }
+    public void RevivePlayer()
+    {
+        Debug.Log("Reviving Player...");
+        isDead = false;
+
+        // 1. Teleport
+        if (respawnPointAnchor != null && respawnPointAnchor.Value != null)
+        {
+            // CharacterController overrides Transform.position, so we must disable it briefly
+            controller.enabled = false; 
+            transform.position = respawnPointAnchor.Value.position;
+            controller.enabled = true;
+        }
+
+        // 2. Reset Physics/State
+        // (PlayerController reads 'IsDead' and will auto-resume movement)
     }
 
     public void OnEmptyEnergy()
