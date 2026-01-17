@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!319 &31900000
+AvatarMask:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: DirtyLegsOnlyMask
+  m_Mask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+  m_Elements:
+  - m_Path: 
+    m_Weight: 1
+  - m_Path: Body
+    m_Weight: 0
+  - m_Path: BodyBone
+    m_Weight: 0
+  - m_Path: BodyBone/Root
+    m_Weight: 0
+  - m_Path: BodyBone/Root/BackCRLeg1.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/BackCRLeg1.L/BackCRLeg2.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/BackCRLeg1.L/BackCRLeg2.L/BackCRLeg3.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/BackCRLeg1.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/BackCRLeg1.R/BackCRLeg2.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/BackCRLeg1.R/BackCRLeg2.R/BackCRLeg3.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.L/FrontCRLeg2.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.L/FrontCRLeg2.L/FrontCRLeg3.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.R/FrontCRLeg2.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/FrontCRLeg1.R/FrontCRLeg2.R/FrontCRLeg3.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Tail.1
+    m_Weight: 0
+  - m_Path: BodyBone/Root/Tail.1/Tail.2
+    m_Weight: 0
+  - m_Path: BodyBone/Root/Tail.1/Tail.2/Tail.3
+    m_Weight: 0
+  - m_Path: BodyBone/Root/Tail.1/Tail.2/Tail.3/Tail.4
+    m_Weight: 0
+  - m_Path: BodyBone/Root/Thigh.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Thigh.L/Shin.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Thigh.L/Shin.L/Foot.L
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Thigh.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Thigh.R/Shin.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Thigh.R/Shin.R/Foot.R
+    m_Weight: 1
+  - m_Path: BodyBone/Root/Wing.L
+    m_Weight: 0
+  - m_Path: BodyBone/Root/Wing.R
+    m_Weight: 0
+  - m_Path: Eyes
+    m_Weight: 0

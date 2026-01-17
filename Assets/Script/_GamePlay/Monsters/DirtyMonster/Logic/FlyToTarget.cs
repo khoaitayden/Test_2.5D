@@ -67,7 +67,9 @@ public partial class FlyToTarget : Action
 
     protected override void OnEnd()
     {
-        // Optional: Re-enable NavMesh if you plan to land later
-        // if (_navAgent != null) _navAgent.enabled = true;
+        if (_navAgent != null)
+        {
+            _navAgent.enabled = true; 
+        }
     }
 }
