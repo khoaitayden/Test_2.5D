@@ -17,7 +17,6 @@ public partial class ClimbToPosition : Action
 
     protected override Status OnStart()
     {
-        Debug.Log("Climbing");
         if (Agent.Value == null) return Status.Failure;
 
         _agent = Agent.Value.GetComponent<NavMeshAgent>();
@@ -30,19 +29,26 @@ public partial class ClimbToPosition : Action
     {
         Transform trans = Agent.Value.transform;
         
+        // 1. Move
         trans.position = Vector3.MoveTowards(trans.position, TargetPos.Value, Speed.Value * Time.deltaTime);
 
-        
+        // 2. Rotate
         Vector3 dirToTarget = (TargetPos.Value - trans.position).normalized;
-        if (dirToTarget != Vector3.zero)
+        
+        // If we are very close, don't jitter rotation
+        if (dirToTarget != Vector3.zero && Vector3.Distance(trans.position, TargetPos.Value) > 0.1f)
         {
             Quaternion lookRot = Quaternion.LookRotation(dirToTarget);
-            Quaternion climbRot = lookRot * Quaternion.Euler(0, 0, 0); 
             
-            trans.rotation = Quaternion.Slerp(trans.rotation, climbRot, Time.deltaTime * 5f);
+            // Tweak: Rotate -90 on X so legs point to tree (assuming model is Y-up, Z-forward)
+            // If your monster looks weird, remove this line or change to 90
+            Quaternion surfaceRot = lookRot * Quaternion.Euler(0, 0, 0); 
+
+            trans.rotation = Quaternion.Slerp(trans.rotation, surfaceRot, Time.deltaTime * 5f);
         }
 
-        if (Vector3.Distance(trans.position, TargetPos.Value) < 0.2f)
+        // 3. Finish
+        if (Vector3.Distance(trans.position, TargetPos.Value) < 0.1f)
         {
             return Status.Success;
         }
@@ -52,5 +58,6 @@ public partial class ClimbToPosition : Action
 
     protected override void OnEnd()
     {
+        // Keep NavMesh disabled so it sticks to the tree
     }
 }

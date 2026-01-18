@@ -21,42 +21,89 @@ public partial class FindTreeNearTarget : Action
 
     protected override Status OnStart()
     {
+        // 1. Setup Layer
         TreeLayer = LayerMask.GetMask("Tree");
         
         if (Target.Value == null) return Status.Failure;
 
+        // 2. Find Trees
         Collider[] hits = Physics.OverlapSphere(Target.Value.transform.position, Radius.Value, TreeLayer);
         
         if (hits.Length == 0) {
-            Debug.LogWarning("Found no trees in range");
             return Status.Failure;
         }
 
+        // 3. Pick Random Tree
         Collider randomTree = hits[UnityEngine.Random.Range(0, hits.Length)];
         Vector3 treeCenter = randomTree.bounds.center;
 
-        Vector3 rawBasePos = new Vector3(treeCenter.x, randomTree.bounds.min.y, treeCenter.z);
+        // --- STEP 4: FIND BASE POSITION (Using Raycast) ---
+        // We cast a ray from the Target (Player) towards the tree to find the surface facing the player.
+        Vector3 directionToTree = (treeCenter - Target.Value.transform.position).normalized;
+        directionToTree.y = 0; // Flatten direction
 
-        if (NavMesh.SamplePosition(rawBasePos, out NavMeshHit hit, 5.0f, NavMesh.AllAreas))
+        Vector3 rayStartPos = Target.Value.transform.position;
+        rayStartPos.y = treeCenter.y; // Raise ray to center height to ensure we hit the trunk
+
+        Vector3 surfaceNormal = -directionToTree; // Default normal
+        Vector3 baseSurfacePoint = treeCenter - (directionToTree * randomTree.bounds.extents.x); // Fallback
+
+        RaycastHit treeHit;
+        // Raycast from player towards tree
+        if (randomTree.Raycast(new Ray(rayStartPos, directionToTree), out treeHit, Radius.Value * 2))
         {
-            FoundBasePosition.Value = hit.position;
+            baseSurfacePoint = treeHit.point;
+            surfaceNormal = treeHit.normal;
+        }
+        else 
+        {
+            // Backup: Try ClosestPoint if Raycast fails
+            baseSurfacePoint = randomTree.ClosestPoint(rayStartPos);
+            surfaceNormal = (baseSurfacePoint - treeCenter).normalized;
+        }
+
+        // Calculate Walk Target on Ground
+        Vector3 groundTarget = new Vector3(baseSurfacePoint.x, randomTree.bounds.min.y, baseSurfacePoint.z);
+        // Push it away from tree slightly so we don't clip while walking
+        groundTarget += surfaceNormal * 1.0f; 
+
+        // Snap to NavMesh
+        if (NavMesh.SamplePosition(groundTarget, out NavMeshHit navHit, 3.0f, NavMesh.AllAreas))
+        {
+            FoundBasePosition.Value = navHit.position;
         }
         else
         {
-            FoundBasePosition.Value = rawBasePos;
+            FoundBasePosition.Value = groundTarget;
         }
 
+        // --- STEP 5: FIND CLIMB POSITION (Using Raycast at Height) ---
         float climbHeight = UnityEngine.Random.Range(minMaxHeight.Value.x, minMaxHeight.Value.y);
-        float targetY = FoundBasePosition.Value.y + climbHeight;
+        
+        // We want to climb on the same side we walked to.
+        // Start a ray from OUTSIDE the tree (at the base position X/Z) but UP high.
+        // We aim INWARDS towards the tree center.
+        
+        float rayHeight = FoundBasePosition.Value.y + climbHeight;
+        Vector3 climbRayOrigin = FoundBasePosition.Value;
+        climbRayOrigin.y = rayHeight;
 
-        Vector3 approachPointAtHeight = new Vector3(FoundBasePosition.Value.x, targetY, FoundBasePosition.Value.z);
+        // Move the origin BACK a bit to ensure we are outside the collider before casting in
+        Vector3 rayDirectionIn = (new Vector3(treeCenter.x, rayHeight, treeCenter.z) - climbRayOrigin).normalized;
+        climbRayOrigin -= rayDirectionIn * 2.0f; 
 
-        Vector3 surfacePoint = randomTree.ClosestPoint(approachPointAtHeight);
-
-        Vector3 centerAtHeight = new Vector3(treeCenter.x, targetY, treeCenter.z);
-        Vector3 directionOut = (surfacePoint - centerAtHeight).normalized;
-
-        FoundClimbPosition.Value = surfacePoint + (directionOut * treeClimbOffSet.Value);
+        if (randomTree.Raycast(new Ray(climbRayOrigin, rayDirectionIn), out treeHit, 10.0f))
+        {
+            // HIT! We found the exact surface of the mesh at this height.
+            // Use the normal to push out by the offset.
+            FoundClimbPosition.Value = treeHit.point + (treeHit.normal * treeClimbOffSet.Value);
+        }
+        else
+        {
+            // Missed the tree (maybe it gets thinner at top?). 
+            // Fallback: Just go Up from base
+            FoundClimbPosition.Value = new Vector3(FoundBasePosition.Value.x, rayHeight, FoundBasePosition.Value.z);
+        }
 
         return Status.Success;
     }
