@@ -58,6 +58,7 @@ public partial class ClimbToPosition : Action
 
     protected override void OnEnd()
     {
+        Debug.Log("Finish climbing");
         // Keep NavMesh disabled so it sticks to the tree
     }
 }
