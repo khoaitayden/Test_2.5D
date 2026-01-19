@@ -25,7 +25,8 @@ public partial class PounceOnTarget : Action
     [SerializeReference] public BlackboardVariable<float> FaceBlockAmount = new BlackboardVariable<float>(0.3f); 
 
     [SerializeReference] public BlackboardVariable<Animator> Animator;
-    [SerializeReference] public BlackboardVariable<string> AnimBool = new BlackboardVariable<string>("IsAttacking");
+    [SerializeReference] public BlackboardVariable<string> IsFlying;
+    [SerializeReference] public BlackboardVariable<string> IsGrabing;
     private bool _hasImpacted;
     private float _waitTimer;
     private float _chaosTimer;
@@ -45,7 +46,7 @@ public partial class PounceOnTarget : Action
         var agent = Agent.Value.GetComponent<NavMeshAgent>();
         if (agent != null) agent.enabled = false;
 
-        if (Animator.Value != null) Animator.Value.SetBool(AnimBool.Value, true);
+        Animator.Value.SetBool(IsFlying.Value, true);
 
         return Status.Running;
     }
@@ -61,26 +62,16 @@ public partial class PounceOnTarget : Action
         {
             _waitTimer += Time.deltaTime;
 
-            // 1. Calculate Center Point (Between Player Head and Camera)
-            Vector3 playerHead = targetTrans.position + (Vector3.up * 1.5f); // Approx head height
+            Vector3 playerHead = targetTrans.position + (Vector3.up * 1.5f);
             Vector3 anchorPos = playerHead; // Default if no camera
 
             if (_mainCam != null)
             {
-                // Linear Interpolation: 0 = Player, 1 = Camera
-                // 0.3f is usually a good "In your face" spot without clipping
                 anchorPos = Vector3.Lerp(playerHead, _mainCam.position, FaceBlockAmount.Value);
             }
 
-            // 2. Add Position Chaos (Jitter)
             Vector3 randomOffset = UnityEngine.Random.insideUnitSphere * ShakeIntensity.Value;
             trans.position = anchorPos + randomOffset;
-
-            // 3. Add Rotation Chaos
-            // Look AT the camera (scary!) or AT the player (biting)?
-            // Let's look at the Player so we see the monster's back/top? 
-            // Actually, for a face hugger, we usually want the monster's belly facing the camera.
-            // Let's Look At the Camera to scream at the player.
             
             Quaternion lookDir;
             if (_mainCam != null)
@@ -129,6 +120,8 @@ public partial class PounceOnTarget : Action
     protected override void OnEnd()
     {
         isMonsterAttached.Value.Value = false;
-        if (Animator.Value != null) Animator.Value.SetBool(AnimBool.Value, false);
+        Animator.Value.SetBool(IsFlying.Value, false);
+        Animator.Value.SetBool(IsGrabing.Value, false);
+        
     }
 }
