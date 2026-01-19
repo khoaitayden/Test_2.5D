@@ -13,6 +13,7 @@ public partial class PounceOnTarget : Action
     [SerializeReference] public BlackboardVariable<GameObject> Agent;
     [SerializeReference] public BlackboardVariable<GameObject> Target;
     [SerializeReference] public BlackboardVariable<float> Speed;
+    [SerializeReference] public BlackboardVariable<BoolVariableSO> isMonsterAttached;
     [SerializeReference] public BlackboardVariable<float> PostAttackWait = new BlackboardVariable<float>(2.0f);
     
     // CHAOS SETTINGS
@@ -38,7 +39,7 @@ public partial class PounceOnTarget : Action
         _hasImpacted = false;
         _waitTimer = 0f;
         _chaosTimer = 0f;
-        
+        isMonsterAttached.Value.Value = true;
         if (Camera.main != null) _mainCam = Camera.main.transform;
 
         var agent = Agent.Value.GetComponent<NavMeshAgent>();
@@ -127,6 +128,7 @@ public partial class PounceOnTarget : Action
 
     protected override void OnEnd()
     {
+        isMonsterAttached.Value.Value = false;
         if (Animator.Value != null) Animator.Value.SetBool(AnimBool.Value, false);
     }
 }

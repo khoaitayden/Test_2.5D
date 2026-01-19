@@ -6,42 +6,57 @@ public class PlayerVisionController : MonoBehaviour
     [Header("Data")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
-    [Header("References")]
-    [Tooltip("The Flashlight Script on the Player or Camera.")]
-    [SerializeField] private FlashlightController flashlight;
     
-    [Tooltip("The Cinemachine Camera to adjust.")]
+    // NEW: The override switch
+    [SerializeField] private BoolVariableSO isMonsterAttached; // Drag "var_IsMonsterAttached"
+
+    [Header("References")]
+    [SerializeField] private FlashlightController flashlight;
     [SerializeField] private CinemachineCamera virtualCamera;
 
     [Header("Camera Settings")]
     [SerializeField] private float baseFarClip = 40f;       
     [SerializeField] private float flashlightFarClip = 65f; 
-    [SerializeField] private float deadFarClip = 15f;       
+    [SerializeField] private float deadFarClip = 15f;
+    
+    // NEW: The "Jump Scare" distance
+    [SerializeField] private float blindedFarClip = 2.0f;       
 
     void Update()
     {
-
-        float energyFactor =currentEnergy.Value / maxEnergy.Value;
+        // 1. Calculate Standard Logic
+        float energyFactor = 0f;
+        if(maxEnergy.Value > 0) energyFactor = currentEnergy.Value / maxEnergy.Value;
+        
         bool hasEnergy = currentEnergy.Value > 0;
 
-        // Calculate Target Clip Plane
         float targetClip = deadFarClip;
 
-        if (hasEnergy)
+        // 2. Determine Target Clip Plane
+        
+        // PRIORITY 1: Monster Attack (Blindness)
+        if (isMonsterAttached != null && isMonsterAttached.Value)
         {
-            if (flashlight != null && flashlight.IsActive)
-            {
-                targetClip = flashlightFarClip;
-            }
-            else
-            {
-                targetClip = Mathf.Lerp(deadFarClip, baseFarClip, energyFactor);
-            }
+            targetClip = blindedFarClip;
         }
+        // PRIORITY 2: Flashlight
+        else if (hasEnergy && flashlight != null && flashlight.IsActive)
+        {
+            targetClip = flashlightFarClip;
+        }
+        // PRIORITY 3: Normal / Low Energy
+        else if (hasEnergy)
+        {
+            targetClip = Mathf.Lerp(deadFarClip, baseFarClip, energyFactor);
+        }
+        // else: defaults to deadFarClip
 
-        // Apply to Cinemachine Smoothly
+        // 3. Apply Smoothly
+        // Use a faster lerp speed if blinded to make the scare sudden
+        float lerpSpeed = (targetClip == blindedFarClip) ? 10f : 2f;
+
         var lens = virtualCamera.Lens;
-        lens.FarClipPlane = Mathf.Lerp(lens.FarClipPlane, targetClip, Time.deltaTime * 2f);
+        lens.FarClipPlane = Mathf.Lerp(lens.FarClipPlane, targetClip, Time.deltaTime * lerpSpeed);
         virtualCamera.Lens = lens;
     }
 }
