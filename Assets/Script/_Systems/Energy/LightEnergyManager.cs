@@ -2,7 +2,6 @@ using UnityEngine;
 
 public class LightEnergyManager : MonoBehaviour
 {
-    // REMOVED: public static LightEnergyManager Instance;
 
     [Header("Events")]
     [SerializeField] private GameEventSO onEmptyEnergyEvent; 
