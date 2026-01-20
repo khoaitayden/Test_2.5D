@@ -80,3 +80,7 @@ Download from itch.io: https://khoaitayden.itch.io/dont-let-wisp-die
 *   **Art and model:** Asset from itch.io and selfmade
 *   **Engine:** Unity
 *   **Architecture Pattern:** SO-Architecture / Event-Driven Design
+
+## Heads up
+*   Asset is all free loyalty and self made (No AI invole)
+*   Big chunk of the code is make by AI 
