@@ -18,5 +18,5 @@ public enum MonsterType
     DrunkMonster,
     EyeMonster,
     KidnapMonster,
-    InsectMonster
+    DirtyMonster
 }

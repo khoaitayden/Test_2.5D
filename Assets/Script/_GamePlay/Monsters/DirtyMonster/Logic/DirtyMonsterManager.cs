@@ -64,11 +64,6 @@ public class DirtyMonsterManager : MonoBehaviour
         for (int i = 0; i < maxMonsters; i++)
         {
             GameObject obj = Instantiate(monsterPrefab, transform.position, Quaternion.identity);
-            
-            if (obj.GetComponent<BehaviorGraphAgent>() == null)
-            {
-                Debug.LogError("DirtyMonster prefab is missing BehaviorGraphAgent!");
-            }
 
             obj.SetActive(false);
             obj.transform.SetParent(this.transform); 
@@ -89,7 +84,6 @@ public class DirtyMonsterManager : MonoBehaviour
             monster.transform.position = spawnPos;
             monster.transform.rotation = Quaternion.identity;
 
-            // Reset Logic
             var agent = monster.GetComponent<BehaviorGraphAgent>();
             if (agent != null)
             {

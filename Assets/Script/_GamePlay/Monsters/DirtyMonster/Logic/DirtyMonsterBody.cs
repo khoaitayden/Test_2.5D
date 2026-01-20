@@ -4,7 +4,7 @@ public class DirtyMonsterBody : MonoBehaviour
 {
     [Header("Kill Settings")]
     [Tooltip("How much higher the player needs to be to kill the monster")]
-    [SerializeField] private float killHeightOffset = 0.5f;
+    [SerializeField] private float killHeightOffset;
     
     [Header("Effects")]
     [SerializeField] private ParticleSystem deathVFX;

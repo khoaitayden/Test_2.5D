@@ -6,7 +6,7 @@ using Action = Unity.Behavior.Action;
 using Unity.Properties;
 
 [Serializable, GeneratePropertyBag]
-[NodeDescription(name: "Fly Back To NavMesh", story: "[Agent] flies back to NavMesh within [Radius] at [Speed] (Anim: [AnimBool])", category: "Movement", id: "flyland")]
+[NodeDescription(name: "Fly Back To NavMesh", story: "[Agent] flies back to NavMesh", category: "Movement", id: "flyland")]
 public partial class FlyBackToNavMesh : Action
 {
     [SerializeReference] public BlackboardVariable<GameObject> Agent;
@@ -15,7 +15,7 @@ public partial class FlyBackToNavMesh : Action
 
     // NEW: Animation Support
     [SerializeReference] public BlackboardVariable<Animator> Animator;
-    [SerializeReference] public BlackboardVariable<string> AnimBool = new BlackboardVariable<string>("IsFlying");
+    [SerializeReference] public BlackboardVariable<string> IsFlying;
 
     private NavMeshAgent _agent;
     private Vector3 _targetLandPosition;
@@ -33,7 +33,7 @@ public partial class FlyBackToNavMesh : Action
         if (!_foundLandingSpot) return Status.Failure;
 
         // Start Animation
-        if (Animator.Value != null) Animator.Value.SetBool(AnimBool.Value, true);
+        if (Animator.Value != null) Animator.Value.SetBool(IsFlying.Value, true);
         Debug.Log("FlyingDown");
         return Status.Running;
     }
@@ -65,7 +65,7 @@ public partial class FlyBackToNavMesh : Action
         if (_agent != null) _agent.enabled = true;
 
         // Stop Animation
-        if (Animator.Value != null) Animator.Value.SetBool(AnimBool.Value, false);
+        if (Animator.Value != null) Animator.Value.SetBool(IsFlying.Value, false);
     }
 
     private bool FindValidLandingSpot()

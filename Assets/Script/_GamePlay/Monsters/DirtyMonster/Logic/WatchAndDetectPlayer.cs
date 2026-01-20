@@ -24,12 +24,15 @@ public partial class WatchAndDetectPlayer : Action
     [SerializeReference] public BlackboardVariable<bool> IsSpotted;
 
     private float _timer;
-    private float _warmupTimer; // New Timer
-    private const float WARMUP_DURATION = 1f;
+    private float _warmupTimer;
+    private const float WARMUP_DURATION = 1.5f;
+    private LayerMask _obstacleMask;
 
     protected override Status OnStart()
     {
-        if (Agent.Value == null || Target.Value == null) return Status.Failure;
+        if (Agent.Value == null || Target.Value == null || Target.Value.Value == null) return Status.Failure;
+
+        _obstacleMask = LayerMask.GetMask("Tree", "Structure", "Ground");
 
         if (Animator.Value != null)
             Animator.Value.SetBool(IsGrabing.Value, true);
@@ -44,7 +47,7 @@ public partial class WatchAndDetectPlayer : Action
         }
 
         _timer = 0f;
-        _warmupTimer = 0f; // Reset buffer
+        _warmupTimer = 0f;
         return Status.Running;
     }
 
@@ -63,14 +66,11 @@ public partial class WatchAndDetectPlayer : Action
             return Status.Success; 
         }
 
-        // 2. Wait for Warmup
         if (_warmupTimer < WARMUP_DURATION)
         {
-            // Light is ON, but we ignore the player
             return Status.Running; 
         }
 
-        // 3. Check Visibility (Only runs after 1 second)
         if (CheckVisibility(currentLookDir))
         {
             IsSpotted.Value = true; 
@@ -116,15 +116,25 @@ public partial class WatchAndDetectPlayer : Action
 
     private bool CheckVisibility(Vector3 currentLookDir)
     {
+        // Null check for Anchor Value just in case player was destroyed
+        if (Target.Value.Value == null) return false;
+
         Vector3 eyePos = (eyeLight.Value != null) ? eyeLight.Value.transform.position : Agent.Value.transform.position;
-        Vector3 targetPos = Target.Value.Value.transform.position;
+        Vector3 targetPos = Target.Value.Value.transform.position; 
         
         Vector3 dirToTarget = (targetPos - eyePos).normalized;
         float distToTarget = Vector3.Distance(eyePos, targetPos);
 
         if (distToTarget > Range.Value) return false;
+
         if (Vector3.Angle(currentLookDir, dirToTarget) > Angle.Value / 2f) return false;
+
+        if (Physics.Raycast(eyePos, dirToTarget, distToTarget, _obstacleMask))
+        {
+            return false; // Vision Blocked
+        }
 
         return true;
     }
+    
 }
