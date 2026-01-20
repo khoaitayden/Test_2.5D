@@ -35,14 +35,12 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         if (playerAnchor != null) playerAnchor.Provide(this.transform);
-        
-        // Subscribe to input
+
         if (InputManager.Instance != null)
         {
             InputManager.Instance.OnJumpTriggered += HandleJumpRequest;
         }
 
-        // Initial setup
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
@@ -99,8 +97,6 @@ public class PlayerController : MonoBehaviour
             playerMovement.HandleHorizontalMovement(true);
             return;
         }
-
-        // Order of operations:
         playerClimbing.TryStartClimbing(isInteractionLocked);
         if (playerClimbing.IsClimbing)
         {
@@ -109,7 +105,6 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // --- NORMAL WALKING STATE ---
             playerMovement.HandleHorizontalMovement(isInteractionLocked);
             playerGroundedChecker.ApplyGravityAndJump(true);
         }
