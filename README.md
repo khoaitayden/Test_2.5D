@@ -82,5 +82,5 @@ Download from itch.io: https://khoaitayden.itch.io/dont-let-wisp-die
 *   **Architecture Pattern:** SO-Architecture / Event-Driven Design
 
 ## Heads up
-*   Asset is all free loyalty and self made (No AI invole)
+*   Asset is all free loyalty and self made (No AI involed)
 *   Big chunk of the code is make by AI 
