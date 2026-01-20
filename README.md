@@ -62,7 +62,7 @@ objectives/monsters).
 
 ## Where to play
 
-Download from itch.io: https://khoaitayden.itch.io/dont-let-wisp-die
+[Download Don't Let the Wisp Die from itch.io](https://khoaitayden.itch.io/dont-let-wisp-die)
 
 ---
 
