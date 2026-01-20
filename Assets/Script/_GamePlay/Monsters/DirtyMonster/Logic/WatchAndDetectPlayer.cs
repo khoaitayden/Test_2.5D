@@ -9,7 +9,7 @@ using Unity.Properties;
 public partial class WatchAndDetectPlayer : Action
 {
     [SerializeReference] public BlackboardVariable<GameObject> Agent;
-    [SerializeReference] public BlackboardVariable<GameObject> Target;
+    [SerializeReference] public BlackboardVariable<TransformAnchorSO> Target;
     
     [SerializeReference] public BlackboardVariable<float> Range;
     [SerializeReference] public BlackboardVariable<float> Angle;
@@ -25,7 +25,7 @@ public partial class WatchAndDetectPlayer : Action
 
     private float _timer;
     private float _warmupTimer; // New Timer
-    private const float WARMUP_DURATION = 1.5f;
+    private const float WARMUP_DURATION = 1f;
 
     protected override Status OnStart()
     {
@@ -117,7 +117,7 @@ public partial class WatchAndDetectPlayer : Action
     private bool CheckVisibility(Vector3 currentLookDir)
     {
         Vector3 eyePos = (eyeLight.Value != null) ? eyeLight.Value.transform.position : Agent.Value.transform.position;
-        Vector3 targetPos = Target.Value.transform.position;
+        Vector3 targetPos = Target.Value.Value.transform.position;
         
         Vector3 dirToTarget = (targetPos - eyePos).normalized;
         float distToTarget = Vector3.Distance(eyePos, targetPos);

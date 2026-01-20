@@ -11,7 +11,7 @@ public partial class PounceOnTarget : Action
 {
     [SerializeReference] public BlackboardVariable<bool> ShouldAttack;
     [SerializeReference] public BlackboardVariable<GameObject> Agent;
-    [SerializeReference] public BlackboardVariable<GameObject> Target;
+    [SerializeReference] public BlackboardVariable<TransformAnchorSO> target; 
     [SerializeReference] public BlackboardVariable<float> Speed;
     [SerializeReference] public BlackboardVariable<BoolVariableSO> isMonsterAttached;
     [SerializeReference] public BlackboardVariable<float> PostAttackWait = new BlackboardVariable<float>(2.0f);
@@ -20,8 +20,6 @@ public partial class PounceOnTarget : Action
     [SerializeReference] public BlackboardVariable<float> ShakeIntensity = new BlackboardVariable<float>(0.5f);
     [SerializeReference] public BlackboardVariable<float> RotationSpeed = new BlackboardVariable<float>(20f); 
     
-    // NEW: How much to block the camera?
-    // 0.2 = Close to player face. 0.8 = Close to Camera.
     [SerializeReference] public BlackboardVariable<float> FaceBlockAmount = new BlackboardVariable<float>(0.3f); 
 
     [SerializeReference] public BlackboardVariable<Animator> Animator;
@@ -29,17 +27,15 @@ public partial class PounceOnTarget : Action
     [SerializeReference] public BlackboardVariable<string> IsGrabing;
     private bool _hasImpacted;
     private float _waitTimer;
-    private float _chaosTimer;
-    private Transform _mainCam; // Cache camera
+    private Transform _mainCam;
 
     protected override Status OnStart()
     {
         if (!ShouldAttack.Value) return Status.Success;
-        if (Agent.Value == null || Target.Value == null) return Status.Failure;
+        if (Agent.Value == null || target.Value == null) return Status.Failure;
 
         _hasImpacted = false;
         _waitTimer = 0f;
-        _chaosTimer = 0f;
         isMonsterAttached.Value.Value = true;
         if (Camera.main != null) _mainCam = Camera.main.transform;
 
@@ -53,10 +49,10 @@ public partial class PounceOnTarget : Action
 
     protected override Status OnUpdate()
     {
-        if (Target.Value == null) return Status.Failure;
+        if (target.Value == null) return Status.Failure;
 
         Transform trans = Agent.Value.transform;
-        Transform targetTrans = Target.Value.transform;
+        Transform targetTrans = target.Value.Value.transform;
 
         if (_hasImpacted)
         {

@@ -9,7 +9,7 @@ using Unity.Properties;
 [NodeDescription(name: "Find Tree Near Target", story: "Find tree near [Target] within [Radius] on [Layer]", category: "Variable", id: "findtree")]
 public partial class FindTreeNearTarget : Action
 {
-    [SerializeReference] public BlackboardVariable<GameObject> Target;
+    [SerializeReference] public BlackboardVariable<TransformAnchorSO> Target;
     [SerializeReference] public BlackboardVariable<float> Radius;
     [SerializeReference] public BlackboardVariable<float> treeClimbOffSet; 
 
@@ -27,7 +27,7 @@ public partial class FindTreeNearTarget : Action
         if (Target.Value == null) return Status.Failure;
 
         // 2. Find Trees
-        Collider[] hits = Physics.OverlapSphere(Target.Value.transform.position, Radius.Value, TreeLayer);
+        Collider[] hits = Physics.OverlapSphere(Target.Value.Value.transform.position, Radius.Value, TreeLayer);
         
         if (hits.Length == 0) {
             return Status.Failure;
@@ -39,10 +39,10 @@ public partial class FindTreeNearTarget : Action
 
         // --- STEP 4: FIND BASE POSITION (Using Raycast) ---
         // We cast a ray from the Target (Player) towards the tree to find the surface facing the player.
-        Vector3 directionToTree = (treeCenter - Target.Value.transform.position).normalized;
+        Vector3 directionToTree = (treeCenter - Target.Value.Value.transform.position).normalized;
         directionToTree.y = 0; // Flatten direction
 
-        Vector3 rayStartPos = Target.Value.transform.position;
+        Vector3 rayStartPos = Target.Value.Value.transform.position;
         rayStartPos.y = treeCenter.y; // Raise ray to center height to ensure we hit the trunk
 
         Vector3 surfaceNormal = -directionToTree; // Default normal
