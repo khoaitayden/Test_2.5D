@@ -15,9 +15,6 @@ namespace CrashKonijn.Goap.MonsterGen
             var brain = references.GetCachedComponent<MonsterBrain>();
             if (brain == null) return 0;
 
-            // Simple Logic: 
-            // If we are actively Chasing (PlayerVisible) or Searching Area (Investigating), don't patrol.
-            // If we just hear a noise, we COULD patrol, but the planner will prefer the Noise Action because it's cheaper.
             bool busy = brain.IsPlayerVisible || brain.IsInvestigating;
 
             return busy ? 0 : 1;

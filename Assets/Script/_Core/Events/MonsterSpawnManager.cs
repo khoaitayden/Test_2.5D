@@ -11,7 +11,6 @@ public class MonsterSpawnManager : MonoBehaviour
         public GameObject monsterObject; 
     }
 
-    // Track active types so we don't try to disable things that aren't there
     private List<MonsterType> activeMonsters = new List<MonsterType>();
     
     [SerializeField] private List<MonsterMapping> monsters;
@@ -21,8 +20,6 @@ public class MonsterSpawnManager : MonoBehaviour
         if (objectiveEvents != null)
         {
             objectiveEvents.OnAreaItemPickedUp += EnableMonster;
-            // Listen to the specific reset event again
-            // This event is now delayed until Respawn because GameObjectiveManager controls it
             objectiveEvents.OnAreaReset += DisableMonster; 
         }
     }
@@ -35,9 +32,6 @@ public class MonsterSpawnManager : MonoBehaviour
             objectiveEvents.OnAreaReset -= DisableMonster;
         }
     }
-
-    // Removed OnPlayerRespawn(). We don't need the generic signal anymore.
-
     private void EnableMonster(AreaDefinitionSO area)
     {
         MonsterType typeToSpawn = area.associatedMonsterType;

@@ -25,16 +25,12 @@ public class DirtyMonsterManager : MonoBehaviour
 
     void OnEnable()
     {
-        // 1. Spawn the first one immediately
         TrySpawnMonster();
-
-        // 2. Reset timer so the next one comes after 'spawnInterval'
         _spawnTimer = 0f;
     }
 
     void OnDisable()
     {
-        // 3. Disable all monsters when this manager is turned off
         foreach (var m in _monsterPool)
         {
             if (m != null && m.activeSelf)
@@ -46,7 +42,6 @@ public class DirtyMonsterManager : MonoBehaviour
 
     void Update()
     {
-        // Timer only runs while this component is Enabled
         _spawnTimer += Time.deltaTime;
 
         if (_spawnTimer >= spawnInterval)
@@ -58,7 +53,6 @@ public class DirtyMonsterManager : MonoBehaviour
 
     private void InitializePool()
     {
-        // Prevent double init if enabled/disabled multiple times
         if (_monsterPool.Count > 0) return;
 
         for (int i = 0; i < maxMonsters; i++)
@@ -110,7 +104,6 @@ public class DirtyMonsterManager : MonoBehaviour
             Vector2 randomCircle = Random.insideUnitCircle * spawnRadius;
             Vector3 attemptPos = transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
 
-            // Raycast high up to find ground
             if (Physics.Raycast(attemptPos + Vector3.up * 50f, Vector3.down, out RaycastHit hit, 100f, groundLayer))
             {
                 if (NavMesh.SamplePosition(hit.point, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))

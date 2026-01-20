@@ -22,8 +22,6 @@ public partial class FlyToTarget : Action
         {
             return Status.Failure;
         }
-
-        // Disable NavMeshAgent so we can leave the ground
         _navAgent = Agent.Value.GetComponent<NavMeshAgent>();
         if (_navAgent != null)
         {
@@ -41,14 +39,12 @@ public partial class FlyToTarget : Action
         Transform agentTransform = Agent.Value.transform;
         Vector3 targetPos = Target.Value.position;
 
-        // Move
         agentTransform.position = Vector3.MoveTowards(
             agentTransform.position, 
             targetPos, 
             Speed.Value * Time.deltaTime
         );
 
-        // Rotate to look at target
         Vector3 direction = (targetPos - agentTransform.position).normalized;
         if (direction != Vector3.zero)
         {
@@ -56,7 +52,6 @@ public partial class FlyToTarget : Action
             agentTransform.rotation = Quaternion.Slerp(agentTransform.rotation, lookRot, Time.deltaTime * 5f);
         }
 
-        // Check if arrived
         if (Vector3.Distance(agentTransform.position, targetPos) <= StopDistance.Value)
         {
             return Status.Success;

@@ -6,10 +6,8 @@ public class EyeMonster : MonoBehaviour, ILitObject
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private Sprite normalSprite;
     [SerializeField] private Sprite burnSprite;
-    
-    // ---------------- NEW FIELD ----------------
+
     [SerializeField] private GameObject xRayOutlineObject; 
-    // -------------------------------------------
 
     [Header("Mechanics")]
     [SerializeField] private float timeToExpose = 3.0f;
@@ -46,10 +44,7 @@ public class EyeMonster : MonoBehaviour, ILitObject
         if (manager != null) manager.SetExposureState(false);
         if (spriteRenderer != null) spriteRenderer.sprite = normalSprite;
 
-        // ---------------- RESET OUTLINE ----------------
-        // Ensure outline is hidden when the monster first spawns/respawns
         if (xRayOutlineObject != null) xRayOutlineObject.SetActive(false);
-        // -----------------------------------------------
     }
 
     void OnDisable()
@@ -79,11 +74,8 @@ public class EyeMonster : MonoBehaviour, ILitObject
         {
             isAlarmActive = false;
             if (manager != null) manager.SetExposureState(false);
-            
-            // ---------------- HIDE OUTLINE ----------------
-            // If we burn it, stop the xray effect
             if (xRayOutlineObject != null) xRayOutlineObject.SetActive(false);
-            // ----------------------------------------------
+
         }
 
         if (spriteRenderer != null && spriteRenderer.sprite != burnSprite)
@@ -102,11 +94,9 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
         if (currentHeat > 0) currentHeat = Mathf.Max(0, currentHeat - Time.deltaTime);
 
-        // --- ALARM LOGIC ---
         if (isAlarmActive)
         {
-            // The eye has already exposed the player. It keeps the alarm on for X seconds.
-            activeExposureTimer += Time.deltaTime;
+
             
             if (activeExposureTimer >= exposureDuration)
             {
@@ -115,7 +105,6 @@ public class EyeMonster : MonoBehaviour, ILitObject
             return; 
         }
 
-        // --- NORMAL STARE LOGIC ---
         if (CanSeePlayer())
         {
             exposeTimer += Time.deltaTime;
@@ -127,10 +116,8 @@ public class EyeMonster : MonoBehaviour, ILitObject
                 activeExposureTimer = 0f; 
                 if (manager != null) manager.SetExposureState(true);
 
-                // ---------------- SHOW OUTLINE ----------------
-                // The player is now exposed, turn on the XRay object
                 if (xRayOutlineObject != null) xRayOutlineObject.SetActive(true);
-                // ----------------------------------------------
+
             }
         }
         else

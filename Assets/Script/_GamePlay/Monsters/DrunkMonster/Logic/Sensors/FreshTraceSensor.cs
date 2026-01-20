@@ -30,19 +30,18 @@ namespace CrashKonijn.Goap.MonsterGen
 
                 bool isDetected = false;
 
-                // 2. Hearing Check
                 if (IsLoud(t.Type))
                 {
                     if (Vector3.Distance(eyes, t.Position) <= config.hearingRange)
                         isDetected = true;
                 }
-                // 3. Vision Check
+
                 else 
                 {
-                    // Check Distance first (Cheap)
+
                     if (Vector3.Distance(eyes, t.Position) <= config.viewRadius)
                     {
-                        // Check Angle (Expensive)
+
                         Vector3 dir = (t.Position - eyes).normalized;
                         if (Vector3.Angle(facing, dir) < config.ViewAngle / 2f)
                             isDetected = true;
@@ -51,7 +50,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
                 if (!isDetected) continue;
 
-                // 4. Comparison: Newer is better
                 if (bestTrace == null || t.Timestamp > bestTrace.Timestamp)
                 {
                     bestTrace = t;
@@ -60,7 +58,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (bestTrace != null)
             {
-                // Return Raw Position. MoveTo() will handle safety snapping.
                 return new PositionTarget(bestTrace.Position);
             }
 

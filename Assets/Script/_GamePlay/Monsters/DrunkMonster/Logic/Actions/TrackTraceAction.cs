@@ -29,19 +29,19 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // 1. ARRIVAL CHECK
+
             if (movement.HasArrivedOrStuck())
             {
                 brain.MarkNoiseAsHandled(Time.time+0.01f);
                 return ActionRunState.Completed;
             }
 
-            // 2. ACTIVE POLLING (Check for newer traces mid-walk)
+
             Vector3? newerPos = ScanForNewerTrace(agent);
             
             if (newerPos.HasValue)
             {
-                // Only redirect if the new trace is in a different spot
+
                 if (Vector3.Distance(newerPos.Value, currentDestination) > 1.0f)
                 {
                     UpdateDestination(newerPos.Value);
@@ -59,11 +59,11 @@ namespace CrashKonijn.Goap.MonsterGen
         private void UpdateDestination(Vector3 pos)
         {
             currentDestination = pos;
-            // Let MonsterMovement handle snapping and path validity
+
             movement.MoveTo(pos, config.investigateSpeed);
         }
 
-        // --- SIMPLIFIED SCANNER ---
+
         private Vector3? ScanForNewerTrace(IMonoAgent agent)
         {
 
@@ -76,20 +76,19 @@ namespace CrashKonijn.Goap.MonsterGen
 
             foreach (var t in traces)
             {
-                // Skip old or expired
                 if (t.IsExpired || t.Timestamp <= timeFloor) continue;
 
                 bool isValid = false;
 
-                // 1. Hearing Check
+
                 if (IsLoud(t.Type) && Vector3.Distance(eyes, t.Position) <= config.hearingRange)
                 {
                     isValid = true;
                 }
-                // 2. Vision Check (Footsteps)
+
                 else if (Vector3.Distance(eyes, t.Position) <= config.viewRadius)
                 {
-                    // Cone Check
+
                     Vector3 dir = (t.Position - eyes).normalized;
                     if (Vector3.Angle(forward, dir) < config.ViewAngle / 2f)
                     {

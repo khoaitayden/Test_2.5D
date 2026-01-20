@@ -23,18 +23,13 @@ namespace CrashKonijn.Goap.MonsterGen
             
             if (brain == null || brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 
-            // 1. Logic Override: If we are already searching (queue has points), we are "Here".
             if (coverFinder != null && coverFinder.HasPoints) return 1;
 
-            // 2. Physical Distance Check
             Vector3 current = agent.Transform.position; current.y = 0;
             Vector3 target = brain.LastKnownPlayerPosition; target.y = 0;
             
             float dist = Vector3.Distance(current, target);
 
-            // FIX: Use 'investigateRadius' instead of 'stoppingDistance'.
-            // If we are anywhere inside the zone, stop trying to "Go To Center" 
-            // and switch to "Search Cover Points".
             float threshold = config.investigateRadius; 
 
             return (dist <= threshold) ? 1 : 0;

@@ -13,7 +13,6 @@ public partial class FlyBackToNavMesh : Action
     [SerializeReference] public BlackboardVariable<float> Radius;
     [SerializeReference] public BlackboardVariable<float> Speed;
 
-    // NEW: Animation Support
     [SerializeReference] public BlackboardVariable<Animator> Animator;
     [SerializeReference] public BlackboardVariable<string> IsFlying;
 

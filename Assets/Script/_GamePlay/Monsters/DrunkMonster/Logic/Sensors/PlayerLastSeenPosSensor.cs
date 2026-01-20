@@ -20,7 +20,6 @@ namespace CrashKonijn.Goap.MonsterGen
             // Valid check
             if (lastPos == Vector3.zero) return null;
 
-            // Return the specific MEMORY position
             return new PositionTarget(lastPos);
         }
     }

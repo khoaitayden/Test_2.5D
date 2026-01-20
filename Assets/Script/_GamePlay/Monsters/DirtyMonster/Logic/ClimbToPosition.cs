@@ -12,8 +12,7 @@ public partial class ClimbToPosition : Action
     [SerializeReference] public BlackboardVariable<GameObject> Agent;
     [SerializeReference] public BlackboardVariable<Vector3> TargetPos;
     [SerializeReference] public BlackboardVariable<float> Speed;
-    
-    // NEW: Animation Support
+
     [SerializeReference] public BlackboardVariable<Animator> Animator;
     [SerializeReference] public BlackboardVariable<string> AnimBool = new BlackboardVariable<string>("IsClimbing");
 

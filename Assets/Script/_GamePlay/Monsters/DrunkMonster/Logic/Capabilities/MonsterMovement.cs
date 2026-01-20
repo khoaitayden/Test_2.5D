@@ -32,14 +32,12 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         {
             agent.speed = targetSpeed * AnimationSpeedFactor;
 
-            // Chase Logic
             if (isChaseMode && chaseTarget != null)
             {
                 if (Vector3.SqrMagnitude(agent.destination - chaseTarget.position) > 1.0f)
                     agent.SetDestination(chaseTarget.position);
             }
 
-            // Stuck Logic
             if (agent.hasPath && !agent.isStopped && AnimationSpeedFactor > 0.1f)
             {
                 if (agent.velocity.sqrMagnitude < 0.1f) standStillTimer += Time.deltaTime;
@@ -99,10 +97,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 return false;
             }
 
-            // If path is PARTIAL (blocked by wall/door), go to the last reachable point
             if (path.status == NavMeshPathStatus.PathPartial)
             {
-                // The corners array contains the path points. The last one is the furthest reachable point.
+
                 if (path.corners.Length > 0)
                 {
                     finalDestination = path.corners[path.corners.Length - 1];
@@ -110,7 +107,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             }
 
             // --- 3. EXECUTE ---
-            // Optional: Don't move if we are already practically there (prevents spinning)
             if (Vector3.Distance(transform.position, finalDestination) < 1.0f)
             {
                 return false;
@@ -149,8 +145,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             if (standStillTimer > stuckTimeout) return true;
             if (agent.remainingDistance <= agent.stoppingDistance) return true;
 
-            // Important: If we hit a wall (Partial Path), we count that as "Arrived"
-            // This prevents the monster from running into the wall forever.
             if (agent.pathStatus == NavMeshPathStatus.PathPartial)
             {
                 if (agent.remainingDistance < 2.0f) return true;

@@ -31,7 +31,6 @@ public class WispAnimationController : MonoBehaviour
         if (innerGlowLight) 
             _initInnerIntensity = innerGlowLight.intensity;
 
-        // CHANGED: Hash for "IsBeingLook"
         _animLookHash = Animator.StringToHash("IsBeingLook");
     }
 

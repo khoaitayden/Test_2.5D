@@ -23,19 +23,14 @@ namespace CrashKonijn.Goap.MonsterGen
             
             if (data.Target != null)
             {
-                // Try to move
                 bool success = movement.MoveTo(data.Target.Position, config.investigateSpeed);
                 
                 if (!success)
                 {
-                    Debug.LogWarning($"[GoTo] Path Failed. Resetting investigation to Current Location.");
-                    
-                    // Instead of failing completely (going to Patrol), 
-                    // we tell the Brain to search HERE.
-                    brain?.OnMovementStuck(); // Re-use the same logic!
-                    
-                    // We don't need to continue this action since we are already "Here"
-                    // The planner will switch to SearchSurroundings next frame.
+                    Debug.LogWarning($"[GoTo] Path Failed.");
+
+                    brain?.OnMovementStuck();
+
                 }
             }
         }

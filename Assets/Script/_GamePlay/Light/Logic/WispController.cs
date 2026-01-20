@@ -52,7 +52,7 @@ public class WispController : MonoBehaviour
     // Movement State
     private Vector3 currentVelocity = Vector3.zero;
     private float orbitAngle;
-    private Collider[] hitColliders = new Collider[5]; // Fixed array for non-alloc physics
+    private Collider[] hitColliders = new Collider[5]; 
     private PlayerMovement cachedPlayerMovement;
     private Transform cachedPlayerTransform;
 
@@ -147,7 +147,6 @@ public class WispController : MonoBehaviour
 
     private Vector3 CalculateObstacleAvoidance(Vector3 currentPos)
     {
-        // FIX: Replaced 'null' with 'hitColliders' array to prevent garbage allocation
         int numHits = Physics.OverlapSphereNonAlloc(currentPos, collisionRadius, hitColliders, obstacleLayer);
         Vector3 avoidance = Vector3.zero;
 
@@ -194,7 +193,6 @@ public class WispController : MonoBehaviour
 
         bool isLookingAtInterestingThing = false;
 
-        // MODE 1: RETURN TO BEACON (If carrying Item)
         if (isCarryingItem != null && isCarryingItem.Value)
         {
             if (beaconAnchor != null && beaconAnchor.Value != null)
@@ -202,7 +200,7 @@ public class WispController : MonoBehaviour
                 isLookingAtInterestingThing = IsLookingAt(beaconAnchor.Value.position);
             }
         }
-        // MODE 2: FIND ANY ACTIVE AREA (If empty handed)
+
         else
         {
             if (activeObjectivesSet != null)
@@ -242,7 +240,7 @@ public class WispController : MonoBehaviour
         // 1. Scan Area
         HashSet<ILitObject> visibleObjects = ScanForLitObjects(detectionRange);
         
-        // 2. Determine Priority Target (Tombstones)
+        // 2. Determine Priority Target
         TombstoneController bestTombstone = null;
         if (energyFactor < energyThreshold)
         {
@@ -293,10 +291,8 @@ public class WispController : MonoBehaviour
 
     private void ApplyLitStates(HashSet<ILitObject> visibleObjects, TombstoneController priorityTarget)
     {
-        // A. Handle objects currently in view
         foreach (var obj in visibleObjects)
         {
-            // Special handling for Tombstones (only light 1 at a time if prioritized)
             if (obj is TombstoneController tomb)
             {
                 bool isPriority = (tomb == priorityTarget);
@@ -306,7 +302,6 @@ public class WispController : MonoBehaviour
                 else if (!isPriority && _currentlyLitObjects.Contains(tomb))
                     tomb.OnUnlit(LightSourceType.Wisp);
             }
-            // Standard objects
             else if (!_currentlyLitObjects.Contains(obj))
             {
                 obj.OnLit(LightSourceType.Wisp);
@@ -323,7 +318,6 @@ public class WispController : MonoBehaviour
         _currentlyLitObjects.Clear();
         foreach (var obj in visibleObjects)
         {
-            // Only add tombstones if they are the priority one
             if (obj is TombstoneController tomb)
             {
                 if (tomb == priorityTarget) _currentlyLitObjects.Add(obj);

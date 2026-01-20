@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // For coroutines
+using System.Collections;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour

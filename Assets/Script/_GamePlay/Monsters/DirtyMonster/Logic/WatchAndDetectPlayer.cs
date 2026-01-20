@@ -116,7 +116,6 @@ public partial class WatchAndDetectPlayer : Action
 
     private bool CheckVisibility(Vector3 currentLookDir)
     {
-        // Null check for Anchor Value just in case player was destroyed
         if (Target.Value.Value == null) return false;
 
         Vector3 eyePos = (eyeLight.Value != null) ? eyeLight.Value.transform.position : Agent.Value.transform.position;
@@ -131,7 +130,7 @@ public partial class WatchAndDetectPlayer : Action
 
         if (Physics.Raycast(eyePos, dirToTarget, distToTarget, _obstacleMask))
         {
-            return false; // Vision Blocked
+            return false; 
         }
 
         return true;

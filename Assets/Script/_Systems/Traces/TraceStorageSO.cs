@@ -15,8 +15,6 @@ public class TraceStorageSO : ScriptableObject
     }
 
     public List<GameTrace> GetTraces() => activeTraces;
-
-    // --- NEW: Public Clear Method ---
     public void ClearAll()
     {
         activeTraces.Clear();

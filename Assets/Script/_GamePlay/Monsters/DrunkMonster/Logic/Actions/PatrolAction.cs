@@ -37,7 +37,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (movement.HasArrivedOrStuck())
             {
-                // If we stopped but are far away (> 5m), we are stuck. Flee!
                 if (Vector3.Distance(agent.Transform.position, data.Target.Position) > 5.0f)
                 {
                     Debug.LogWarning("[Patrol] Stuck far from target. Fleeing.");

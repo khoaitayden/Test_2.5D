@@ -16,7 +16,6 @@ public partial class PounceOnTarget : Action
     [SerializeReference] public BlackboardVariable<BoolVariableSO> isMonsterAttached;
     [SerializeReference] public BlackboardVariable<float> PostAttackWait = new BlackboardVariable<float>(2.0f);
     
-    // CHAOS SETTINGS
     [SerializeReference] public BlackboardVariable<float> ShakeIntensity = new BlackboardVariable<float>(0.5f);
     [SerializeReference] public BlackboardVariable<float> RotationSpeed = new BlackboardVariable<float>(20f); 
     
@@ -59,7 +58,7 @@ public partial class PounceOnTarget : Action
             _waitTimer += Time.deltaTime;
 
             Vector3 playerHead = targetTrans.position + (Vector3.up * 1.5f);
-            Vector3 anchorPos = playerHead; // Default if no camera
+            Vector3 anchorPos = playerHead;
 
             if (_mainCam != null)
             {
@@ -93,8 +92,7 @@ public partial class PounceOnTarget : Action
             }
             return Status.Running;
         }
-
-        // --- PHASE 1: HOMING POUNCE ---
+        
         Vector3 targetPos = targetTrans.position + (Vector3.up * 1.5f); // Aim for head
         trans.position = Vector3.MoveTowards(trans.position, targetPos, Speed.Value * Time.deltaTime);
 

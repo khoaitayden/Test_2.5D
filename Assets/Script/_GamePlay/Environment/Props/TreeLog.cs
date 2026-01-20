@@ -14,7 +14,6 @@ public class TreeLog : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // We need both Controller (for Freeze) and Movement (for Slow)
         PlayerController controller = other.GetComponent<PlayerController>();
         PlayerMovement movement = other.GetComponent<PlayerMovement>();
 

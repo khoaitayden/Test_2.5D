@@ -32,35 +32,29 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             List<Vector3> candidates = new List<Vector3>();
             
             float radius = config.investigateRadius;
-            int rayCount = config.numCoverFinderRayCasts; // Use Config Variable
+            int rayCount = config.numCoverFinderRayCasts; 
 
             for (int i = 0; i < rayCount; i++)
             {
                 Vector3 dir = Quaternion.Euler(0, i * (360f / rayCount), 0) * Vector3.forward;
-                
-                // Simple Raycast
+
                 if (Physics.Raycast(center + Vector3.up, dir, out RaycastHit hit, radius, config.obstacleLayerMask))
                 {
-                    // 3.0f behind wall
+
                     Vector3 hidingSpot = hit.point + dir * 3.0f; 
 
-                    // Is it on NavMesh?
                     if (NavMesh.SamplePosition(hidingSpot, out NavMeshHit navHit, 5.0f, NavMesh.AllAreas))
                     {
                         Vector3 validPoint = navHit.position;
 
-                        // --- EDGE SAFETY CHECK (NEW FIX) ---
-                        // If the point is exactly on the edge of the mesh (near building), nudge it.
                         if (NavMesh.FindClosestEdge(validPoint, out NavMeshHit edgeHit, NavMesh.AllAreas))
                         {
                             if (edgeHit.distance < 1.0f) // Too close to edge
                             {
-                                // Move 1.5m away from the edge normal
                                 validPoint = edgeHit.position + edgeHit.normal * 1.5f;
                             }
                         }
 
-                        // --- DUPLICATE CHECK ---
                         bool isTooClose = false;
                         foreach (Vector3 existingPoint in candidates)
                         {
@@ -79,10 +73,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 }
             }
 
-            // Sort by distance
             candidates.Sort((a, b) => Vector3.Distance(monsterPos, a).CompareTo(Vector3.Distance(monsterPos, b)));
 
-            // Fill Queue
             int count = Mathf.Min(candidates.Count, config.investigationPoints);
             for (int i = 0; i < count; i++) searchQueue.Enqueue(candidates[i]);
             

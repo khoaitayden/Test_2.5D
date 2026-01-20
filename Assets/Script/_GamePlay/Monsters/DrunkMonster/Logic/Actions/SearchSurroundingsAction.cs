@@ -35,7 +35,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (data.Target != null)
             {
-                // FIX: Use MoveTo with explicit params (Using slower search speed)
                 movement.MoveTo(data.Target.Position, config.investigateSpeed);
             }
         }
@@ -50,14 +49,10 @@ namespace CrashKonijn.Goap.MonsterGen
                 return ActionRunState.Completed; 
             }
 
-            // --- CHECK STATUS ---
             if (movement.HasArrivedOrStuck())
             {
-                // DETECT STUCK VS ARRIVED
-                // If we stopped but are still far from target, we are stuck.
                 float dist = Vector3.Distance(agent.Transform.position, data.Target.Position);
                 
-                // If we are further than 3m from the cover point when we stopped...
                 if (dist > 3.0f) 
                 {
                     Debug.LogWarning($"[Search] Stuck {dist:F1}m away from cover. Triggering Flee.");
@@ -65,7 +60,6 @@ namespace CrashKonijn.Goap.MonsterGen
                     return ActionRunState.Stop; 
                 }
 
-                // Otherwise, normal arrival.
                 return ActionRunState.Completed;
             }
 

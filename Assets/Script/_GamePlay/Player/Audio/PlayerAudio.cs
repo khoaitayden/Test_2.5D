@@ -5,7 +5,7 @@ public class PlayerAudio : MonoBehaviour
     [Header("Dependencies")]
     [SerializeField] private PlayerMovement playerMovement; 
     [SerializeField] private PlayerGroundedChecker groundedChecker;
-    [SerializeField] private PlayerClimbing playerClimbing; // NEW DEPENDENCY
+    [SerializeField] private PlayerClimbing playerClimbing; 
     [SerializeField] private Transform feetPosition;
 
     [Header("Step Settings")]
@@ -30,7 +30,6 @@ public class PlayerAudio : MonoBehaviour
 
     private void Start()
     {
-        // Auto-find references
         if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
         if (groundedChecker == null) groundedChecker = GetComponentInParent<PlayerGroundedChecker>();
         if (playerClimbing == null) playerClimbing = GetComponentInParent<PlayerClimbing>();
@@ -84,22 +83,19 @@ public class PlayerAudio : MonoBehaviour
 
     private void HandleStrideFootsteps()
     {
-        // --- 1. CLIMBING CHECK (FIX) ---
-        // If we are climbing, silence all footsteps immediately.
+
         if (playerClimbing != null && playerClimbing.IsClimbing)
         {
             _distanceTraveled = 0f;
             return;
         }
 
-        // --- 2. GROUND CHECK ---
         if (groundedChecker != null && !groundedChecker.IsGrounded)
         {
             _distanceTraveled = 0f;
             return;
         }
 
-        // --- 3. SPEED CHECK ---
         float speed = (playerMovement != null) ? playerMovement.CurrentHorizontalSpeed : 0f;
 
         _isMoving = speed > velocityThreshold;
@@ -110,7 +106,6 @@ public class PlayerAudio : MonoBehaviour
             return;
         }
 
-        // Direct Input Access
         bool isSprinting = InputManager.Instance.IsSprinting;
         float currentStride = isSprinting ? strideSprint : strideWalk;
 

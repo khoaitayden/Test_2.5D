@@ -8,7 +8,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Button restartButton;
 
     [Header("Events")]
-    [SerializeField] private GameEventSO respawnEvent; // Drag "evt_PlayerRespawn"
+    [SerializeField] private GameEventSO respawnEvent;
 
     void Start()
     {
@@ -18,7 +18,6 @@ public class UIManager : MonoBehaviour
 
     public void ToggleDeathScreen()
     {
-        // Simple toggle based on current state
         bool isActive = !deathScreen.activeSelf;
         deathScreen.SetActive(isActive);
 
@@ -36,10 +35,8 @@ public class UIManager : MonoBehaviour
 
     public void OnRestartButtonPressed()
     {
-        // 1. Hide Screen
         ToggleDeathScreen();
 
-        // 2. Raise Respawn Event (Tells Player to move, Manager to reset item, etc.)
         if (respawnEvent != null) 
             respawnEvent.Raise();
     }

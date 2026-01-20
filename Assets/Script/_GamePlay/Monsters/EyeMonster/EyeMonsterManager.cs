@@ -41,7 +41,6 @@ public class EyeMonsterManager : MonoBehaviour
         DespawnEye();
     }
 
-    // Public method called by the GameEventListener Component
     public void UnlockEyeSpawning()
     {
         if (isUnlocked) return;
@@ -91,21 +90,16 @@ public class EyeMonsterManager : MonoBehaviour
             Vector3 direction = Quaternion.Euler(0, randomAngle, 0) * Vector3.forward;
             Vector3 attemptPos = playerTx.position + direction * radius;
 
-            // 1. Raycast Down to find ground
-            // Note: We start high up (+20) to clear trees/terrain
             if (Physics.Raycast(attemptPos + Vector3.up * 20f, Vector3.down, out RaycastHit hit, 40f))
             {
                 float randomHeight = Random.Range(minSpawnHeight, maxSpawnHeight);
                 Vector3 finalPos = hit.point + Vector3.up * randomHeight;
 
-                // --- 2. NEW: VOLUME CHECK ---
-                // Check if the specific point we chose is inside a collider
                 if (Physics.CheckSphere(finalPos, spawnSafetyRadius, obstacleLayers))
                 {
                     continue; // Blocked! Try next random spot.
                 }
 
-                // 3. Line of Sight Check (Player to Eye)
                 Vector3 toEye = finalPos - playerTx.position;
                 if (!Physics.Raycast(playerTx.position, toEye.normalized, toEye.magnitude * 0.9f)) // 0.9f to avoid hitting the eye itself
                 {

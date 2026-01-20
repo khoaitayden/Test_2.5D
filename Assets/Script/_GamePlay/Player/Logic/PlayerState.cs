@@ -6,7 +6,7 @@ using UnityEngine.Events;
 public class PlayerState : MonoBehaviour
 {
     [Header("Dependencies")]
-    [SerializeField] private UIManager uIManager; // Direct ref for now, can be event later
+    [SerializeField] private UIManager uIManager;
     [SerializeField] private CharacterController controller;
     [SerializeField] private TransformAnchorSO respawnPointAnchor;
 
@@ -51,17 +51,13 @@ public class PlayerState : MonoBehaviour
         Debug.Log("Reviving Player...");
         isDead = false;
 
-        // 1. Teleport
         if (respawnPointAnchor != null && respawnPointAnchor.Value != null)
         {
-            // CharacterController overrides Transform.position, so we must disable it briefly
             controller.enabled = false; 
             transform.position = respawnPointAnchor.Value.position;
             controller.enabled = true;
         }
 
-        // 2. Reset Physics/State
-        // (PlayerController reads 'IsDead' and will auto-resume movement)
     }
 
     public void OnEmptyEnergy()

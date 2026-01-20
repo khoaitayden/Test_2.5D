@@ -16,11 +16,9 @@ public class BeaconFrameDisplay : MonoBehaviour
 
     void Update()
     {
-        // 1. Hover Up/Down
         float newY = startPos.y + Mathf.Sin(Time.time * floatSpeed) * floatHeight;
         transform.localPosition = new Vector3(startPos.x, newY, startPos.z);
 
-        // 2. Rotate continuously
         transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime);
     }
 }

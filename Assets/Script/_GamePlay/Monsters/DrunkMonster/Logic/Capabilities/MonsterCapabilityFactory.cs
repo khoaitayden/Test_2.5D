@@ -37,8 +37,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddEffect<IsPlayerReachable>(EffectType.Increase) 
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
-                
-                // CHANGE 3: Only Stalk if NOT Reachable
                 .AddCondition<IsPlayerReachable>(Comparison.SmallerThan, 1) 
                 
                 .SetBaseCost(2) 

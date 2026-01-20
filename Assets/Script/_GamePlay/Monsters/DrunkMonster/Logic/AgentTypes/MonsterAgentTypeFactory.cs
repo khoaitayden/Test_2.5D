@@ -9,7 +9,6 @@ public class MonsterAgentTypeFactory : AgentTypeFactoryBase
     {
     var factory = new AgentTypeBuilder("ScriptMonsterAgent");
 
-    // CORRECTED: We now add the single, more descriptive MonsterCapabilityFactory
             factory.AddCapability<MonsterCapabilityFactory>();
 
             return factory.Build();

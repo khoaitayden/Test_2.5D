@@ -4,32 +4,28 @@ using System.Collections.Generic;
 
 public static class PoissonDiscSampling
 {
-    // --- ADDED A SAFETY LIMIT ---
-    private const int maxGridSize = 1000000; // Cap grid size to 1 million cells to prevent overflow
+    private const int maxGridSize = 1000000; 
 
     public static Vector2[] GeneratePoints(float radius, Rect rect, int maxCandidates = 30)
     {
-        // --- ADDED A SAFETY CHECK for radius ---
         if (radius <= 0)
         {
             Debug.LogError("PoissonDiscSampling radius must be greater than 0.");
-            return new Vector2[0]; // Return empty array
+            return new Vector2[0];
         }
         
         float cellSize = radius / Mathf.Sqrt(2);
 
         int gridWidth = Mathf.CeilToInt(rect.width / cellSize);
         int gridHeight = Mathf.CeilToInt(rect.height / cellSize);
-        
-        // --- ADDED A SAFETY CHECK for grid size ---
+
         if ((long)gridWidth * gridHeight > maxGridSize)
         {
-            Debug.LogWarning($"Poisson grid size is too large ({gridWidth}x{gridHeight}). Lower density or increase area. Capping spawn.");
-            return new Vector2[0]; // Return empty array to prevent crash
+            Debug.LogWarning($"Poisson grid size is too large. Capping spawn.");
+            return new Vector2[0];
         }
         
         Vector2[,] grid = new Vector2[gridWidth, gridHeight];
-        // ... (The rest of the script is exactly the same) ...
         bool[,] gridOccupied = new bool[gridWidth, gridHeight];
 
         List<Vector2> activeList = new List<Vector2>();

@@ -14,7 +14,7 @@ public class LightEnergyManager : MonoBehaviour
     [SerializeField] private BoolVariableSO isPlayerAttached; 
 
     [Header("Base Settings")]
-    [SerializeField] private float maxDuration = 100f; // This sets the MaxEnergy SO
+    [SerializeField] private float maxDuration = 100f; 
     [SerializeField] private float startingPercentage = 0.5f;
 
     [Header("Drain Multipliers")]
@@ -29,8 +29,6 @@ public class LightEnergyManager : MonoBehaviour
     private bool isEnergyDepleted = false;
     void Awake()
     {
-        // Initialize the Data assets
-        // We do this here so other scripts reading Start() get correct values
         if (maxEnergy != null) maxEnergy.Value = maxDuration;
         
         if (currentEnergy != null && maxEnergy != null)
@@ -76,7 +74,6 @@ public class LightEnergyManager : MonoBehaviour
     {
         if (currentEnergy != null && maxEnergy != null)
         {
-            // Reset to starting percentage or full
             currentEnergy.Value = maxEnergy.Value * startingPercentage;
         }
     }

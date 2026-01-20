@@ -41,7 +41,6 @@ public class MonsterBrain : MonoBehaviour
         provider.RequestGoal<KillPlayerGoal>();
     }
 
-    // --- NOISE API (NEW) ---
 
     public void MarkNoiseAsHandled(float timestamp)
     {
@@ -56,7 +55,6 @@ public class MonsterBrain : MonoBehaviour
         CurrentPlayerTarget = player;
         LastKnownPlayerPosition = player.position;
         
-        // NEW: Keep updating timestamp while looking at player
         LastTimeSeenPlayer = Time.time; 
         
         if (IsInvestigating) IsInvestigating = false;
@@ -68,8 +66,7 @@ public class MonsterBrain : MonoBehaviour
         if (IsPlayerVisible)
         {
             IsPlayerVisible = false;
-            
-            // NEW: Record exact moment we lost them
+
             LastTimeSeenPlayer = Time.time;
             
             IsInvestigating = true; 
@@ -102,7 +99,6 @@ public class MonsterBrain : MonoBehaviour
         CurrentPlayerTarget = null;
         LastKnownPlayerPosition = Vector3.zero;
 
-        // --- ENGAGE NEW STATE ---
         IsFleeing = true;
         UpdateGOAPState();
     }
@@ -119,10 +115,9 @@ public class MonsterBrain : MonoBehaviour
         provider.WorldData.SetState(new IsPlayerInSight(), IsPlayerVisible ? 1 : 0);
         provider.WorldData.SetState(new IsInvestigating(), IsInvestigating ? 1 : 0);
         
-        // NEW: Flee State
         provider.WorldData.SetState(new IsFleeing(), IsFleeing ? 1 : 0);
 
-        // CanPatrol logic: Not busy fighting/searching/fleeing
+
         bool busy = IsPlayerVisible || IsInvestigating || IsFleeing;
         provider.WorldData.SetState(new CanPatrol(), busy ? 0 : 1);
         
