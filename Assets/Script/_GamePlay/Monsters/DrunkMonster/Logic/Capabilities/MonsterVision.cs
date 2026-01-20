@@ -111,7 +111,7 @@ public class MonsterVision : MonoBehaviour
         Vector3 eyesForward = headBone != null ? headBone.forward : transform.forward;
 
         int count = Physics.OverlapSphereNonAlloc(
-            transform.position, // Keep Sphere origin at root (feet) for general range
+            transform.position,
             config.viewRadius,
             _overlapBuffer,
             config.playerLayerMask
@@ -120,12 +120,10 @@ public class MonsterVision : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             Transform target = _overlapBuffer[i].transform;
-            Vector3 targetPosition = target.position + Vector3.up * 1.0f; // Look at player chest
+            Vector3 targetPosition = target.position + Vector3.up * 1.0f;
             
             Vector3 toTarget = targetPosition - eyesPosition;
-            
-            // 2. CHECK ANGLE RELATIVE TO HEAD DIRECTION
-            // This allows the monster to see "Sideways" if the head is turned!
+
             if (Vector3.Angle(eyesForward, toTarget) > config.ViewAngle / 2f)
             {
                 continue; 
@@ -133,7 +131,6 @@ public class MonsterVision : MonoBehaviour
 
             float dist = toTarget.magnitude;
 
-            // 3. RAYCAST FROM HEAD
             if (CanHitTargetWithRays(eyesPosition, targetPosition, dist))
             {
                 return target;
@@ -146,13 +143,9 @@ public class MonsterVision : MonoBehaviour
     private bool CanHitTargetWithRays(Vector3 start, Vector3 end, float distance)
     {
         int rays = Mathf.Max(1, config.numOfRayCast);
-        
-        // 1. Calculate the Perfect Direct Line
+
         Vector3 directLineToPlayer = (end - start).normalized;
 
-        // 2. Tighten the spread!
-        // A 15-degree spread misses the player at long range.
-        // Use 3 degrees. This covers the width of a human body at ~50 meters.
         float totalSpreadAngle = 5.0f; 
 
         int combinedMask = config.obstacleLayerMask | config.playerLayerMask;
@@ -161,37 +154,30 @@ public class MonsterVision : MonoBehaviour
         {
             Vector3 finalDir = directLineToPlayer;
 
-            // Only fan out if we have multiple rays
             if (rays > 1)
             {
-                // Calculate offset (-0.5 to 0.5)
+
                 float t = (i / (float)(rays - 1)) - 0.5f; 
                 float angleOffset = t * totalSpreadAngle;
-                
-                // ROTATE the direct line around the UP axis
+
                 finalDir = Quaternion.Euler(0, angleOffset, 0) * directLineToPlayer;
             }
 
-            // Cast Ray
-            // We add distance + 2.0f to ensure we punch through the collider
             if (Physics.Raycast(start, finalDir, out RaycastHit hit, distance + 2.0f, combinedMask))
             {
-                // Did we hit an Obstacle?
                 if (((1 << hit.collider.gameObject.layer) & config.obstacleLayerMask) != 0)
                 {
-                    Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f); // Blocked
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.cyan, 0.1f); 
                     continue; 
                 }
-                
-                // Did we hit the Player?
+
                 if (((1 << hit.collider.gameObject.layer) & config.playerLayerMask) != 0)
                 {
-                    Debug.DrawRay(start, finalDir * hit.distance, Color.red, 0.1f); // SEEN
+                    Debug.DrawRay(start, finalDir * hit.distance, Color.red, 0.1f);
                     return true; 
                 }
             }
-            
-            // Missed everything (Gray)
+
             Debug.DrawRay(start, finalDir * distance, Color.gray, 0.1f);
         }
 
@@ -202,40 +188,34 @@ public class MonsterVision : MonoBehaviour
         {
             if (player == null) return;
 
-            // Reset the "Lost Sight" timer so the monster doesn't forget
             timeSinceLastSeen = 0f;
             canSeePlayerNow = true;
 
             if (brain != null)
             {
-                // Continuously update the brain with the LIVE position
                 brain.OnPlayerSeen(player);
             }
         }
     private void OnDrawGizmosSelected()
     {
     #if UNITY_EDITOR
-        // Use Head Bone if available, otherwise fallback to Transform
+
         Transform viewSource = headBone != null ? headBone : transform;
         Vector3 origin = viewSource.position;
         Vector3 forward = viewSource.forward;
 
-        UnityEditor.Handles.color = new Color(1, 1, 0, 0.3f); // Yellow transparent
+        UnityEditor.Handles.color = new Color(1, 1, 0, 0.3f); 
 
-        // Calculate Cone Edges relative to HEAD rotation
         Vector3 leftEdgeDirection = Quaternion.Euler(0, -config.ViewAngle / 2, 0) * forward;
         Vector3 rightEdgeDirection = Quaternion.Euler(0, config.ViewAngle / 2, 0) * forward;
 
         Vector3 leftPoint = origin + leftEdgeDirection * config.viewRadius;
         Vector3 rightPoint = origin + rightEdgeDirection * config.viewRadius;
 
-        // Draw Lines
         UnityEditor.Handles.DrawLine(origin, leftPoint);
         UnityEditor.Handles.DrawLine(origin, rightPoint);
 
-        // Draw Arc
-        // Note: Vector3.up here assumes the head rotates around Y primarily. 
-        // If your head tilts (X/Z), you might want to use viewSource.up
+
         UnityEditor.Handles.DrawWireArc(origin, Vector3.up, leftEdgeDirection, config.ViewAngle, config.viewRadius);
     #endif
     }

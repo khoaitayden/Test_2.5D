@@ -19,7 +19,6 @@ namespace CrashKonijn.Goap.MonsterGen
             config = agent.GetComponent<MonsterConfig>();
             brain = agent.GetComponent<MonsterBrain>(); 
 
-            // Flee FROM the last known valid player position
             Vector3 fleeFromPos = brain.LastKnownPlayerPosition != Vector3.zero 
                 ? brain.LastKnownPlayerPosition 
                 : (data.Target != null ? data.Target.Position : agent.Transform.position);
@@ -27,10 +26,8 @@ namespace CrashKonijn.Goap.MonsterGen
             Vector3 awayDir = (agent.Transform.position - fleeFromPos).normalized;
             awayDir = Quaternion.Euler(0, Random.Range(-30, 30), 0) * awayDir; 
             
-            // --- UPDATED: Uses Config Variable ---
             Vector3 fleePos = agent.Transform.position + awayDir * config.fleeRunDistance; 
 
-            // Move fast
             movement.MoveTo(fleePos, config.chaseSpeed);
         }
 

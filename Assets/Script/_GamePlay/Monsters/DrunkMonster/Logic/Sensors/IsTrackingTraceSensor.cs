@@ -13,7 +13,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            // If the Target Sensor finds something, this boolean becomes True (1)
             var target = targetSensor.Sense(agent, references, null);
             return (target != null) ? 1 : 0;
         }

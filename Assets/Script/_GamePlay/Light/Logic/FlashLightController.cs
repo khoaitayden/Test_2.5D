@@ -25,14 +25,9 @@ public class FlashlightController : MonoBehaviour
     [SerializeField] private LayerMask interactLayer;   // Monsters, Eyes, Interactables
     [SerializeField] private LayerMask obstructionLayer; // Walls, Ground (Blocks light)
 
-    // State
     public bool IsActive { get; private set; }
     private Transform mainCam;
-    
-    // Changed from single object to a List to handle multiple things in the cone
     private HashSet<ILitObject> currentlyLitObjects = new HashSet<ILitObject>();
-
-    // Dimming Variables
     private float _initIntensity;
     private float _initRange;
     private float _minRange = 5.0f;
@@ -101,7 +96,6 @@ public class FlashlightController : MonoBehaviour
         }
         else
         {
-            // Clear all lit objects when turning off
             foreach (var obj in currentlyLitObjects)
             {
                 obj.OnUnlit(LightSourceType.Flashlight);
@@ -133,7 +127,6 @@ public class FlashlightController : MonoBehaviour
         transform.position = Vector3.Lerp(transform.position, targetPos, dt * positionSmoothSpeed);
     }
 
-    // --- NEW: CONE LOGIC ---
     void CheckConeInteraction()
     {
         if (spotLight == null) return;
@@ -141,19 +134,14 @@ public class FlashlightController : MonoBehaviour
         float range = spotLight.range;
         float halfAngle = spotLight.spotAngle * 0.5f;
 
-        // 1. Find everything in Range
         Collider[] hits = Physics.OverlapSphere(transform.position, range, interactLayer);
         HashSet<ILitObject> visibleThisFrame = new HashSet<ILitObject>();
 
         foreach (var hit in hits)
         {
-            // 2. Direction Check
             Vector3 dirToTarget = (hit.transform.position - transform.position).normalized;
-            
-            // 3. Angle Check (Is it inside the cone?)
             if (Vector3.Angle(transform.forward, dirToTarget) < halfAngle)
             {
-                // 4. Line of Sight Check (Is it behind a wall?)
                 float dst = Vector3.Distance(transform.position, hit.transform.position);
                 if (!Physics.Raycast(transform.position, dirToTarget, dst, obstructionLayer))
                 {
@@ -165,10 +153,6 @@ public class FlashlightController : MonoBehaviour
                 }
             }
         }
-
-        // 5. Apply States
-        
-        // A. Handle New/Persisting Objects
         foreach (var obj in visibleThisFrame)
         {
             if (!currentlyLitObjects.Contains(obj))
@@ -177,7 +161,6 @@ public class FlashlightController : MonoBehaviour
             }
         }
 
-        // B. Handle Objects that left the cone (or got blocked)
         foreach (var oldObj in currentlyLitObjects)
         {
             if (!visibleThisFrame.Contains(oldObj))
@@ -186,7 +169,6 @@ public class FlashlightController : MonoBehaviour
             }
         } 
 
-        // C. Update Cache
         currentlyLitObjects = visibleThisFrame;
     }
 }

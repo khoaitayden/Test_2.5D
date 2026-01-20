@@ -26,20 +26,16 @@ namespace CrashKonijn.Goap.MonsterGen
                 return null;
             }
 
-            // --- GENERATION LOGIC ---
             if (!coverFinder.HasPoints)
             {
                 float distanceToCenter = Vector3.Distance(agent.Transform.position, brain.LastKnownPlayerPosition);
-                
-                // FIX: Match IsAtSuspiciousLocationSensor.
-                // If we are inside the radius, we can start generating points.
+
                 if (distanceToCenter <= config.investigateRadius) 
                 {
                     coverFinder.GeneratePoints(brain.LastKnownPlayerPosition, agent.Transform.position);
                 }
                 else
                 {
-                    // Too far away. Force 'GoToLastSeenPlayerAreaAction'.
                     return null;
                 }
             }

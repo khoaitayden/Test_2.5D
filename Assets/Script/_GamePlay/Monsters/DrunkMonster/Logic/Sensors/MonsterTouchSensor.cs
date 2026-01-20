@@ -1,10 +1,7 @@
-// NEW SCRIPT: MonsterTouchSensor.cs
-// Put this script on your Monster prefab.
 using UnityEngine;
 
 public class MonsterTouchSensor : MonoBehaviour
 {
-    // Public property that other scripts (like our action) can read.
     public bool IsTouchingPlayer { get; private set; }
     private void OnTriggerEnter(Collider other)
     {

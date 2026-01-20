@@ -6,42 +6,47 @@ public class PlayerVisionController : MonoBehaviour
     [Header("Data")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
+    [SerializeField] private BoolVariableSO isMonsterAttached;
+
     [Header("References")]
-    [Tooltip("The Flashlight Script on the Player or Camera.")]
     [SerializeField] private FlashlightController flashlight;
-    
-    [Tooltip("The Cinemachine Camera to adjust.")]
     [SerializeField] private CinemachineCamera virtualCamera;
 
     [Header("Camera Settings")]
     [SerializeField] private float baseFarClip = 40f;       
     [SerializeField] private float flashlightFarClip = 65f; 
-    [SerializeField] private float deadFarClip = 15f;       
+    [SerializeField] private float deadFarClip = 15f;
+
+    [SerializeField] private float blindedFarClip = 2.0f;       
 
     void Update()
     {
-
-        float energyFactor =currentEnergy.Value / maxEnergy.Value;
+        // 1. Calculate Standard Logic
+        float energyFactor = 0f;
+        if(maxEnergy.Value > 0) energyFactor = currentEnergy.Value / maxEnergy.Value;
+        
         bool hasEnergy = currentEnergy.Value > 0;
 
-        // Calculate Target Clip Plane
         float targetClip = deadFarClip;
 
-        if (hasEnergy)
+        if (isMonsterAttached != null && isMonsterAttached.Value)
         {
-            if (flashlight != null && flashlight.IsActive)
-            {
-                targetClip = flashlightFarClip;
-            }
-            else
-            {
-                targetClip = Mathf.Lerp(deadFarClip, baseFarClip, energyFactor);
-            }
+            targetClip = blindedFarClip;
+        }
+        else if (hasEnergy && flashlight != null && flashlight.IsActive)
+        {
+            targetClip = flashlightFarClip;
         }
 
-        // Apply to Cinemachine Smoothly
+        else if (hasEnergy)
+        {
+            targetClip = Mathf.Lerp(deadFarClip, baseFarClip, energyFactor);
+        }
+
+        float lerpSpeed = (targetClip == blindedFarClip) ? 10f : 2f;
+
         var lens = virtualCamera.Lens;
-        lens.FarClipPlane = Mathf.Lerp(lens.FarClipPlane, targetClip, Time.deltaTime * 2f);
+        lens.FarClipPlane = Mathf.Lerp(lens.FarClipPlane, targetClip, Time.deltaTime * lerpSpeed);
         virtualCamera.Lens = lens;
     }
 }

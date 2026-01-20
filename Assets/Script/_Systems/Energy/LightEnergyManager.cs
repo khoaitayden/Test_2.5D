@@ -7,19 +7,21 @@ public class LightEnergyManager : MonoBehaviour
     [Header("Events")]
     [SerializeField] private GameEventSO onEmptyEnergyEvent; 
     [Header("Data References")]
-    [SerializeField] private FloatVariableSO currentEnergy; // Drag "var_CurrentEnergy"
-    [SerializeField] private FloatVariableSO maxEnergy;     // Drag "var_MaxEnergy"    
-    [SerializeField] private BoolVariableSO isFlashlightOn; // Drag "var_IsFlashlightOn"
+    [SerializeField] private FloatVariableSO currentEnergy; 
+    [SerializeField] private FloatVariableSO maxEnergy;        
+    [SerializeField] private BoolVariableSO isFlashlightOn; 
     [SerializeField] private BoolVariableSO isPlayerExpose;
+    [SerializeField] private BoolVariableSO isPlayerAttached; 
 
     [Header("Base Settings")]
-    [SerializeField] private float maxDuration = 100f; // This sets the MaxEnergy SO
+    [SerializeField] private float maxDuration = 100f; 
     [SerializeField] private float startingPercentage = 0.5f;
 
     [Header("Drain Multipliers")]
-    [SerializeField] private float flashlightCostMult = 3f;
-    [SerializeField] private float sprintCostMult = 2f;
-    [SerializeField] private float exposedCostMult = 3f;
+    [SerializeField] private float flashlightCostMult ;
+    [SerializeField] private float sprintCostMult;
+    [SerializeField] private float exposedCostMult;
+    [SerializeField] private float attachedCostMult;
 
     [Header("Debug")]
     [SerializeField] private bool isDrainPaused = false;
@@ -27,8 +29,6 @@ public class LightEnergyManager : MonoBehaviour
     private bool isEnergyDepleted = false;
     void Awake()
     {
-        // Initialize the Data assets
-        // We do this here so other scripts reading Start() get correct values
         if (maxEnergy != null) maxEnergy.Value = maxDuration;
         
         if (currentEnergy != null && maxEnergy != null)
@@ -53,6 +53,9 @@ public class LightEnergyManager : MonoBehaviour
         if (isPlayerExpose.Value)
             finalMultiplier *= exposedCostMult;
 
+        if (isPlayerAttached.Value)
+            finalMultiplier *= attachedCostMult;
+
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;
         currentEnergy.ApplyChange(-drain, 0f, maxEnergy.Value);
         //Debug.Log($"Light Energy: {currentEnergy.Value}/{maxEnergy.Value}");
@@ -71,7 +74,6 @@ public class LightEnergyManager : MonoBehaviour
     {
         if (currentEnergy != null && maxEnergy != null)
         {
-            // Reset to starting percentage or full
             currentEnergy.Value = maxEnergy.Value * startingPercentage;
         }
     }

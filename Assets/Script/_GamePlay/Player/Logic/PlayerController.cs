@@ -11,15 +11,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerClimbing playerClimbing;
     [SerializeField] private PlayerState playerState;
     
-    // Architectures
     [SerializeField] private TransformAnchorSO playerAnchor;
     [SerializeField] private TraceEventChannelSO traceChannel; 
-    
-    // State Flags (Owned by PlayerController)
+
     private bool isInteractionLocked; 
     private Coroutine lockCoroutine; 
 
-    // Public API (Forwarded from sub-components)
     public bool IsDead => playerState.IsDead; 
     public bool IsInteractionLocked => isInteractionLocked;
     public bool IsClimbing => playerClimbing.IsClimbing;
@@ -38,14 +35,12 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         if (playerAnchor != null) playerAnchor.Provide(this.transform);
-        
-        // Subscribe to input
+
         if (InputManager.Instance != null)
         {
             InputManager.Instance.OnJumpTriggered += HandleJumpRequest;
         }
 
-        // Initial setup
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
@@ -99,11 +94,9 @@ public class PlayerController : MonoBehaviour
         if (IsInteractionLocked || IsEnteringLadder)
         {
             playerGroundedChecker.ApplyGravityAndJump(false); 
-            playerMovement.HandleHorizontalMovement(true); // Stop movement
+            playerMovement.HandleHorizontalMovement(true);
             return;
         }
-
-        // Order of operations:
         playerClimbing.TryStartClimbing(isInteractionLocked);
         if (playerClimbing.IsClimbing)
         {
@@ -112,7 +105,6 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // --- NORMAL WALKING STATE ---
             playerMovement.HandleHorizontalMovement(isInteractionLocked);
             playerGroundedChecker.ApplyGravityAndJump(true);
         }

@@ -18,7 +18,6 @@ public class PlayerParticleController : MonoBehaviour
 
     private void Start()
     {
-        // Subscribe to C# event for data-driven landing
         if (groundedChecker != null)
         {
             groundedChecker.OnLandWithFallIntensity += PlayLandEffect;
@@ -46,7 +45,6 @@ public class PlayerParticleController : MonoBehaviour
         bool isMoving = playerMovement.IsMoving;
         bool isSlowWalking = InputManager.Instance.IsSlowWalking;
 
-        // Only show trail if grounded, moving, and NOT sneaking
         bool shouldPlay = isGrounded && isMoving && !isSlowWalking;
 
         if (shouldPlay && !trailEffect.isPlaying)
@@ -59,15 +57,12 @@ public class PlayerParticleController : MonoBehaviour
         }
     }
 
-    // --- PUBLIC API (Linked via GameEventListener in Inspector) ---
 
     public void PlayJumpEffect()
     {
-        // Add jump specific particles here if you have them
-        // For now, it's empty in your original code, but hooks are ready.
+
     }
 
-    // Called by PlayerGroundedChecker event
     public void PlayLandEffect(float fallIntensity)
     {
         if (landEffect == null) return;

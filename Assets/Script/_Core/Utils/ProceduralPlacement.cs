@@ -24,7 +24,7 @@ public class SpawnConfiguration
     public float maxYOffset = 0f;
 
     [Header("Placement Rules")]
-    public LayerMask spawnOnLayer = 1; // e.g., "Ground" or "Default"
+    public LayerMask spawnOnLayer = 1;
     public LayerMask avoidLayers;
     public LayerMask noSpawnZoneLayer;
 }
@@ -104,10 +104,8 @@ public class ProceduralPlacement : MonoBehaviour
         {
             if (spawnedInPass >= maxToSpawn) break;
 
-            // 1. Convert 2D point to World Position
             Vector3 worldPos = new Vector3(point2D.x, areaCenter.y, point2D.y);
-            
-            // 2. Find exact ground height
+
             Vector3? finalPosition = GetValidGroundPosition(worldPos, config);
 
             if (finalPosition.HasValue)
@@ -128,31 +126,22 @@ public class ProceduralPlacement : MonoBehaviour
             }
         }
     }
-
-    // --- FIX: Improved Ground Detection ---
     Vector3? GetValidGroundPosition(Vector3 position, SpawnConfiguration config)
     {
-        // 1. Raycast Down to find physical surface
         Vector3 rayStart = new Vector3(position.x, areaCenter.y + raycastHeight, position.z);
         if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, raycastHeight * 2f, config.spawnOnLayer))
         {
-            // 2. (Optional) Validate with NavMesh if needed, otherwise use Hit Point
             if (NavMesh.SamplePosition(hit.point, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))
             {
-                // Found valid NavMesh point near the raycast hit
+
                 Vector3 basePos = navHit.position;
-                
-                // 3. Apply Custom Y Offset
+
                 float randomOffset = Random.Range(config.minYOffset, config.maxYOffset);
                 return basePos + Vector3.up * randomOffset;
             }
-            // Fallback: Use Raycast hit if NavMesh fails (e.g. object is outside navmesh)
-            // Vector3 fallbackPos = hit.point;
-            // float fallbackOffset = Random.Range(config.minYOffset, config.maxYOffset);
-            // return fallbackPos + Vector3.up * fallbackOffset;
         }
 
-        return null; // No ground found
+        return null;
     }
 
     bool IsPositionClear(Vector3 position, float radius, SpawnConfiguration config)
@@ -163,8 +152,6 @@ public class ProceduralPlacement : MonoBehaviour
         foreach (var spawned in spawnedObjects)
         {
             float requiredDistance = spawned.radius + radius;
-            // Ignore Y difference for spawning logic? Or check 3D distance?
-            // Using 2D distance is usually safer for ground scatter to avoid stacking
             float distSqr = (new Vector2(position.x, position.z) - new Vector2(spawned.position.x, spawned.position.z)).sqrMagnitude;
             if (distSqr < requiredDistance * requiredDistance) return false;
         }

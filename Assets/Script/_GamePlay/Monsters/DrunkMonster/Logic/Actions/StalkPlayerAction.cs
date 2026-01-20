@@ -31,8 +31,6 @@ namespace CrashKonijn.Goap.MonsterGen
             
             startTime = Time.time;
             movingRight = Random.value > 0.5f; 
-            
-            // Initial move is always to try and get in range
             Move(); 
         }
 
@@ -51,7 +49,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (brain.CurrentPlayerTarget == null) return ActionRunState.Stop;
 
-            // --- THE CORE LOGIC: Re-evaluate move every time we arrive ---
             if (movement.HasArrivedOrStuck())
             {
                 Move();
@@ -64,8 +61,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement.Stop();
         }
-
-        // --- NEW: Central Move Logic ---
         private void Move()
         {
             if (brain.CurrentPlayerTarget == null) return;
@@ -73,13 +68,12 @@ namespace CrashKonijn.Goap.MonsterGen
             float distToPlayer = Vector3.Distance(navAgent.transform.position, brain.CurrentPlayerTarget.position);
 
             // PHASE 1: APPROACH
-            // If we are further than the ideal stalking range...
+
             if (distToPlayer > config.idealStalkingRange)
             {
                 movement.MoveTo(brain.CurrentPlayerTarget.position, config.investigateSpeed);
             }
             // PHASE 2: ORBIT
-            // If we are close enough, start pacing.
             else
             {
                 PickNewStalkPoint(navAgent.transform);
@@ -88,28 +82,25 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private void PickNewStalkPoint(Transform monster)
         {
-            // Calculate Progress (0.0 to 1.0)
+
             float stalkProgress = Mathf.Clamp01((Time.time - startTime) / config.maxChaseTime);
 
-            // Interpolate using Config variables
+
             float currentOrbitRange = Mathf.Lerp(config.maxStalkRange, config.minStalkRange, stalkProgress);
             float currentStalkSpeed = Mathf.Lerp(config.maxStalkSpeed, config.minStalkSpeed, stalkProgress);
 
-            // Calculate Target Position
             Vector3 toPlayer = brain.CurrentPlayerTarget.position - monster.position;
             Vector3 dirToPlayer = toPlayer.normalized;
             
             Vector3 right = Vector3.Cross(Vector3.up, dirToPlayer).normalized; 
             Vector3 moveDir = movingRight ? right : -right;
 
-            // Switch direction for next time
             movingRight = !movingRight; 
 
             Vector3 targetPos = monster.position + (moveDir * currentOrbitRange);
 
             if (Physics.Raycast(monster.position + Vector3.up, moveDir, 3.0f, config.obstacleLayerMask))
             {
-                // Blocked, try other side next time (will trigger on next HasArrived check)
                 return; 
             }
 

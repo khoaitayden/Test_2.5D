@@ -7,8 +7,8 @@ public class ObjectiveArt : MonoBehaviour, IInteractable
     [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
     
     [Header("Architecture")]
-    [SerializeField] private ArtRegistrySO artRegistry; // Drag "registry_ObjectiveArts"
-    [SerializeField] private TransformSetSO activeObjectivesSet; // Drag "set_ActiveObjectives"
+    [SerializeField] private ArtRegistrySO artRegistry;
+    [SerializeField] private TransformSetSO activeObjectivesSet;
 
     [Header("Visuals")]
     [SerializeField] private SpriteRenderer itemRenderer;
@@ -34,7 +34,6 @@ public class ObjectiveArt : MonoBehaviour, IInteractable
         if (artRegistry != null) artRegistry.Unregister(areaData);
         if (activeObjectivesSet != null) activeObjectivesSet.Remove(this.transform);
     }
-    // ---------------------------
 
     void Start()
     {
@@ -46,7 +45,6 @@ public class ObjectiveArt : MonoBehaviour, IInteractable
         hasItem = true;
         UpdateVisuals();
         
-        // Add back to Wisp
         if (activeObjectivesSet != null) activeObjectivesSet.Add(this.transform);
     }
 

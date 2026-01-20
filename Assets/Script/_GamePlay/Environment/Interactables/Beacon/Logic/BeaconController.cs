@@ -14,16 +14,14 @@ public class BeaconController : MonoBehaviour, IInteractable
     [Tooltip("The 4 SpriteRenderers representing the layers of the picture.")]
     [SerializeField] private SpriteRenderer[] pictureLayers;
 
-    // Track which layers are filled
     private bool[] filledLayers; 
 
     void Awake()
     {
-        // Initialize state
-        int layerCount = pictureLayers.Length; // Should be 4
+        int layerCount = pictureLayers.Length; 
         filledLayers = new bool[layerCount];
 
-        // Hide all layers initially
+
         foreach (var layer in pictureLayers)
         {
             if(layer != null) layer.enabled = false;
@@ -44,18 +42,15 @@ public class BeaconController : MonoBehaviour, IInteractable
     {
         if (area == null || area.associatedItem == null) return;
 
-        // Find which layer corresponds to this item
         int index = area.associatedItem.puzzleLayerIndex;
 
         if (index >= 0 && index < pictureLayers.Length)
         {
-            // Turn off the visual
             if (pictureLayers[index] != null)
             {
                 pictureLayers[index].enabled = false;
             }
 
-            // Mark as empty so player can place it again
             filledLayers[index] = false;
             
             Debug.Log($"[Beacon] Removed visual for {area.areaName} due to penalty.");

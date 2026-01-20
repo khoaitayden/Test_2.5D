@@ -10,7 +10,7 @@ public class TraceManager : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private float footstepDuration = 25f;
     [SerializeField] private float soulTraceDuration = 40f;
-    [SerializeField] private float enviromentNoiseDuration = 20f; // Duration for branches, doors, etc.
+    [SerializeField] private float enviromentNoiseDuration = 20f;
     [SerializeField] private int maxTraceCount;
 
     [Header("Debug")]
@@ -39,8 +39,6 @@ public class TraceManager : MonoBehaviour
     private void HandleNewTrace(Vector3 pos, TraceType type)
     {
         float duration = footstepDuration;
-        
-        // Assign duration based on type
         switch (type)
         {
             case TraceType.Soul_Collection: 
@@ -110,11 +108,11 @@ public class TraceManager : MonoBehaviour
 
                 // NEW: Environment Noises
                 case TraceType.EnviromentNoiseWeak:   
-                    Gizmos.color = new Color(0.5f, 1f, 0.5f, ratio); break; // Light Green (Subtle)
+                    Gizmos.color = new Color(0.5f, 1f, 0.5f, ratio); break;
                 case TraceType.EnviromentNoiseMedium: 
-                    Gizmos.color = new Color(1f, 0.5f, 0f, ratio); break; // Orange (Noticeable)
+                    Gizmos.color = new Color(1f, 0.5f, 0f, ratio); break;
                 case TraceType.EnviromentNoiseStrong: 
-                    Gizmos.color = new Color(0.5f, 0f, 0.5f, ratio); break; // Dark Purple (Loud/Dangerous)
+                    Gizmos.color = new Color(0.5f, 0f, 0.5f, ratio); break;
                 
                 default: Gizmos.color = new Color(1f, 1f, 1f, ratio); break;
             }

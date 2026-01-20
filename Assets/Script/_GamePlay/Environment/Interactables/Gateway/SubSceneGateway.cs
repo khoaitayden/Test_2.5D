@@ -14,8 +14,7 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
     [SerializeField] private TransformAnchorSO subSceneSpawnAnchor; 
     [SerializeField] private ObjectiveEventChannelSO objectiveEvents;
     
-    // NEW: The Set the Wisp reads from
-    [SerializeField] private TransformSetSO activeObjectivesSet; // Drag "set_ActiveObjectives"
+    [SerializeField] private TransformSetSO activeObjectivesSet; 
 
     [Header("Visuals")]
     [SerializeField] private GameObject doorVisuals; 
@@ -23,11 +22,9 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
     private bool isOpen = true;
     private bool isPlayerInside = false;
 
-    // --- INITIALIZATION ---
     void Start()
     {
-        // If the door is open at start, it should be a target for the Wisp
-        // (Assuming linear game progress, or you can check a save state here)
+
         if (isOpen && activeObjectivesSet != null)
         {
             activeObjectivesSet.Add(this.transform);
@@ -113,7 +110,6 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
         isOpen = false;
         UpdateVisuals();
         
-        // Note: We do NOT add back to set here, because the item is taken.
     }
 
     private void HandleAreaReset(AreaDefinitionSO area)
@@ -128,7 +124,6 @@ public class SubSceneGateway : MonoBehaviour, IInteractable
             
             UpdateVisuals();
 
-            // NEW: Add Door back to Wisp Targets (Player must try again)
             if (activeObjectivesSet != null) activeObjectivesSet.Add(this.transform);
         }
     }

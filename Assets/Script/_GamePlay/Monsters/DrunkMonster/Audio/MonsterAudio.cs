@@ -27,7 +27,6 @@ public class MonsterAudio : MonoBehaviour
 
     void Start()
     {
-        // Create the AudioSource once per lifetime of the object
         if (SoundManager.Instance && sfx_Breath)
         {
             _breathSource = SoundManager.Instance.CreateLoop(sfx_Breath, head ? head : transform);
@@ -52,7 +51,6 @@ public class MonsterAudio : MonoBehaviour
 
     void OnDisable()
     {
-        // 1. Kill the Roar Coroutine immediately
         StopAllCoroutines();
         
         // 2. Reset Flags
@@ -65,17 +63,15 @@ public class MonsterAudio : MonoBehaviour
             _breathSource.Stop();
         }
     }
-    // -----------------------------------
 
     void Update()
     {
         bool visible = brain.IsPlayerVisible;
         Vector3 pos = head ? head.position : transform.position;
 
-        // 1. Handle Breathing (Volume Ducking)
+        // 1. Handle Breathing
         if (_breathSource) 
         {
-            // Target is 0 if roaring OR if disabled/lost player (optional preference)
             float targetVol = (visible && !_isRoaring) ? sfx_Breath.volume : 0f;
             _breathSource.volume = Mathf.MoveTowards(_breathSource.volume, targetVol, Time.deltaTime * breathFadeSpeed);
         }
@@ -83,7 +79,6 @@ public class MonsterAudio : MonoBehaviour
         // 2. Handle Roaring
         if (visible && !_isRoaring)
         {
-            // Roar if: Just spotted player OR Timer is up
             if (!_wasVisible || Time.time >= _nextRoar) 
                 StartCoroutine(RoarRoutine(pos));
         }

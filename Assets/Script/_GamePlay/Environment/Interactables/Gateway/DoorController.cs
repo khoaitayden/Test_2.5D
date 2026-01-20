@@ -5,7 +5,7 @@ using UnityEngine;
 public class DoorController : MonoBehaviour, IInteractable
 {
     [Header("Dependencies")]
-    [SerializeField] private TraceEventChannelSO traceChannel; // Drag "channel_TraceEvents"
+    [SerializeField] private TraceEventChannelSO traceChannel;
 
     [Header("Audio")]
     [SerializeField] private SoundDefinition sfx_Open;
@@ -58,7 +58,7 @@ public class DoorController : MonoBehaviour, IInteractable
     {
         isBusy = true; 
         
-        // 1. EMIT NOISE (Medium radius because doors squeak/bang)
+        // 1. EMIT NOISE
         if (traceChannel != null)
             traceChannel.RaiseEvent(transform.position, TraceType.EnviromentNoiseMedium);
 

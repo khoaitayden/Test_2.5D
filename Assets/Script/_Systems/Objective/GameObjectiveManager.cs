@@ -19,8 +19,6 @@ public class GameObjectiveManager : MonoBehaviour
         objectiveEvents.OnAreaItemPickedUp += HandlePickup;
         objectiveEvents.OnAreaItemPlaced += HandlePlacement;
     }
-    
-    // Don't forget OnDisable!
     void OnDisable()
     {
         objectiveEvents.OnAreaItemPickedUp -= HandlePickup;
@@ -52,8 +50,6 @@ public class GameObjectiveManager : MonoBehaviour
     private void HandlePickup(AreaDefinitionSO area)
     {
         currentHeldAreaItem = area;
-        // isCarryingItem handled by PlayerItemCarrier script usually, 
-        // but if you want to force it:
         if (isCarryingItem) isCarryingItem.Value = true;
     }
 

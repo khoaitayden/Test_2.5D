@@ -13,13 +13,11 @@ public class PlayerItemCarrier : MonoBehaviour
 
     public bool HasItem => currentItem != null;
     public MissionItemSO CurrentItem => currentItem;
-    
-    // --- NEW HELPER FOR ANIMATION SCRIPT ---
+
     public SpriteRenderer GetBackSpriteRenderer()
     {
         return backSpriteRenderer;
     }
-    // ---------------------------------------
 
     void Start()
     {

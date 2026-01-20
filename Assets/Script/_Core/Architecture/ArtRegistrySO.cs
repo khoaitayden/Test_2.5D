@@ -4,7 +4,6 @@ using System.Collections.Generic;
 [CreateAssetMenu(menuName = "Architecture/Art Registry")]
 public class ArtRegistrySO : ScriptableObject
 {
-    // Dictionary mapping Area -> The Art Script
     private Dictionary<AreaDefinitionSO, ObjectiveArt> registry = new Dictionary<AreaDefinitionSO, ObjectiveArt>();
 
     public void Register(AreaDefinitionSO area, ObjectiveArt art)
@@ -15,7 +14,7 @@ public class ArtRegistrySO : ScriptableObject
         }
         else
         {
-            registry[area] = art; // Overwrite if reloading scene
+            registry[area] = art;
         }
     }
 

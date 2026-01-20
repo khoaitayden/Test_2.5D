@@ -14,7 +14,6 @@ public class PlayerAnimation : MonoBehaviour
     private Animator animator;
     private Transform mainCameraTransform;
 
-    // Animator Hashes
     private readonly int animHorizontal = Animator.StringToHash("HorizontalInput");
     private readonly int animVertical = Animator.StringToHash("VerticalInput");
     private readonly int animSpeed = Animator.StringToHash("Speed");
@@ -35,21 +34,19 @@ public class PlayerAnimation : MonoBehaviour
 
     void LateUpdate()
     {
-        // 1. Rotate sprite to face camera
         HandleBillboarding();
 
-        // 2. Determine animation states
+
         bool isClimbing = IsPlayerClimbing();
         Vector2 animInput = CalculateAnimationDirection(isClimbing);
 
-        // 3. Send data to Animator
+
         UpdateAnimatorParameters(animInput, isClimbing);
 
-        // 4. Sort carried items (Behind or In Front of player)
+
         UpdateItemSorting(animInput.y);
     }
 
-    // --- HELPER METHODS ---
 
     private void HandleBillboarding()
     {
@@ -67,7 +64,6 @@ public class PlayerAnimation : MonoBehaviour
 
     private Vector2 CalculateAnimationDirection(bool isClimbing)
     {
-        // CASE A: Climbing (Always show Back Sprite)
         if (isClimbing)
         {
             return new Vector2(0f, 1.0f); // x=Horizontal, y=Vertical
@@ -103,9 +99,6 @@ public class PlayerAnimation : MonoBehaviour
 
         SpriteRenderer itemRenderer = itemCarrier.GetBackSpriteRenderer();
         if (itemRenderer == null) return;
-
-        // Vertical > 0.1 means facing AWAY from camera (Back view) -> Item on top
-        // Vertical < 0.1 means facing TOWARDS camera (Front view) -> Item behind
         if (verticalVal > 0.1f) 
         {
             itemRenderer.sortingOrder = playerBodyRenderer.sortingOrder + 1;

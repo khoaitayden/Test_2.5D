@@ -24,7 +24,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
     private float currentEnergy;
     private float lastDrainTime = 0f;
     
-    // Track if we are specifically lit by the Wisp
     private bool isLitByWisp = false;
 
     void Start()
@@ -63,14 +62,12 @@ public class TombstoneController : MonoBehaviour, ILitObject
 
     public void OnLit(LightSourceType sourceType)
     {
-        // FILTER: Only the Wisp can light up/activate the Tombstone
         if (sourceType == LightSourceType.Wisp)
         {
             isLitByWisp = true;
             lastDrainTime = Time.time;
             PlayTransferParticles();
         }
-        // If Flashlight hits this, nothing happens (or you could add a different visual effect here)
     }
 
     public void OnUnlit(LightSourceType sourceType)
@@ -82,11 +79,8 @@ public class TombstoneController : MonoBehaviour, ILitObject
         }
     }
 
-    // -------------------------------
-
     public void DrainEnergy(float deltaTime)
     {
-        // Only allow drain if lit by Wisp
         if (!isLitByWisp || currentEnergy <= 0f)
         {
             StopTransferParticles();
@@ -102,7 +96,6 @@ public class TombstoneController : MonoBehaviour, ILitObject
     {
         if (currentEnergy <= 0f) return;
         
-        // Only emit trace if actually draining
         traceChannel.RaiseEvent(transform.position, TraceType.Soul_Collection);
         currentEnergy -= amount;
         if (currentEnergy < 0f) currentEnergy = 0f;

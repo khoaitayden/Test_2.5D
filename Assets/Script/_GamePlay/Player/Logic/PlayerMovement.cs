@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // For coroutines
+using System.Collections;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
@@ -19,12 +19,10 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float acceleration = 10f;
     [SerializeField] private float deceleration = 15f;
 
-    // Internal State
     private Vector3 horizontalVelocity = Vector3.zero;
     private float environmentSpeedMultiplier = 1f; 
     private Coroutine slowCoroutine;
 
-    // Public API
     public Vector3 WorldSpaceMoveDirection { get; private set; }
     public float CurrentHorizontalSpeed => horizontalVelocity.magnitude;
     public bool IsMoving => CurrentHorizontalSpeed > 0.01f;
@@ -46,17 +44,13 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // 1. Calculate Direction relative to Camera
         WorldSpaceMoveDirection = GetCameraRelativeInput();
 
-        // 2. Rotate Player
         HandleRotation();
 
-        // 3. Calculate Speed & Velocity
         float targetSpeed = CalculateTargetSpeed();
         CalculateHorizontalVelocity(targetSpeed);
 
-        // 4. Move Controller
         controller.Move(horizontalVelocity * Time.deltaTime);
         
     }
@@ -88,10 +82,8 @@ public class PlayerMovement : MonoBehaviour
 
     private float CalculateTargetSpeed()
     {
-        // Base Speed
         float speed = baseMoveSpeed;
 
-        // Modifiers
         bool hasEnergy = currentEnergy.Value > 0;
         
         if (!hasEnergy)
@@ -113,13 +105,11 @@ public class PlayerMovement : MonoBehaviour
     private void CalculateHorizontalVelocity(float targetSpeed)
     {
         Vector3 targetVel = WorldSpaceMoveDirection * targetSpeed;
-        
-        // Acceleration / Deceleration
+
         float accelRate = (WorldSpaceMoveDirection.sqrMagnitude > 0.01f) ? acceleration : deceleration;
         
         horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetVel, accelRate * Time.deltaTime);
 
-        // Snap to zero if very slow
         if (horizontalVelocity.sqrMagnitude < 0.01f) horizontalVelocity = Vector3.zero;
     }
 

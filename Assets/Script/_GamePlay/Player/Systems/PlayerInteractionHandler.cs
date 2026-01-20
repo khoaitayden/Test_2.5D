@@ -13,7 +13,6 @@ public class PlayerInteractionHandler : MonoBehaviour
     {
         if (mainCameraTransform == null) mainCameraTransform = Camera.main.transform;
 
-        // Subscribe to Input
         if (InputManager.Instance != null)
         {
             InputManager.Instance.OnInteractTriggered += TryInteract;
@@ -52,7 +51,6 @@ public class PlayerInteractionHandler : MonoBehaviour
         currentInteractable = null;
     }
 
-    // Called when 'E' is pressed
     private void TryInteract()
     {
         if (currentInteractable == null) return;
