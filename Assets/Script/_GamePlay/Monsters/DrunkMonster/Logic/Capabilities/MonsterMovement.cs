@@ -64,15 +64,15 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 
             float[] searchRadii = new float[] { 
                 5.0f, 
-                config != null ? config.traceNavMeshSnapRadius : 10f, 
-                config != null ? config.traceNavMeshFallbackRadius : 20f,
+                config.traceNavMeshSnapRadius, 
+                config.traceNavMeshFallbackRadius,
                 50.0f 
             };
 
             NavMeshHit hit;
             for (int i = 0; i < searchRadii.Length; i++)
             {
-                if (NavMesh.SamplePosition(targetPos, out hit, searchRadii[i], NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(targetPos, out hit, searchRadii[i], agent.areaMask))
                 {
                     finalDestination = hit.position;
                     foundValidPoint = true;
@@ -87,15 +87,14 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 return false; 
             }
 
-            // --- 2. CHECK REACHABILITY (Wall Hugging) ---
             NavMeshPath path = new NavMeshPath();
             agent.CalculatePath(finalDestination, path);
 
-            if (path.status == NavMeshPathStatus.PathInvalid)
-            {
-                agent.ResetPath();
-                return false;
-            }
+            // if (path.status == NavMeshPathStatus.PathInvalid)
+            // {
+            //     agent.ResetPath();
+            //     return false;
+            // }
 
             if (path.status == NavMeshPathStatus.PathPartial)
             {
@@ -106,7 +105,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 }
             }
 
-            // --- 3. EXECUTE ---
             if (Vector3.Distance(transform.position, finalDestination) < 1.0f)
             {
                 return false;
