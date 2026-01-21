@@ -5,7 +5,9 @@ public class DirtyMonsterBody : MonoBehaviour
     [Header("Kill Settings")]
     [Tooltip("How much higher the player needs to be to kill the monster")]
     [SerializeField] private float killHeightOffset;
-    
+    [SerializeField] private float slowDuration;
+    [SerializeField] private float slowMultiplier;
+
     [Header("Effects")]
     [SerializeField] private ParticleSystem deathVFX;
     // [SerializeField] private SoundDefinition deathSFX;
@@ -21,18 +23,11 @@ public class DirtyMonsterBody : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
+            PlayerMovement movement = other.GetComponent<PlayerMovement>();
+            movement.ApplyEnvironmentalSlow(slowMultiplier, slowDuration);
             CheckSquish(other.transform);
         }
     }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Player"))
-        {
-            CheckSquish(collision.transform);
-        }
-    }
-
     private void CheckSquish(Transform player)
     {
         float myTop = transform.position.y + (_myCollider.bounds.size.y / 2f);
