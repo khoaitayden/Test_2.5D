@@ -3,7 +3,6 @@ using System.Collections;
 
 public class EyeMonsterManager : MonoBehaviour
 {
-
     [Header("Data & Events")]
     [SerializeField] private FloatVariableSO currentEnergy;
     [SerializeField] private FloatVariableSO maxEnergy;
@@ -14,8 +13,12 @@ public class EyeMonsterManager : MonoBehaviour
     [Header("Dependencies")]
     [SerializeField] private GameObject eyeObject;
 
+    [Header("Timings")]
+    [SerializeField] private float firstSpawnDelay = 2.0f; // Small buffer after enable before 1st spawn
     [SerializeField] private float minSpawnInterval = 180f;
     [SerializeField] private float maxSpawnInterval = 240f;
+
+    [Header("Spawn Chance")]
     [Range(0f, 1f)] [SerializeField] private float chanceAtFullLight = 0.05f;
     [Range(0f, 1f)] [SerializeField] private float chanceAtNoLight = 0.40f;
     [SerializeField] private float radiusAtFullLight = 30f;
@@ -24,14 +27,16 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private float maxSpawnHeight = 4.0f;
 
     [Header("Collision Safety")]
-    [Tooltip("Layers that the Eye cannot spawn inside (Trees, Buildings, Walls)")]
     [SerializeField] private LayerMask obstacleLayers; 
-    [Tooltip("Radius of the empty space required around the Eye")]
     [SerializeField] private float spawnSafetyRadius = 0.8f;
 
     private bool isUnlocked = false;
+    private bool _hasSpawnedOnce = false; // Tracks if the guaranteed spawn happened
+
     void OnEnable()
     {
+        // Reset the flag so every time we Enable, we get a guaranteed spawn again
+        _hasSpawnedOnce = false;
         UnlockEyeSpawning();
     }
 
@@ -50,33 +55,69 @@ public class EyeMonsterManager : MonoBehaviour
 
     private IEnumerator SpawnTimer()
     {
+        // --- PHASE 1: GUARANTEED FIRST SPAWN ---
+        if (!_hasSpawnedOnce)
+        {
+            // Optional: Small delay so it doesn't pop in the millisecond the scene loads
+            yield return new WaitForSeconds(firstSpawnDelay);
+
+            // Keep trying rapidly until we find a valid position
+            while (!_hasSpawnedOnce && isUnlocked)
+            {
+                // Force = true (Skip RNG check)
+                bool success = TrySpawn(forceSpawn: true);
+                
+                if (success)
+                {
+                    _hasSpawnedOnce = true;
+                }
+                else
+                {
+                    // If position was invalid, wait 1 second and try again
+                    // We don't want to wait 180 seconds if the first attempt hit a wall
+                    yield return new WaitForSeconds(1.0f);
+                }
+            }
+        }
+
+        // --- PHASE 2: NORMAL RNG LOOP ---
         while (isUnlocked)
         {
             float waitTime = Random.Range(minSpawnInterval, maxSpawnInterval);
             yield return new WaitForSeconds(waitTime);
-            TrySpawn();
+            
+            // Force = false (Respect RNG check)
+            TrySpawn(forceSpawn: false);
         }
     }
 
-    private void TrySpawn()
+    // Changed return type to BOOL to know if it worked
+    private bool TrySpawn(bool forceSpawn)
     {
-        if (eyeObject.activeSelf) return;
+        if (eyeObject.activeSelf) return false;
 
         float lightFraction = 0f;
         if (maxEnergy.Value > 0) lightFraction = currentEnergy.Value / maxEnergy.Value;
 
-        float currentSpawnChance = Mathf.Lerp(chanceAtNoLight, chanceAtFullLight, lightFraction);
-
-        if (Random.value > currentSpawnChance) return;
+        // SKIP RNG check if forceSpawn is true
+        if (!forceSpawn)
+        {
+            float currentSpawnChance = Mathf.Lerp(chanceAtNoLight, chanceAtFullLight, lightFraction);
+            if (Random.value > currentSpawnChance) return false; // RNG Failed
+        }
 
         float currentRadius = Mathf.Lerp(radiusAtNoLight, radiusAtFullLight, lightFraction);
         Vector3 spawnPos = FindValidPosition(currentRadius);
+
         if (spawnPos != Vector3.zero)
         {
             eyeObject.transform.position = spawnPos;
             eyeObject.SetActive(true);
             if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(1);
+            return true; // Success
         }
+
+        return false; // Failed to find position
     }
 
     private Vector3 FindValidPosition(float radius)
@@ -97,11 +138,11 @@ public class EyeMonsterManager : MonoBehaviour
 
                 if (Physics.CheckSphere(finalPos, spawnSafetyRadius, obstacleLayers))
                 {
-                    continue; // Blocked! Try next random spot.
+                    continue; 
                 }
 
                 Vector3 toEye = finalPos - playerTx.position;
-                if (!Physics.Raycast(playerTx.position, toEye.normalized, toEye.magnitude * 0.9f)) // 0.9f to avoid hitting the eye itself
+                if (!Physics.Raycast(playerTx.position, toEye.normalized, toEye.magnitude * 0.9f))
                 {
                     return finalPos; 
                 }
@@ -113,20 +154,23 @@ public class EyeMonsterManager : MonoBehaviour
     public void DespawnEye()
     {
         SetExposureState(false);
-        if (eyeObject != null) eyeObject.SetActive(false);
         
-        if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(-1);
+        // Only decrement if it was actually active to prevent negative counts
+        if (eyeObject != null && eyeObject.activeSelf)
+        {
+            eyeObject.SetActive(false);
+            if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(-1);
+        }
     }
     
     public void SetExposureState(bool exposed)
     {
         if (isPlayerExposed != null) isPlayerExposed.Value = exposed;
-        
     }
 
     [ContextMenu("Force Spawn Attempt")]
     private void ForceSpawn()
     {
-        TrySpawn();
+        TrySpawn(true);
     }
 }
