@@ -947,6 +947,7 @@ GameObject:
   - component: {fileID: 2694816387590908172}
   - component: {fileID: 7118398462319788790}
   - component: {fileID: 5648656865604638260}
+  - component: {fileID: 8797659697632984727}
   m_Layer: 0
   m_Name: DirtyMonster
   m_TagString: Untagged
@@ -1100,7 +1101,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DirtyMonsterBody
   killHeightOffset: 0.5
+  slowDuration: 2
+  slowMultiplier: 0.2
   deathVFX: {fileID: 0}
+  sfx_Death: {fileID: 11400000, guid: 461b354bd8335f9db9ff7f3a3950e6bd, type: 2}
+--- !u!114 &8797659697632984727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8609789779895620012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9979867f05a8be86c8c90964b1db5bb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DirtyMonsterAudio
+  sfx_Land: {fileID: 11400000, guid: 2b29c062fb1277b0488199ad344e2eb5, type: 2}
+  sfx_Attack: {fileID: 11400000, guid: 666ad430c6210a545aca6175a347ce5a, type: 2}
 --- !u!1 &8845283040679025984
 GameObject:
   m_ObjectHideFlags: 0

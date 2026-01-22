@@ -10,7 +10,7 @@ public class DirtyMonsterBody : MonoBehaviour
 
     [Header("Effects")]
     [SerializeField] private ParticleSystem deathVFX;
-    // [SerializeField] private SoundDefinition deathSFX;
+    [SerializeField] private SoundDefinition sfx_Death;
 
     private Collider _myCollider;
 
@@ -41,11 +41,19 @@ public class DirtyMonsterBody : MonoBehaviour
 
     public void Die()
     {
+        // 1. Play Visuals
         if (deathVFX != null)
         {
             Instantiate(deathVFX, transform.position, Quaternion.identity);
         }
 
+        // 2. NEW: Play Sound
+        if (SoundManager.Instance != null && sfx_Death != null)
+        {
+            SoundManager.Instance.PlaySound(sfx_Death, transform.position);
+        }
+
+        // 3. Return to Pool
         gameObject.SetActive(false);
     }
 }

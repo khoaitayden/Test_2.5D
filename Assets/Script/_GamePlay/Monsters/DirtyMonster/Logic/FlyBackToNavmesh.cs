@@ -51,8 +51,15 @@ public partial class FlyBackToNavMesh : Action
             trans.rotation = Quaternion.Slerp(trans.rotation, lookRot, Time.deltaTime * 5f);
         }
 
+        // Check Arrival
         if (Vector3.Distance(trans.position, _targetLandPosition) < 0.2f)
         {
+            var audio = Agent.Value.GetComponent<DirtyMonsterAudio>();
+            if (audio != null)
+            {
+                audio.PlayLandSound();
+            }
+
             return Status.Success;
         }
 

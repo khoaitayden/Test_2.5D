@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class PlayerItemCarrier : MonoBehaviour
 {
-    [Header("State Data")]
-    [SerializeField] private BoolVariableSO isCarryingItem;
     [Header("Visuals")]
     [Tooltip("The SpriteRenderer on the player's back")]
     [SerializeField] private SpriteRenderer backSpriteRenderer;
@@ -11,9 +9,12 @@ public class PlayerItemCarrier : MonoBehaviour
     [Header("Current Inventory")]
     [SerializeField] private MissionItemSO currentItem;
 
+    [Header("State Data")]
+    [SerializeField] private BoolVariableSO isCarryingItem;
+
     public bool HasItem => currentItem != null;
     public MissionItemSO CurrentItem => currentItem;
-
+    
     public SpriteRenderer GetBackSpriteRenderer()
     {
         return backSpriteRenderer;
@@ -21,26 +22,21 @@ public class PlayerItemCarrier : MonoBehaviour
 
     void Start()
     {
+        // RESET ON START
+        currentItem = null; // Clear internal item
         UpdateVisuals();
+        UpdateState(); 
     }
 
     public MissionItemSO SwapItem(MissionItemSO newItem)
     {
         MissionItemSO oldItem = currentItem;
         currentItem = newItem;
-        
         UpdateVisuals();
-        UpdateState(); // NEW
-        
+        UpdateState();
         return oldItem;
     }
-    private void UpdateState()
-    {
-        if (isCarryingItem != null)
-        {
-            isCarryingItem.Value = (currentItem != null);
-        }
-    }
+
     private void UpdateVisuals()
     {
         if (currentItem != null)
@@ -52,6 +48,14 @@ public class PlayerItemCarrier : MonoBehaviour
         {
             backSpriteRenderer.sprite = null;
             backSpriteRenderer.enabled = false;
+        }
+    }
+
+    private void UpdateState()
+    {
+        if (isCarryingItem != null)
+        {
+            isCarryingItem.Value = (currentItem != null);
         }
     }
 }

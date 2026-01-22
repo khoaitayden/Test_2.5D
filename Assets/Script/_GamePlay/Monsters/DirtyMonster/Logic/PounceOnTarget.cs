@@ -43,6 +43,12 @@ public partial class PounceOnTarget : Action
 
         Animator.Value.SetBool(IsFlying.Value, true);
 
+        var audio = Agent.Value.GetComponent<DirtyMonsterAudio>();
+            if (audio != null)
+            {
+                audio.PlayAttackSound();
+            }
+
         return Status.Running;
     }
 
