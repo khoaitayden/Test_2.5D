@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.Events;
 
 public class PlayerState : MonoBehaviour
 {
@@ -10,27 +8,56 @@ public class PlayerState : MonoBehaviour
     [SerializeField] private CharacterController controller;
     [SerializeField] private TransformAnchorSO respawnPointAnchor;
 
+    // NEW: Reference the SCENE OBJECT, not a prefab
+    [SerializeField] private VoidAngelSequence voidAngelSceneObject;
+
     [Header("State")]
     [SerializeField] private bool isDead = false;
 
     [Header("Settings")]
     [SerializeField] private float deathDelayOnEmptyEnergy = 5.0f;
+    [SerializeField] private float voidDeathYThreshold = -40f;
+
     [Header("Events")]
     [SerializeField] private GameEventSO onDeathEvent; 
 
-    // Public API
     public bool IsDead => isDead;
+
+    void Update()
+    {
+        // Void Check
+        if (transform.position.y < voidDeathYThreshold && !isDead)
+        {
+            TriggerVoidDeath();
+        }
+    }
+
+    private void TriggerVoidDeath()
+    {
+        Debug.Log("Fallen into Void...");
+        isDead = true;
+
+
+        if (voidAngelSceneObject != null)
+        {
+            voidAngelSceneObject.StartSequence(this.transform, Camera.main);
+        }
+        else
+        {
+            // Fallback if you forgot to assign it
+            Die();
+        }
+    }
 
     public void GotAttack()
     {
         if (isDead) return;
-
-        Die();
+        Die(); // Normal death (Monster hit)
     }
 
     private void Die()
     {
-        Debug.Log("Player Died!");
+        Debug.Log("Player Died (Normal)!");
         isDead = true;
 
         Cursor.lockState = CursorLockMode.None;
@@ -43,9 +70,9 @@ public class PlayerState : MonoBehaviour
     public IEnumerator OnEmptyEnergyRoutine()
     {
         yield return new WaitForSeconds(deathDelayOnEmptyEnergy);
-        Die();
-        yield return null;
+        Die(); // Energy death uses normal screen
     }
+
     public void RevivePlayer()
     {
         Debug.Log("Reviving Player...");
@@ -57,7 +84,6 @@ public class PlayerState : MonoBehaviour
             transform.position = respawnPointAnchor.Value.position;
             controller.enabled = true;
         }
-
     }
 
     public void OnEmptyEnergy()
@@ -67,10 +93,9 @@ public class PlayerState : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (isDead == false && other.CompareTag("Monster"))
+        if (!isDead && other.CompareTag("Monster"))
         {
             GotAttack();
         }
     }
-
 }

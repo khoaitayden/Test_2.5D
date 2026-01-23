@@ -8,6 +8,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Main map 1.unity
     guid: 3256f230bdabfbd4194b7356af567c7c
+  - enabled: 1
+    path: Assets/Scenes/House Map 1.unity
+    guid: 93b53578ca7b8fa05b0b9a21b6699ff1
+  - enabled: 1
+    path: Assets/Scenes/School Map 1.unity
+    guid: 3fec8e09bc8849188b8c43c709236849
+  - enabled: 1
+    path: Assets/Scenes/Sewer Map 1.unity
+    guid: 7af59baa0a1abb2bea89035709ce6c99
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
