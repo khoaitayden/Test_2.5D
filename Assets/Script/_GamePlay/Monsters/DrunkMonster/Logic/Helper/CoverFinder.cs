@@ -6,14 +6,14 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
 {
     public class CoverFinder : MonoBehaviour
     {
-        [SerializeField] private MonsterConfig config;
+        [SerializeField] private DrunkMonsterConfig config;
         private Queue<Vector3> searchQueue = new Queue<Vector3>();
 
         public bool HasPoints => searchQueue.Count > 0;
 
         private void Awake()
         {
-            if (config == null) config = GetComponent<MonsterConfig>();
+            if (config == null) config = GetComponent<DrunkMonsterConfig>();
         }
 
         public Vector3 GetCurrentPoint()

@@ -31,8 +31,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 2. Stalk Player (Fallback if visible but unreachable)
-            builder.AddAction<StalkPlayerAction>()
+            // 2. Taunt Player 
+            builder.AddAction<TauntPlayerAction>()
                 .SetTarget<PlayerTarget>()
                 .AddEffect<IsPlayerReachable>(EffectType.Increase) 
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
