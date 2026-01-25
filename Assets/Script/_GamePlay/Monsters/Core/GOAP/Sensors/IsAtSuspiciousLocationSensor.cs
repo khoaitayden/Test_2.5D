@@ -10,7 +10,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterBrain brain;
         private DrunkMonsterConfig config;
-        private CoverFinder coverFinder;
+        private HideSpotFinder coverFinder;
 
         public override void Created() { }
         public override void Update() { }
@@ -19,7 +19,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
             if (config == null) config = references.GetCachedComponent<DrunkMonsterConfig>();
-            if (coverFinder == null) coverFinder = references.GetCachedComponent<CoverFinder>();
+            if (coverFinder == null) coverFinder = references.GetCachedComponent<HideSpotFinder>();
             
             if (brain == null || brain.LastKnownPlayerPosition == Vector3.zero) return 0;
 

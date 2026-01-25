@@ -6,9 +6,11 @@ public class MonsterConfigBase : MonoBehaviour
     public float patrolSpeed = 2f;
     public float chaseSpeed = 6f;
     public float investigateSpeed = 3.5f;
+
     [Header("Patrol Behavior")]
     public float minPatrolDistance = 5f; 
     public float maxPatrolDistance = 20f; 
+    
     [Header("Senses")]
     public float viewRadius = 20f;
     [Range(0, 360)] public float ViewAngle = 120f;

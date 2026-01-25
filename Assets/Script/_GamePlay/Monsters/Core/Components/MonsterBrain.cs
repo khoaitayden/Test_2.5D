@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
@@ -9,7 +10,10 @@ public class MonsterBrain : MonoBehaviour
     [Header("Architecture Dependencies")]
     [SerializeField] private TraceStorageSO traceStorage;
     [SerializeField] private TransformAnchorSO playerAnchor;
-
+    
+    [Header("Monster Agent")]
+    [SerializeField] private string agentType;
+    
     public TraceStorageSO TraceStorage => traceStorage;
     public TransformAnchorSO PlayerAnchor => playerAnchor;
     public bool IsPlayerVisible { get; private set; }
@@ -33,8 +37,8 @@ public class MonsterBrain : MonoBehaviour
         yield return null; 
         if (provider.AgentType == null)
         {
-            var goap = Object.FindFirstObjectByType<GoapBehaviour>();
-            if (goap != null) provider.AgentType = goap.GetAgentType("ScriptMonsterAgent");
+            var goap = FindFirstObjectByType<GoapBehaviour>();
+            if (goap != null) provider.AgentType = goap.GetAgentType(agentType);
         }
         UpdateGOAPState(); 
         provider.enabled = true;

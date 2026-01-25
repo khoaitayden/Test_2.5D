@@ -9,7 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen
     public class SearchSurroundingsAction : GoapActionBase<SearchSurroundingsAction.Data>
     {
         private MonsterMovement movement; 
-        private CoverFinder coverFinder;
+        private HideSpotFinder coverFinder;
         private DrunkMonsterConfig config;
         private MonsterBrain brain;
 
@@ -18,7 +18,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void Start(IMonoAgent agent, Data data)
         {
             movement = agent.GetComponent<MonsterMovement>();
-            coverFinder = agent.GetComponent<CoverFinder>();
+            coverFinder = agent.GetComponent<HideSpotFinder>();
             config = agent.GetComponent<DrunkMonsterConfig>();
             brain = agent.GetComponent<MonsterBrain>();
 

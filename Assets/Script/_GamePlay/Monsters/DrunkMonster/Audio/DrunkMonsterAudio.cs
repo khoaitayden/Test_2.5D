@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class MonsterAudio : MonoBehaviour
+public class DrunkMonsterAudio : MonoBehaviour
 {
     [Header("Setup")]
     [SerializeField] private MonsterBrain brain;

@@ -4,7 +4,7 @@ using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen.Capabilities
 {
-    public class CoverFinder : MonoBehaviour
+    public class HideSpotFinder : MonoBehaviour
     {
         [SerializeField] private DrunkMonsterConfig config;
         private Queue<Vector3> searchQueue = new Queue<Vector3>();

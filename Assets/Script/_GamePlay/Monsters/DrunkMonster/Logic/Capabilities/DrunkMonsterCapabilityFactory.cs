@@ -4,11 +4,11 @@ using CrashKonijn.Agent.Core;
 
 namespace CrashKonijn.Goap.MonsterGen.Capabilities
 {
-    public class MonsterCapabilityFactory : CapabilityFactoryBase
+    public class DrunkMonsterCapabilityFactory : CapabilityFactoryBase
     {
         public override ICapabilityConfig Create()
         {
-            var builder = new CapabilityBuilder("MonsterCapability");
+            var builder = new CapabilityBuilder("DrunkMonsterCapability");
 
             // --- GOAL ---
             builder.AddGoal<KillPlayerGoal>()

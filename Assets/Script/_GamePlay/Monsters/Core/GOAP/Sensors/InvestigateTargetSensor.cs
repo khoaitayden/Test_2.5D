@@ -8,7 +8,7 @@ namespace CrashKonijn.Goap.MonsterGen
     public class InvestigateTargetSensor : LocalTargetSensorBase
     {
         private MonsterBrain brain;
-        private CoverFinder coverFinder;
+        private HideSpotFinder coverFinder;
         private DrunkMonsterConfig config;
 
         public override void Created() { }
@@ -17,7 +17,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
-            if (coverFinder == null) coverFinder = references.GetCachedComponent<CoverFinder>();
+            if (coverFinder == null) coverFinder = references.GetCachedComponent<HideSpotFinder>();
             if (config == null) config = references.GetCachedComponent<DrunkMonsterConfig>();
 
             if (brain == null || !brain.IsInvestigating || brain.LastKnownPlayerPosition == Vector3.zero)

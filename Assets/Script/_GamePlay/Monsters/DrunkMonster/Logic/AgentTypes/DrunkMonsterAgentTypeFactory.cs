@@ -7,9 +7,9 @@ public class MonsterAgentTypeFactory : AgentTypeFactoryBase
 {
     public override IAgentTypeConfig Create()
     {
-    var factory = new AgentTypeBuilder("ScriptMonsterAgent");
+    var factory = new AgentTypeBuilder("DrunkMonsterAgent");
 
-            factory.AddCapability<MonsterCapabilityFactory>();
+            factory.AddCapability<DrunkMonsterCapabilityFactory>();
 
             return factory.Build();
         }
