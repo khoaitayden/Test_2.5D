@@ -17,6 +17,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public bool IsSlowWalking { get; private set; }
     public bool IsJumpHeld { get; private set; }
     public bool IsFlashlightHeld { get; private set; }
+    public Vector2 LookInput { get; private set; }
 
     public event Action OnJumpTriggered;
     public event Action OnJumpReleased;
@@ -53,7 +54,10 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
             _isWispSwitchDown = false;
         }
     }
-
+    public void OnLook(InputAction.CallbackContext context)
+    {
+        LookInput = context.ReadValue<Vector2>();
+    }
     private void Update()
     {
         if (_isWispSwitchDown && !_wispHoldEventFired)
