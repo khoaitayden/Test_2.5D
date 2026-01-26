@@ -52,10 +52,6 @@ public class MonsterVision : MonoBehaviour
         // 1. GLOBAL OVERRIDE CHECK
         if (isPlayerExposed != null && isPlayerExposed.Value)
         {
-            // If the Eye exposes the player, this monster technically "sees" them too.
-            // But usually, the EyeManager handles the count for the Eye itself.
-            // Let's stick to local vision logic so we don't double count unnecessarily,
-            // OR simply update brain and return.
             
             if (playerAnchor != null && playerAnchor.Value != null)
             {
