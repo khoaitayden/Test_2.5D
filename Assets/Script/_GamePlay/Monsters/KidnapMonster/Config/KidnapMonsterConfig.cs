@@ -9,6 +9,10 @@ public class KidnapMonsterConfig : MonsterConfigBase
 
     [Tooltip("How much Player Energy to drain on kidnap (0.5 = 50%)")]
     public float energyDrainPercent = 0.5f;
+    
+    [Header("Data References")]
+    public FloatVariableSO currentEnergy;
+    public FloatVariableSO maxEnergy;
 
     [Header("Ambush Logic")]
     [Tooltip("How close the monster gets before hiding")]

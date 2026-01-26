@@ -5,7 +5,6 @@ public class MonsterVision : MonoBehaviour
 {
     [Header("Data")]
     [SerializeField] private BoolVariableSO isPlayerExposed;
-    [SerializeField] private TransformAnchorSO playerAnchor;
     [SerializeField] private IntVariableSO monstersWatchingCount;
     [Header("Settings")]
     [SerializeField] private MonsterConfigBase config;
@@ -52,11 +51,10 @@ public class MonsterVision : MonoBehaviour
         // 1. GLOBAL OVERRIDE CHECK
         if (isPlayerExposed != null && isPlayerExposed.Value)
         {
-            
-            if (playerAnchor != null && playerAnchor.Value != null)
+            if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null)
             {
-                brain.OnPlayerSeen(playerAnchor.Value);
-                UpdateWatchingStatus(true); // Treat as seen
+                brain.OnPlayerSeen(brain.PlayerAnchor.Value);
+                UpdateWatchingStatus(true);
                 return;
             }
         }

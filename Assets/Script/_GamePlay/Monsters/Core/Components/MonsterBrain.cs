@@ -7,15 +7,12 @@ using UnityEngine;
 
 public class MonsterBrain : MonoBehaviour
 {
-    [Header("Architecture Dependencies")]
-    [SerializeField] private TraceStorageSO traceStorage;
-    [SerializeField] private TransformAnchorSO playerAnchor;
     
     [Header("Monster Agent")]
     [SerializeField] private string agentType;
-    
-    public TraceStorageSO TraceStorage => traceStorage;
-    public TransformAnchorSO PlayerAnchor => playerAnchor;
+    private MonsterConfigBase config;
+    public TraceStorageSO TraceStorage => config?.traceStorage;
+    public TransformAnchorSO PlayerAnchor => config?.playerAnchor;
     public bool IsPlayerVisible { get; private set; }
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
@@ -28,8 +25,11 @@ public class MonsterBrain : MonoBehaviour
     
     private void Awake()
     {
+        // Get references to other components on this GameObject
         provider = GetComponent<GoapActionProvider>();
+        config = GetComponent<MonsterConfigBase>(); 
         if (provider != null) provider.enabled = false;
+
     }
 
     private IEnumerator Start()

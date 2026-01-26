@@ -14,6 +14,8 @@ namespace CrashKonijn.Goap.MonsterGen
     public class IsAtSuspiciousLocation : WorldKeyBase {}
     public class IsTrackingTrace : WorldKeyBase {}
     public class HasInvestigated : WorldKeyBase {}
+    public class HasKidnappedPlayer : WorldKeyBase {}
+    
 
     // --- TARGET KEYS (Destinations) ---
     public class PlayerTarget : TargetKeyBase {}
