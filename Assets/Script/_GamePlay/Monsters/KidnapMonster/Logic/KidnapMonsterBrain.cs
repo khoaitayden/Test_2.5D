@@ -10,6 +10,24 @@ public class KidnapMonsterBrain : MonsterBrain
 
     protected override void RequestInitialGoal()
     {
-        provider.RequestGoal<KidnapGoal>();
+        DecideGoal();
+    }
+
+    private void DecideGoal()
+    {
+        if (IsFleeing)
+        {
+            provider.RequestGoal<FleeGoal>();
+        }
+        else
+        {
+            provider.RequestGoal<KidnapGoal>();
+        }
+    }
+
+    protected override void UpdateGOAPState()
+    {
+        base.UpdateGOAPState();
+        DecideGoal();
     }
 }

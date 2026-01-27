@@ -10,52 +10,58 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         {
             var builder = new CapabilityBuilder("KidnapMonsterCapability");
 
-            // --- GOAL ---
+            // --- GOAL 1: KIDNAP ---
             builder.AddGoal<KidnapGoal>()
                 .AddCondition<HasKidnappedPlayer>(Comparison.GreaterThanOrEqual, 1);
 
+            // --- GOAL 2: FLEE ---
+            builder.AddGoal<FleeGoal>()
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1);
+
             // --- ACTIONS ---
-            // 1. KIDNAP
-            builder.AddAction<KidnapAction>()
+
+            // 1. FLEE ACTION
+            builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<HasKidnappedPlayer>(EffectType.Increase) 
-                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
+                .AddEffect<IsFleeing>(EffectType.Decrease)
+                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 2. TRACK TRACE
+            // 2. KIDNAP ACTION
+            builder.AddAction<KidnapAction>()
+                .SetTarget<PlayerTarget>()
+                .AddEffect<HasKidnappedPlayer>(EffectType.Increase)
+                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) // Cannot kidnap while fleeing
+                .SetBaseCost(1)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            
+            // 3. TRACK TRACE ACTION
             builder.AddAction<TrackTraceAction>()
                 .SetTarget<FreshTraceTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
-                .AddCondition<IsTrackingTrace>(Comparison.GreaterThanOrEqual, 1) 
-                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1)        
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)              
+                .AddCondition<IsTrackingTrace>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1)
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
                 .SetBaseCost(3)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 3. PATROL
+            // 4. PATROL ACTION
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
-                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)     
+                .AddEffect<IsPlayerInSight>(EffectType.Increase)
+                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 4. FLEE
-            builder.AddAction<FleeAction>()
-                .SetTarget<PlayerTarget>()
-                .AddEffect<CanPatrol>(EffectType.Increase)      
-                .AddEffect<IsFleeing>(EffectType.Decrease)      
-                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)       
-                .SetBaseCost(2)
-                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-
+            // --- SENSORS ---
             builder.AddWorldSensor<IsPlayerInSightSensor>().SetKey<IsPlayerInSight>();
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
             builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
 
+            // --- TARGET SENSORS ---
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<FreshTraceSensor>().SetTarget<FreshTraceTarget>();

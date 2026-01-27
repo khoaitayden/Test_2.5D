@@ -10,9 +10,13 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
         {
             var builder = new CapabilityBuilder("DrunkMonsterCapability");
 
-            // --- GOAL ---
+            //GOAL 1
             builder.AddGoal<KillPlayerGoal>()
                 .AddCondition<HasKilledPlayer>(Comparison.GreaterThanOrEqual, 1);
+
+            //GOAL 2:
+            builder.AddGoal<FleeGoal>()
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1);
 
             // --- ACTIONS ---
 
@@ -45,10 +49,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // 3. Flee
             builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<CanPatrol>(EffectType.Increase)
-                .AddEffect<IsFleeing>(EffectType.Decrease) 
+                .AddEffect<IsFleeing>(EffectType.Decrease)
                 .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(2) 
+                .SetBaseCost(1) 
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // 4. Track Trace

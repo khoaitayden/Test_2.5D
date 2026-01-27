@@ -83,23 +83,19 @@ public class MonsterVision : MonoBehaviour
     {
         if (monstersWatchingCount == null) return;
 
-        // State Change Detection
         if (isNowSeeing && !isContributingToCount)
         {
-            // Just started seeing
             monstersWatchingCount.ApplyChange(1);
             isContributingToCount = true;
         }
         else if (!isNowSeeing && isContributingToCount)
         {
-            // Just stopped seeing
             monstersWatchingCount.ApplyChange(-1);
             isContributingToCount = false;
         }
     }
      private Transform ScanForPlayer()
     {
-        // 1. USE HEAD POSITION INSTEAD OF TRANSFORM.POSITION
         Vector3 eyesPosition = headBone != null ? headBone.position : transform.position + Vector3.up * 1.5f;
         Vector3 eyesForward = headBone != null ? headBone.forward : transform.forward;
 

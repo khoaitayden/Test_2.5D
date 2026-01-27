@@ -10,6 +10,25 @@ public class DrunkMonsterBrain : MonsterBrain
 
     protected override void RequestInitialGoal()
     {
-        provider.RequestGoal<KillPlayerGoal>();
+        DecideGoal();
+    }
+
+    // This is the core logic
+    private void DecideGoal()
+    {
+        if (IsFleeing)
+        {
+            provider.RequestGoal<FleeGoal>();
+        }
+        else
+        {
+            provider.RequestGoal<KillPlayerGoal>();
+        }
+    }
+
+    protected override void UpdateGOAPState()
+    {
+        base.UpdateGOAPState(); 
+        DecideGoal();           
     }
 }
