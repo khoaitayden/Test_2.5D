@@ -41,7 +41,6 @@ namespace CrashKonijn.Goap.MonsterGen
             
             if (movement.HasArrivedOrStuck())
             {
-                // If stuck trying to reach the investigation area
                 if (Vector3.Distance(agent.Transform.position, data.Target.Position) > 5.0f)
                 {
                     brain?.OnMovementStuck();

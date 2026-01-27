@@ -25,7 +25,6 @@ namespace CrashKonijn.Goap.MonsterGen
             data.investigationStartTime = Time.time;
             data.isDone = false; 
             
-            // Handle 0 points case
             if (coverFinder != null && !coverFinder.HasPoints)
             {
                 brain?.OnInvestigationFinished();

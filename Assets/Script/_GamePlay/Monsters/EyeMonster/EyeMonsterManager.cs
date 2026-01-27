@@ -14,7 +14,7 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private GameObject eyeObject;
 
     [Header("Timings")]
-    [SerializeField] private float firstSpawnDelay = 2.0f; // Small buffer after enable before 1st spawn
+    [SerializeField] private float firstSpawnDelay = 2.0f;
     [SerializeField] private float minSpawnInterval = 180f;
     [SerializeField] private float maxSpawnInterval = 240f;
 
