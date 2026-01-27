@@ -1,7 +1,7 @@
 using CrashKonijn.Goap.MonsterGen;
 using UnityEngine;
 
-public class MonsterVision : MonoBehaviour
+public class MonsterVision : MonoBehaviour, ILitObject
 {
     [Header("Data")]
     [SerializeField] private BoolVariableSO isPlayerExposed;
@@ -19,6 +19,7 @@ public class MonsterVision : MonoBehaviour
     private float timeSinceLastSeen;
     private bool isContributingToCount = false; 
     private Collider[] _overlapBuffer = new Collider[10];
+    public bool IsLit { get; private set; }
 
     private void Awake()
     {
@@ -43,11 +44,26 @@ public class MonsterVision : MonoBehaviour
             PerformVisionCheck();
         }
     }
+    public void OnLit(LightSourceType sourceType)
+    {
+        if (sourceType == LightSourceType.Flashlight)
+        {
+            IsLit = true;
+            Debug.Log("Lit");
+            if (brain != null) brain.OnLitByFlashlight();
+        }
+    }
 
+    public void OnUnlit(LightSourceType sourceType)
+    {
+        if (sourceType == LightSourceType.Flashlight)
+        {
+            IsLit = false;
+        }
+    }
 
     private void PerformVisionCheck()
     {
-        // 1. GLOBAL OVERRIDE CHECK
         if (isPlayerExposed != null && isPlayerExposed.Value)
         {
             if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null)
@@ -58,7 +74,6 @@ public class MonsterVision : MonoBehaviour
             }
         }
 
-        // 2. STANDARD VISION
         Transform seenPlayer = ScanForPlayer();
         bool currentlySeeing = seenPlayer != null;
 
@@ -76,7 +91,6 @@ public class MonsterVision : MonoBehaviour
             }
         }
 
-        // 3. UPDATE WISP STATUS
         UpdateWatchingStatus(currentlySeeing);
     }
     private void UpdateWatchingStatus(bool isNowSeeing)

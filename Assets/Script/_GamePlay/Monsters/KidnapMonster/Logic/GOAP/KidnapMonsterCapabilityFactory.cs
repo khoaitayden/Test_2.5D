@@ -60,6 +60,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
             builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
+            builder.AddWorldSensor<IsLitByFlashlightSensor>().SetKey<IsLitByFlashlight>();
 
             // --- TARGET SENSORS ---
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();

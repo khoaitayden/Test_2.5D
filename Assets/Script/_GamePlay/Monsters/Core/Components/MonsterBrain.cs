@@ -19,13 +19,12 @@ public abstract class MonsterBrain : MonoBehaviour
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
     public bool IsInvestigating { get; private set; }
-    public bool IsFleeing { get; private set; }
+    public bool IsFleeing { get; protected set; }
     public bool IsAttacking { get; set; }
     
     public float HandledNoiseTimestamp { get; private set; } = -1f;
     public float LastTimeSeenPlayer { get; private set; }
 
-    // --- ABSTRACT METHODS (Children MUST implement these) ---
     protected abstract string GetAgentTypeName();
     protected abstract void RequestInitialGoal();
 
@@ -55,11 +54,9 @@ public abstract class MonsterBrain : MonoBehaviour
         UpdateGOAPState(); 
         provider.enabled = true;
         
-        // Child class defines which Goal to pick
         RequestInitialGoal();
     }
 
-    // --- SHARED LOGIC ---
 
     public void MarkNoiseAsHandled(float timestamp)
     {
@@ -133,8 +130,9 @@ public abstract class MonsterBrain : MonoBehaviour
         // Force GOAP update immediately
         UpdateGOAPState();
     }
-
-    // Virtual so children can add extra states if needed
+    public virtual void OnLitByFlashlight()
+    {
+    }
     protected virtual void UpdateGOAPState()
     {
         if (provider == null) return;

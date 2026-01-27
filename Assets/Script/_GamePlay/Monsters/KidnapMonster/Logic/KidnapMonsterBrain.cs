@@ -12,7 +12,15 @@ public class KidnapMonsterBrain : MonsterBrain
     {
         DecideGoal();
     }
-
+    public override void OnLitByFlashlight()
+    {
+        if (!IsFleeing)
+        {
+            Debug.Log("[KidnapBrain] Lit by flashlight! Engaging Flee Mode.");
+            IsFleeing = true;
+            UpdateGOAPState();
+        }
+    }
     private void DecideGoal()
     {
         if (IsFleeing)
