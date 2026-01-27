@@ -1,23 +1,24 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Monster/Kidnap Config")] // Make it a ScriptableObject for easy tweaking
+[CreateAssetMenu(menuName = "Monster/Kidnap Config")]
 public class KidnapMonsterConfig : MonsterConfigBase
 {
     [Header("Kidnap Specifics")]
-    [Tooltip("How far the monster teleports the player when caught")]
-    public float teleportDistance = 50f;
-
-    [Tooltip("How much Player Energy to drain on kidnap (0.5 = 50%)")]
-    public float energyDrainPercent = 0.5f;
+    [Tooltip("Radius of your game map from (0,0,0). Used to find random valid points.")]
+    public float mapRadius = 100f; 
+    [Tooltip("How many random points to check to find the furthest one. Higher = Better results but more CPU.")]
+    public int teleportSampleAttempts = 20;
     
+    public float energyDrainPercent = 0.5f;
+
     [Header("Data References")]
     public FloatVariableSO currentEnergy;
     public FloatVariableSO maxEnergy;
+    public BoolVariableSO isCarryingItem;
+    public TransformAnchorSO beaconAnchor;
+    public TransformSetSO activeObjectivesSet;
 
     [Header("Ambush Logic")]
-    [Tooltip("How close the monster gets before hiding")]
     public float hideDistance = 25f;
-
-    [Header("Flee From Light")]
     public float fleeFromLightDistance = 30f;
 }

@@ -96,8 +96,7 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
         if (isAlarmActive)
         {
-
-            
+            activeExposureTimer += Time.deltaTime; 
             if (activeExposureTimer >= exposureDuration)
             {
                 Vanish();
