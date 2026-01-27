@@ -19,7 +19,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (existingTarget != null)
             {
                 float dist = Vector3.Distance(agent.Transform.position, existingTarget.Position);
-                if (dist > 1.0f) 
+                if (dist > 5.0f) 
                 {
                     return existingTarget;
                 }
