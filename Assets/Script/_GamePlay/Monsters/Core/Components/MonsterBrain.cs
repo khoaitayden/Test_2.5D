@@ -1,64 +1,76 @@
-using System;
 using System.Collections;
 using CrashKonijn.Agent.Runtime;
 using CrashKonijn.Goap.MonsterGen;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
 
-public class MonsterBrain : MonoBehaviour
+public abstract class MonsterBrain : MonoBehaviour
 {
-    
-    [Header("Monster Agent")]
-    [SerializeField] private string agentType;
-    private MonsterConfigBase config;
+    // --- SHARED DEPENDENCIES ---
+    protected MonsterConfigBase config;
+    protected GoapActionProvider provider;
+
+    // --- PUBLIC PROPERTIES (For Sensors) ---
     public TraceStorageSO TraceStorage => config?.traceStorage;
     public TransformAnchorSO PlayerAnchor => config?.playerAnchor;
+
+    // --- SHARED STATE ---
     public bool IsPlayerVisible { get; private set; }
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
     public bool IsInvestigating { get; private set; }
     public bool IsFleeing { get; private set; }
+    public bool IsAttacking { get; set; }
+    
     public float HandledNoiseTimestamp { get; private set; } = -1f;
     public float LastTimeSeenPlayer { get; private set; }
-    public bool IsAttacking { get; set; }
-    private GoapActionProvider provider;
-    
-    private void Awake()
-    {
-        // Get references to other components on this GameObject
-        provider = GetComponent<GoapActionProvider>();
-        config = GetComponent<MonsterConfigBase>(); 
-        if (provider != null) provider.enabled = false;
 
+    // --- ABSTRACT METHODS (Children MUST implement these) ---
+    protected abstract string GetAgentTypeName();
+    protected abstract void RequestInitialGoal();
+
+    protected virtual void Awake()
+    {
+        provider = GetComponent<GoapActionProvider>();
+        config = GetComponent<MonsterConfigBase>();
+        
+        if (provider != null) provider.enabled = false;
+        if (config == null) Debug.LogError($"{name} requires a MonsterConfigBase component!", this);
     }
 
-    private IEnumerator Start()
+    protected virtual IEnumerator Start()
     {
-        yield return null; 
+        yield return null; // Wait for GOAP System to initialize
+
         if (provider.AgentType == null)
         {
             var goap = FindFirstObjectByType<GoapBehaviour>();
-            if (goap != null) provider.AgentType = goap.GetAgentType(agentType);
+            if (goap != null) 
+            {
+                // Child class defines the name string
+                provider.AgentType = goap.GetAgentType(GetAgentTypeName());
+            }
         }
+
         UpdateGOAPState(); 
         provider.enabled = true;
-        provider.RequestGoal<KillPlayerGoal>();
+        
+        // Child class defines which Goal to pick
+        RequestInitialGoal();
     }
 
+    // --- SHARED LOGIC ---
 
     public void MarkNoiseAsHandled(float timestamp)
     {
-        if (timestamp > HandledNoiseTimestamp)
-        {
-            HandledNoiseTimestamp = timestamp;
-        }
+        if (timestamp > HandledNoiseTimestamp) HandledNoiseTimestamp = timestamp;
     }
+
     public void OnPlayerSeen(Transform player)
     {
         IsPlayerVisible = true;
         CurrentPlayerTarget = player;
         LastKnownPlayerPosition = player.position;
-        
         LastTimeSeenPlayer = Time.time; 
         
         if (IsInvestigating) IsInvestigating = false;
@@ -70,9 +82,7 @@ public class MonsterBrain : MonoBehaviour
         if (IsPlayerVisible)
         {
             IsPlayerVisible = false;
-
             LastTimeSeenPlayer = Time.time;
-            
             IsInvestigating = true; 
             CurrentPlayerTarget = null;
         }
@@ -92,37 +102,34 @@ public class MonsterBrain : MonoBehaviour
     {
         if (provider != null) provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
     }
-    // Rename this method (and update references in AttackPlayerAction)
+
     public void OnMovementStuck()
     {
-        Debug.Log("[Brain] Stuck! Engaging Flee Mode.");
-        
+        Debug.Log($"[{name}] Stuck! Engaging Flee Mode.");
         IsInvestigating = false; 
-
         IsPlayerVisible = false;
         CurrentPlayerTarget = null;
         LastKnownPlayerPosition = Vector3.zero;
-
         IsFleeing = true;
         UpdateGOAPState();
     }
 
     public void OnFleeComplete()
     {
-        Debug.Log("[Brain] Flee complete. Returning to normal behavior.");
+        Debug.Log($"[{name}] Flee complete.");
         IsFleeing = false;
         UpdateGOAPState();
     }
-    private void UpdateGOAPState()
+
+    // Virtual so children can add extra states if needed
+    protected virtual void UpdateGOAPState()
     {
         if (provider == null) return;
         provider.WorldData.SetState(new IsPlayerInSight(), IsPlayerVisible ? 1 : 0);
         provider.WorldData.SetState(new IsInvestigating(), IsInvestigating ? 1 : 0);
-        
         provider.WorldData.SetState(new IsFleeing(), IsFleeing ? 1 : 0);
 
-
-        bool busy = IsPlayerVisible || IsInvestigating || IsFleeing;
+        bool busy = IsPlayerVisible || IsInvestigating || IsFleeing || IsAttacking;
         provider.WorldData.SetState(new CanPatrol(), busy ? 0 : 1);
         
         bool hasLoc = LastKnownPlayerPosition != Vector3.zero;

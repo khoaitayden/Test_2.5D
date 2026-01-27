@@ -34,7 +34,5 @@ public class MonsterConfigBase : MonoBehaviour
     [Header("Layers")]
     public LayerMask playerLayerMask;
     public LayerMask obstacleLayerMask;
-    
-    // Used by MonsterVision
     public int numOfRayCast = 5; 
 }

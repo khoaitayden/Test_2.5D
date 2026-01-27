@@ -9,7 +9,6 @@ public class MonsterVision : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private MonsterConfigBase config;
     [SerializeField] private float detectionFrequency; 
-    [SerializeField] private float sightLostDelay; 
     
     [Header("Debug Read-Only")]
     [SerializeField] private bool canSeePlayerNow; 
@@ -71,7 +70,7 @@ public class MonsterVision : MonoBehaviour
         else
         {
             timeSinceLastSeen += detectionFrequency;
-            if (timeSinceLastSeen > sightLostDelay)
+            if (timeSinceLastSeen > config.memoryDuration)
             {
                 brain.OnPlayerLost();
             }
