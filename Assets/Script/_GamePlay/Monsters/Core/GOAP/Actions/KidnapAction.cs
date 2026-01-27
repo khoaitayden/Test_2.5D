@@ -9,18 +9,19 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private KidnapMonsterConfig config;
         private MonsterMovement movement;
+        private MonsterBrain brain;
         private Transform playerTransform;
 
-        // NEW: Inject Data Access via the Agent's Config
-        // We will add the Energy SO reference to KidnapMonsterConfig later
-        
         public override void Created() { }
 
         public override void Start(IMonoAgent agent, Data data)
         {
             config = agent.GetComponent<KidnapMonsterConfig>();
             movement = agent.GetComponent<MonsterMovement>();
+            brain = agent.GetComponent<MonsterBrain>();
             
+            data.startTime = Time.time; 
+
             if (data.Target is TransformTarget tt)
             {
                 playerTransform = tt.Transform;
@@ -30,8 +31,15 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
+            if (Time.time > data.startTime + config.maxChaseTime)
+            {
+                brain?.OnMovementStuck();
+                return ActionRunState.Stop;
+            }
+
             if (playerTransform == null) return ActionRunState.Stop;
 
+            // 2. Success Check
             if (Vector3.Distance(agent.Transform.position, playerTransform.position) < 2.0f)
             {
                 KidnapPlayer();
@@ -63,17 +71,13 @@ namespace CrashKonijn.Goap.MonsterGen
             if (controller != null) controller.enabled = true;
 
             Debug.Log("Player Kidnapped!");
-            var brain = config.GetComponent<MonsterBrain>(); 
-
-            if (brain != null) 
-            {
-                brain.WipeMemory();
-            }
+            if (brain != null) brain.WipeMemory();
         }
 
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
+            public float startTime;
         }
     }
 }
