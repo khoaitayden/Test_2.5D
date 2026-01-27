@@ -10,7 +10,6 @@ public class KidnapMonsterBrain : MonsterBrain
 
     protected override void RequestInitialGoal()
     {
-        // Kidnap Monster wants to Kidnap
         provider.RequestGoal<KidnapGoal>();
     }
 }

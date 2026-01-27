@@ -11,40 +11,51 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             var builder = new CapabilityBuilder("KidnapMonsterCapability");
 
             // --- GOAL ---
+            // The ONLY goal. Everything else supports this.
             builder.AddGoal<KidnapGoal>()
                 .AddCondition<HasKidnappedPlayer>(Comparison.GreaterThanOrEqual, 1);
 
             // --- ACTIONS ---
 
-            // 1. KIDNAP (The "Attack")
+            // 1. KIDNAP (The Win Condition)
             builder.AddAction<KidnapAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<HasKidnappedPlayer>(EffectType.Increase)
-                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
+                // EFFECT: This achieves the Goal
+                .AddEffect<HasKidnappedPlayer>(EffectType.Increase) 
+                // PRECONDITIONS:
+                .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1) // Must see player
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)              // Cannot be fleeing
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 2. PATROL (Re-used from Core)
+            // 2. PATROL (The Searcher)
+            // Used when we don't see the player yet.
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
-                .AddEffect<IsPlayerInSight>(EffectType.Increase) // Can see player while patrolling
-                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
+                // EFFECT: Patrolling helps us find the player
+                .AddEffect<IsPlayerInSight>(EffectType.Increase) 
+                // PRECONDITIONS:
+                .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)       // Must be allowed to patrol
                 .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
-            
-            // 3. FLEE (Re-used from Core, uses flee stats in MonsterConfigBase)
+
+            // 3. FLEE (The Recovery)
+            // Used when "CanPatrol" is false because we are stuck/fleeing.
             builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<CanPatrol>(EffectType.Increase)
-                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
+                // EFFECT: Fleeing restores our ability to Patrol
+                .AddEffect<CanPatrol>(EffectType.Increase)      
+                .AddEffect<IsFleeing>(EffectType.Decrease)      
+                // PRECONDITIONS:
+                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)       // Only runs if Brain says Flee
                 .SetBaseCost(2)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // --- SENSORS (All re-used from Core) ---
+            // --- SENSORS ---
             builder.AddWorldSensor<IsPlayerInSightSensor>().SetKey<IsPlayerInSight>();
             builder.AddWorldSensor<CanPatrolSensor>().SetKey<CanPatrol>();
             builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
-            // Add more as needed (IsLitByFlashlight, etc.)
+            // Add Hit/Touch sensor if needed for logic, though KidnapAction handles the trigger
             
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();

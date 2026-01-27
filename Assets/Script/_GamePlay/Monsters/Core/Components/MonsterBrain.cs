@@ -120,6 +120,19 @@ public abstract class MonsterBrain : MonoBehaviour
         IsFleeing = false;
         UpdateGOAPState();
     }
+    public void WipeMemory()
+    {
+        IsPlayerVisible = false;
+        CurrentPlayerTarget = null;
+        LastKnownPlayerPosition = Vector3.zero;
+        LastTimeSeenPlayer = -1f;
+        
+        IsInvestigating = false;
+        IsAttacking = false;
+        
+        // Force GOAP update immediately
+        UpdateGOAPState();
+    }
 
     // Virtual so children can add extra states if needed
     protected virtual void UpdateGOAPState()

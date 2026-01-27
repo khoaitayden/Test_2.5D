@@ -48,26 +48,27 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private void KidnapPlayer()
         {
-            // 1. Drain Energy directly via config reference
             if (config != null && config.currentEnergy != null && config.maxEnergy != null)
             {
                 float drainAmount = config.maxEnergy.Value * config.energyDrainPercent;
-                // Subtract energy (ensure we don't go below 0)
                 config.currentEnergy.ApplyChange(-drainAmount, 0f, config.maxEnergy.Value);
             }
 
-            // 2. Find Teleport Point
-            // (Assuming you have a safer way to find navmesh points, but random circle works for prototype)
             Vector3 randomDir = Random.insideUnitCircle.normalized;
             Vector3 teleportPos = playerTransform.position + new Vector3(randomDir.x, 0, randomDir.y) * config.teleportDistance;
 
-            // 3. Teleport
             var controller = playerTransform.GetComponent<CharacterController>();
             if (controller != null) controller.enabled = false;
             playerTransform.position = teleportPos;
             if (controller != null) controller.enabled = true;
 
             Debug.Log("Player Kidnapped!");
+            var brain = config.GetComponent<MonsterBrain>(); 
+
+            if (brain != null) 
+            {
+                brain.WipeMemory();
+            }
         }
 
         public class Data : IActionData
