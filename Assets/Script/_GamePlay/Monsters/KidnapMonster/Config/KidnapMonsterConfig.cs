@@ -17,6 +17,8 @@ public class KidnapMonsterConfig : MonsterConfigBase
     public TransformSetSO activeObjectivesSet;
 
     [Header("Ambush Logic")]
-    public float hideDistance = 25f;
+    public float findHideRadius = 25f;
     public float fleeFromLightDistance = 30f;
+    public float playerComeCloseFleeDistance = 10f;
+
 }

@@ -17,6 +17,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // --- GOAL 2: FLEE ---
             builder.AddGoal<FleeGoal>()
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1);
+            // --- GOAL 3: HIDE ---
+            builder.AddGoal<HideGoal>()
+                .AddCondition<IsHiding>(Comparison.GreaterThanOrEqual, 1);
 
             // --- ACTIONS ---
 
@@ -36,8 +39,15 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) // Cannot kidnap while fleeing
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+
+            // 3. HIDE
+            builder.AddAction<HideAction>()
+                .SetTarget<HideTarget>()
+                .AddEffect<IsHiding>(EffectType.Increase)
+                .SetBaseCost(1)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
             
-            // 3. TRACK TRACE ACTION
+            // 4. TRACK TRACE ACTION
             builder.AddAction<TrackTraceAction>()
                 .SetTarget<FreshTraceTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
@@ -47,7 +57,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetBaseCost(3)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
-            // 4. PATROL ACTION
+            // 5. PATROL ACTION
             builder.AddAction<PatrolAction>()
                 .SetTarget<PatrolTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
@@ -61,11 +71,13 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<IsFleeingSensor>().SetKey<IsFleeing>();
             builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
             builder.AddWorldSensor<IsLitByFlashlightSensor>().SetKey<IsLitByFlashlight>();
+            builder.AddWorldSensor<IsHidingSensor>().SetKey<IsHiding>();
 
             // --- TARGET SENSORS ---
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();
             builder.AddTargetSensor<PatrolTargetSensor>().SetTarget<PatrolTarget>();
             builder.AddTargetSensor<FreshTraceSensor>().SetTarget<FreshTraceTarget>();
+            builder.AddTargetSensor<HideTargetSensor>().SetTarget<HideTarget>();
             
             return builder.Build();
         }
