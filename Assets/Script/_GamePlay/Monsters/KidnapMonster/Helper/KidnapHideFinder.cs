@@ -4,7 +4,7 @@ using UnityEngine.AI;
 public class KidnapHideFinder : MonoBehaviour
 {
     [SerializeField] private KidnapMonsterConfig config;
-    [SerializeField] private LayerMask treeLayer; 
+    [SerializeField] private LayerMask treeLayer;
 
     private Transform _playerTransform;
 
@@ -22,7 +22,7 @@ public class KidnapHideFinder : MonoBehaviour
     {
         if (_playerTransform == null) return null;
 
-        Collider[] hits = Physics.OverlapSphere(transform.position, config.findHideRadius, treeLayer);
+        Collider[] hits = Physics.OverlapSphere(_playerTransform.position, config.findHideRadius, treeLayer);
         
         Vector3 bestSpot = Vector3.zero;
         float bestScore = float.MinValue;
@@ -40,15 +40,23 @@ public class KidnapHideFinder : MonoBehaviour
             float distToPlayer = Vector3.Distance(hidePos, _playerTransform.position);
             float distToSelf = Vector3.Distance(hidePos, transform.position);
             
-            float score = (distToPlayer * 1.5f) - distToSelf;
+            float score = distToPlayer - (distToSelf * 0.5f);
 
             if (score > bestScore)
             {
                 if (NavMesh.SamplePosition(hidePos, out NavMeshHit hit, 3.0f, NavMesh.AllAreas))
                 {
-                    bestSpot = hit.position;
-                    bestScore = score;
-                    found = true;
+
+                    RaycastHit coverHit;
+                    if (Physics.Raycast(_playerTransform.position, (hit.position - _playerTransform.position).normalized, out coverHit, distToPlayer))
+                    {
+                        if (coverHit.collider == tree)
+                        {
+                            bestSpot = hit.position;
+                            bestScore = score;
+                            found = true;
+                        }
+                    }
                 }
             }
         }

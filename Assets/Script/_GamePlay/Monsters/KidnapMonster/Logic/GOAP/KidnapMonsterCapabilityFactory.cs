@@ -14,21 +14,17 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddGoal<KidnapGoal>()
                 .AddCondition<HasKidnappedPlayer>(Comparison.GreaterThanOrEqual, 1);
 
-            // --- GOAL 2: FLEE ---
-            builder.AddGoal<FleeGoal>()
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1);
-            // --- GOAL 3: HIDE ---
+            // --- GOAL 2: HIDE ---
             builder.AddGoal<HideGoal>()
-                .AddCondition<IsHiding>(Comparison.GreaterThanOrEqual, 1);
+                .AddCondition<IsSafe>(Comparison.GreaterThanOrEqual, 1);
 
             // --- ACTIONS ---
 
             // 1. FLEE ACTION
             builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<IsFleeing>(EffectType.Decrease)
-                .AddCondition<IsFleeing>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(1)
+                .AddEffect<IsSafe>(EffectType.Increase) 
+                .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // 2. KIDNAP ACTION
@@ -36,7 +32,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKidnappedPlayer>(EffectType.Increase)
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) // Cannot kidnap while fleeing
+                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1) 
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
@@ -44,7 +40,15 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddAction<HideAction>()
                 .SetTarget<HideTarget>()
                 .AddEffect<IsHiding>(EffectType.Increase)
-                .SetBaseCost(1)
+                .AddCondition<CanHide>(Comparison.GreaterThanOrEqual, 1) 
+                .SetBaseCost(3)
+                .SetMoveMode(ActionMoveMode.PerformWhileMoving);
+            
+            builder.AddAction<WaitInCoverAction>()
+                .SetTarget<HideTarget>()
+                .AddEffect<IsSafe>(EffectType.Increase)
+                .AddCondition<IsHiding>(Comparison.GreaterThanOrEqual, 1)
+                .SetBaseCost(5)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
             
             // 4. TRACK TRACE ACTION
@@ -72,6 +76,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddWorldSensor<IsTrackingTraceSensor>().SetKey<IsTrackingTrace>();
             builder.AddWorldSensor<IsLitByFlashlightSensor>().SetKey<IsLitByFlashlight>();
             builder.AddWorldSensor<IsHidingSensor>().SetKey<IsHiding>();
+            builder.AddWorldSensor<CanHideSensor>().SetKey<CanHide>();
+            builder.AddWorldSensor<IsSafeSensor>().SetKey<IsSafe>();
 
             // --- TARGET SENSORS ---
             builder.AddTargetSensor<PlayerCurrentPosSensor>().SetTarget<PlayerTarget>();

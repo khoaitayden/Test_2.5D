@@ -23,13 +23,11 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // 1. Attack Player
             builder.AddAction<AttackPlayerAction>()
                 .SetTarget<PlayerTarget>()
-                .AddEffect<HasKilledPlayer>(EffectType.Increase) // The Goal
+                .AddEffect<HasKilledPlayer>(EffectType.Increase)
                 .AddEffect<IsInvestigating>(EffectType.Decrease)
                 
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
-                
-                // REQUIREMENT: Must be reachable to attack
                 .AddCondition<IsPlayerReachable>(Comparison.GreaterThanOrEqual, 1) 
                 
                 .SetBaseCost(1)

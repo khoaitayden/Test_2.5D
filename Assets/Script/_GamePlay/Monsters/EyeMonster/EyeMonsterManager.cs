@@ -31,11 +31,10 @@ public class EyeMonsterManager : MonoBehaviour
     [SerializeField] private float spawnSafetyRadius = 0.8f;
 
     private bool isUnlocked = false;
-    private bool _hasSpawnedOnce = false; // Tracks if the guaranteed spawn happened
+    private bool _hasSpawnedOnce = false;
 
     void OnEnable()
     {
-        // Reset the flag so every time we Enable, we get a guaranteed spawn again
         _hasSpawnedOnce = false;
         UnlockEyeSpawning();
     }
@@ -55,13 +54,10 @@ public class EyeMonsterManager : MonoBehaviour
 
     private IEnumerator SpawnTimer()
     {
-        // --- PHASE 1: GUARANTEED FIRST SPAWN ---
         if (!_hasSpawnedOnce)
         {
-            // Optional: Small delay so it doesn't pop in the millisecond the scene loads
             yield return new WaitForSeconds(firstSpawnDelay);
 
-            // Keep trying rapidly until we find a valid position
             while (!_hasSpawnedOnce && isUnlocked)
             {
                 // Force = true (Skip RNG check)
@@ -73,8 +69,6 @@ public class EyeMonsterManager : MonoBehaviour
                 }
                 else
                 {
-                    // If position was invalid, wait 1 second and try again
-                    // We don't want to wait 180 seconds if the first attempt hit a wall
                     yield return new WaitForSeconds(1.0f);
                 }
             }
@@ -91,15 +85,12 @@ public class EyeMonsterManager : MonoBehaviour
         }
     }
 
-    // Changed return type to BOOL to know if it worked
     private bool TrySpawn(bool forceSpawn)
     {
         if (eyeObject.activeSelf) return false;
 
         float lightFraction = 0f;
         if (maxEnergy.Value > 0) lightFraction = currentEnergy.Value / maxEnergy.Value;
-
-        // SKIP RNG check if forceSpawn is true
         if (!forceSpawn)
         {
             float currentSpawnChance = Mathf.Lerp(chanceAtNoLight, chanceAtFullLight, lightFraction);
@@ -114,10 +105,10 @@ public class EyeMonsterManager : MonoBehaviour
             eyeObject.transform.position = spawnPos;
             eyeObject.SetActive(true);
             if (monstersWatchingCount != null) monstersWatchingCount.ApplyChange(1);
-            return true; // Success
+            return true;
         }
 
-        return false; // Failed to find position
+        return false; 
     }
 
     private Vector3 FindValidPosition(float radius)
@@ -155,7 +146,6 @@ public class EyeMonsterManager : MonoBehaviour
     {
         SetExposureState(false);
         
-        // Only decrement if it was actually active to prevent negative counts
         if (eyeObject != null && eyeObject.activeSelf)
         {
             eyeObject.SetActive(false);

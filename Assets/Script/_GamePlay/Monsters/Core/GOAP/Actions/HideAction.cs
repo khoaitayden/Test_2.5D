@@ -9,7 +9,6 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfigBase config;
-        private KidnapMonsterBrain brain; // Add reference
 
         public override void Created() { }
 
@@ -17,7 +16,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfigBase>();
-            brain = agent.GetComponent<KidnapMonsterBrain>(); 
 
             if (data.Target != null)
             {
@@ -37,7 +35,6 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
-            if (brain != null) brain.OnHideComplete();
         }
 
         public class Data : IActionData

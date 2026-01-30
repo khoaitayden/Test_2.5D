@@ -13,7 +13,6 @@ public class DrunkMonsterBrain : MonsterBrain
         DecideGoal();
     }
 
-    // This is the core logic
     private void DecideGoal()
     {
         if (IsFleeing)

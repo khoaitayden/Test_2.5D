@@ -18,7 +18,6 @@ public class KidnapMonsterConfig : MonsterConfigBase
 
     [Header("Ambush Logic")]
     public float findHideRadius = 25f;
-    public float fleeFromLightDistance = 30f;
     public float playerComeCloseFleeDistance = 10f;
-
+    public float hideBehindCoverDuration = 5f;
 }

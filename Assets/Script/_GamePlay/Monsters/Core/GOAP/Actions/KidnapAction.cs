@@ -28,6 +28,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 playerTransform = tt.Transform;
                 movement.Chase(playerTransform, config.chaseSpeed);
             }
+            Debug.Log("Start attack player");
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
@@ -110,7 +111,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 Vector2 rndCircle = Random.insideUnitCircle * config.mapRadius;
                 Vector3 attemptPos = new Vector3(rndCircle.x, 0, rndCircle.y);
 
-                if (NavMesh.SamplePosition(attemptPos, out NavMeshHit hit, 20f, NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(attemptPos, out NavMeshHit hit, 25f, NavMesh.AllAreas))
                 {
                     float dSqr = (hit.position - avoidPoint).sqrMagnitude;
                     

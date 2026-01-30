@@ -18,7 +18,7 @@ namespace CrashKonijn.Goap.MonsterGen
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfigBase>();
             brain = agent.GetComponent<MonsterBrain>(); 
-
+            Debug.Log("Try to flee");
             Vector3 fleeFromPos = brain.LastKnownPlayerPosition != Vector3.zero 
                 ? brain.LastKnownPlayerPosition 
                 : (data.Target != null ? data.Target.Position : agent.Transform.position);
@@ -43,7 +43,9 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
-            brain?.OnFleeComplete();
+            var brain = agent.GetComponent<KidnapMonsterBrain>();
+            if(brain != null) brain.OnHideComplete(); 
+            
         }
 
         public class Data : IActionData

@@ -46,7 +46,6 @@ public abstract class MonsterBrain : MonoBehaviour
             var goap = FindFirstObjectByType<GoapBehaviour>();
             if (goap != null) 
             {
-                // Child class defines the name string
                 provider.AgentType = goap.GetAgentType(GetAgentTypeName());
             }
         }
@@ -127,7 +126,6 @@ public abstract class MonsterBrain : MonoBehaviour
         IsInvestigating = false;
         IsAttacking = false;
         
-        // Force GOAP update immediately
         UpdateGOAPState();
     }
     public virtual void OnLitByFlashlight()

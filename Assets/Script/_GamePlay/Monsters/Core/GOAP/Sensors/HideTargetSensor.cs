@@ -17,19 +17,18 @@ namespace CrashKonijn.Goap.MonsterGen
             if (finder == null) finder = references.GetCachedComponent<KidnapHideFinder>();
             if (brain == null) brain = references.GetCachedComponent<MonsterBrain>();
 
-            // Ensure Finder knows where player is
-            if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null)
+            if (brain != null && brain.PlayerAnchor != null && brain.PlayerAnchor.Value != null && finder != null)
             {
                 finder.SetPlayer(brain.PlayerAnchor.Value);
+                Vector3? spot = finder.FindBestHideSpot();
+            
+                if (spot.HasValue)
+                {
+                    Debug.Log("founded spot");
+                    return new PositionTarget(spot.Value);
+                }
             }
 
-            Vector3? spot = finder.FindBestHideSpot();
-            
-            if (spot.HasValue)
-            {
-                return new PositionTarget(spot.Value);
-            }
-            Debug.Log("Position not found");
             return null;
         }
     }
