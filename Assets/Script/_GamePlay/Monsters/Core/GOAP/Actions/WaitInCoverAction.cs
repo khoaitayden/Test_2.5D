@@ -31,7 +31,6 @@ namespace CrashKonijn.Goap.MonsterGen
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
                 if (dist < kidnapConfig.playerComeCloseFleeDistance)
                 {
-                    // Fail action -> Planner re-evaluates -> CanHide is now false -> Picks FleeAction
                     return ActionRunState.Stop; 
                 }
             }

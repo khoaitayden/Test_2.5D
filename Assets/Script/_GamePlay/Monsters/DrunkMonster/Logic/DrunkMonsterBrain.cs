@@ -12,7 +12,6 @@ public class DrunkMonsterBrain : MonsterBrain
     {
         DecideGoal();
     }
-
     private void DecideGoal()
     {
         if (IsFleeing)

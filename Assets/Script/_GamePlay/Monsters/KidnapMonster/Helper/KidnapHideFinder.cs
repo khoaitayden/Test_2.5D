@@ -60,7 +60,6 @@ public class KidnapHideFinder : MonoBehaviour
                 }
             }
         }
-
         return found ? bestSpot : null;
     }
 }

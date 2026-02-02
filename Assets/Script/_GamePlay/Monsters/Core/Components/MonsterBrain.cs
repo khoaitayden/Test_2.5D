@@ -39,7 +39,7 @@ public abstract class MonsterBrain : MonoBehaviour
 
     protected virtual IEnumerator Start()
     {
-        yield return null; // Wait for GOAP System to initialize
+        yield return null; 
 
         if (provider.AgentType == null)
         {
@@ -85,16 +85,14 @@ public abstract class MonsterBrain : MonoBehaviour
         UpdateGOAPState();
     }
 
-    public void OnInvestigationFinished()
+    public virtual void OnInvestigationFinished()
     {
         IsInvestigating = false;
         LastKnownPlayerPosition = Vector3.zero;
         UpdateGOAPState();
     }
 
-    public void OnInvestigationFailed() => OnInvestigationFinished();
-
-    public void OnArrivedAtSuspiciousLocation()
+    public virtual void OnArrivedAtSuspiciousLocation()
     {
         if (provider != null) provider.WorldData.SetState(new IsAtSuspiciousLocation(), 1);
     }
@@ -130,6 +128,7 @@ public abstract class MonsterBrain : MonoBehaviour
     }
     public virtual void OnLitByFlashlight()
     {
+        Debug.Log("Hit by flashlight");
     }
     protected virtual void UpdateGOAPState()
     {
