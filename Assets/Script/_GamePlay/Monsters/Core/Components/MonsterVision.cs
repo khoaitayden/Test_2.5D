@@ -49,7 +49,6 @@ public class MonsterVision : MonoBehaviour, ILitObject
         if (sourceType == LightSourceType.Flashlight)
         {
             IsLit = true;
-            Debug.Log("Lit");
             if (brain != null) brain.OnLitByFlashlight();
         }
     }

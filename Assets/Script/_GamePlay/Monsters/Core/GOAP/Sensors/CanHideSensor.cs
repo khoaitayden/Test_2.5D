@@ -31,7 +31,6 @@ namespace CrashKonijn.Goap.MonsterGen
                         Debug.Log("Player is to close to hide.");
                         return 0;
                     }
-                    Debug.Log("hide is true");
                 }
 
                 // 2. Availability Check

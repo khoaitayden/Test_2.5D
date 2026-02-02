@@ -128,7 +128,6 @@ public abstract class MonsterBrain : MonoBehaviour
     }
     public virtual void OnLitByFlashlight()
     {
-        Debug.Log("Hit by flashlight");
     }
     protected virtual void UpdateGOAPState()
     {
