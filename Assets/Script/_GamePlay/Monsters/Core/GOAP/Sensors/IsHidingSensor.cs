@@ -10,9 +10,15 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void Created() { }
         public override void Update() { }
 
-        public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
-        {
-            return 0;
+        public override SenseValue Sense(IActionReceiver agent, IComponentReference references)  
+        {  
+            var brain = references.GetCachedComponent<KidnapMonsterBrain>();
+            if (brain.HasReachedCover == true)
+            {
+                return true;
+            } else 
+                return false;
+            //return brain.HasReachedCover ? 1 : 0;
         }
     }
 }

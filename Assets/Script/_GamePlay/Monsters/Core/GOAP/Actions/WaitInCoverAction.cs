@@ -17,7 +17,7 @@ namespace CrashKonijn.Goap.MonsterGen
             // Cast config safely
             kidnapConfig = agent.GetComponent<MonsterConfigBase>() as KidnapMonsterConfig;
             brain = agent.GetComponent<KidnapMonsterBrain>();
-            
+            Debug.Log("start waiting");
             if (brain != null) playerAnchor = brain.PlayerAnchor;
             
             data.startTime = Time.time;
@@ -46,7 +46,12 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data) 
         { 
-            if (brain != null) brain.OnHideComplete();
+            var brain = agent.GetComponent<KidnapMonsterBrain>();
+            if (brain != null)
+            {
+                // We are done waiting. Reset everything to go back to Kidnap mode.
+                brain.OnHideComplete();
+            }
         }
 
         public class Data : IActionData

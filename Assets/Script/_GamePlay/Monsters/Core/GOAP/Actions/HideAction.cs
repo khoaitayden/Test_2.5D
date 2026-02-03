@@ -9,6 +9,7 @@ namespace CrashKonijn.Goap.MonsterGen
     {
         private MonsterMovement movement;
         private MonsterConfigBase config;
+        private KidnapMonsterBrain brain;
 
         public override void Created() { }
 
@@ -16,6 +17,8 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement = agent.GetComponent<MonsterMovement>();
             config = agent.GetComponent<MonsterConfigBase>();
+            brain=agent.GetComponent<KidnapMonsterBrain>();
+
 
             if (data.Target != null)
             {
@@ -27,6 +30,8 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (movement.HasArrivedOrStuck())
             {
+                Debug.Log("Arrived");
+                
                 return ActionRunState.Completed;
             }
             return ActionRunState.Continue;
@@ -35,6 +40,7 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
+            brain.SetArrivedAtCover(true);
         }
 
         public class Data : IActionData

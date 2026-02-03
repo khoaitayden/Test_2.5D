@@ -6,15 +6,12 @@ using UnityEngine;
 
 public abstract class MonsterBrain : MonoBehaviour
 {
-    // --- SHARED DEPENDENCIES ---
     protected MonsterConfigBase config;
     protected GoapActionProvider provider;
 
-    // --- PUBLIC PROPERTIES (For Sensors) ---
     public TraceStorageSO TraceStorage => config?.traceStorage;
     public TransformAnchorSO PlayerAnchor => config?.playerAnchor;
 
-    // --- SHARED STATE ---
     public bool IsPlayerVisible { get; private set; }
     public Vector3 LastKnownPlayerPosition { get; private set; } 
     public Transform CurrentPlayerTarget { get; private set; }
@@ -34,7 +31,6 @@ public abstract class MonsterBrain : MonoBehaviour
         config = GetComponent<MonsterConfigBase>();
         
         if (provider != null) provider.enabled = false;
-        if (config == null) Debug.LogError($"{name} requires a MonsterConfigBase component!", this);
     }
 
     protected virtual IEnumerator Start()

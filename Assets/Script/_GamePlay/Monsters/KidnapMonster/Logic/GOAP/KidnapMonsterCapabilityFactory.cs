@@ -33,7 +33,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddEffect<HasKidnappedPlayer>(EffectType.Increase)
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
-                .AddCondition<IsLitByFlashlight>(Comparison.SmallerThan, 1) // Cannot kidnap while lit
+                .AddCondition<IsLitByFlashlight>(Comparison.SmallerThan, 1) 
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
@@ -49,7 +49,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<HideTarget>()
                 .AddEffect<IsSafe>(EffectType.Increase)
                 .AddCondition<IsHiding>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(5)
+                .SetBaseCost(6)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
             
             // 4. TRACK TRACE ACTION

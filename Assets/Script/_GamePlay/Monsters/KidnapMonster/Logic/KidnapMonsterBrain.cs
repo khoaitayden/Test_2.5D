@@ -4,6 +4,7 @@ using UnityEngine;
 public class KidnapMonsterBrain : MonsterBrain
 {
     public bool IsHideMode { get; private set; }
+    public bool HasReachedCover { get; private set; } 
 
     [SerializeField] private KidnapMonsterConfig kidnapConfig;
     [SerializeField] private KidnapHideFinder hideFinder; 
@@ -13,6 +14,8 @@ public class KidnapMonsterBrain : MonsterBrain
         base.Awake();
         if(kidnapConfig == null) kidnapConfig = GetComponent<KidnapMonsterConfig>();
         if(hideFinder == null) hideFinder = GetComponent<KidnapHideFinder>();
+        IsHideMode=false;
+        HasReachedCover=false;
     }
 
     protected override string GetAgentTypeName() => "KidnapMonsterAgent";
@@ -24,25 +27,31 @@ public class KidnapMonsterBrain : MonsterBrain
         if (!IsHideMode)
         {
             Debug.Log("[Kidnap] Light detected! Entering Hide Mode.");
+            
             IsHideMode = true;
+            HasReachedCover = false; 
+            
             UpdateGOAPState();
-            DecideGoal();
         }
+    }
+
+    public void SetArrivedAtCover(bool arrived)
+    {
+        HasReachedCover = arrived;
     }
 
     public void OnHideComplete()
     {
-        Debug.Log("[Kidnap] Hide complete. Resuming hunt.");
+        Debug.Log("[Kidnap] Hide & Wait complete. Resuming hunt.");
         IsHideMode = false;
+        HasReachedCover = false;
         UpdateGOAPState();
-        DecideGoal();
     }
 
     private void DecideGoal()
     {
         if (IsHideMode)
         {
-            Debug.Log("[Kidnap] Entering Hide Mode.");
             provider.RequestGoal<HideGoal>();
         }
         else
@@ -54,5 +63,6 @@ public class KidnapMonsterBrain : MonsterBrain
     protected override void UpdateGOAPState()
     {
         base.UpdateGOAPState();
+        DecideGoal();
     }
 }
