@@ -5,6 +5,7 @@ public class KidnapMonsterBrain : MonsterBrain
 {
     public bool IsHideMode { get; private set; }
     public bool HasReachedCover { get; private set; } 
+    public bool IsSafe { get; private set; }
 
     [SerializeField] private KidnapMonsterConfig kidnapConfig;
     [SerializeField] private KidnapHideFinder hideFinder; 
@@ -29,7 +30,8 @@ public class KidnapMonsterBrain : MonsterBrain
             Debug.Log("[Kidnap] Light detected! Entering Hide Mode.");
             
             IsHideMode = true;
-            HasReachedCover = false; 
+            HasReachedCover = false;
+            IsSafe = false; 
             
             UpdateGOAPState();
         }
@@ -40,11 +42,19 @@ public class KidnapMonsterBrain : MonsterBrain
         HasReachedCover = arrived;
     }
 
+    public void OnSafetyAchieved()
+    {
+        Debug.Log("[Kidnap] Safety Achieved.");
+        IsSafe = true;
+        OnHideComplete(); 
+    }
+
     public void OnHideComplete()
     {
-        Debug.Log("[Kidnap] Hide & Wait complete. Resuming hunt.");
+        Debug.Log("[Kidnap] Resuming hunt.");
         IsHideMode = false;
         HasReachedCover = false;
+        IsSafe = false; 
         UpdateGOAPState();
     }
 

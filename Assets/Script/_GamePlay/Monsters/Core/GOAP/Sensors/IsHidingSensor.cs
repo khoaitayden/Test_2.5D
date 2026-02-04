@@ -18,7 +18,6 @@ namespace CrashKonijn.Goap.MonsterGen
                 return true;
             } else 
                 return false;
-            //return brain.HasReachedCover ? 1 : 0;
         }
     }
 }

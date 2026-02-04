@@ -12,7 +12,15 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override SenseValue Sense(IActionReceiver agent, IComponentReference references)
         {
-            return 0; 
+            var brain = references.GetCachedComponent<KidnapMonsterBrain>();
+            if (brain.IsSafe == true)
+            {
+                return true;
+            } else
+            {
+                return false;
+            }
+            //return (brain != null && brain.IsSafe) ? 1 : 0;
         }
     }
 }
