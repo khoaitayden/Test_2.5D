@@ -20,4 +20,5 @@ public class KidnapMonsterConfig : MonsterConfigBase
     public float findHideRadius = 25f;
     public float playerComeCloseFleeDistance = 10f;
     public float hideBehindCoverDuration = 5f;
+    public float nervousThreshold = 0.75f;
 }

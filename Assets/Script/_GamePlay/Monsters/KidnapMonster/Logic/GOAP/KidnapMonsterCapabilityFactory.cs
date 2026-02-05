@@ -23,6 +23,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             // 1. FLEE ACTION
             builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
+                .AddCondition<CanHide>(Comparison.SmallerThan,1)
                 .AddEffect<IsSafe>(EffectType.Increase) 
                 .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);

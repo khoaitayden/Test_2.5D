@@ -11,8 +11,7 @@ namespace CrashKonijn.Goap.MonsterGen
         private KidnapMonsterBrain brain;
 
         private float initialPlayerDistance;
-        private float nervousTimer;
-        private const float NERVOUS_THRESHOLD = 2.0f; 
+        private float nervousTimer; 
 
         public override void Created() { }
 
@@ -23,6 +22,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (brain != null) playerAnchor = brain.PlayerAnchor;
             
             data.startTime = Time.time;
+            data.wasSuccessful = false;
             
             if (playerAnchor != null && playerAnchor.Value != null)
             {
@@ -38,22 +38,24 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // --- 1. PANIC CHECK (Too Close) ---
+            // --- 1. PANIC CHECK ---
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
                 if (dist < config.playerComeCloseFleeDistance)
                 {
-                    return ActionRunState.Stop; // Fail action -> Replan to Flee
+                    data.wasSuccessful = false;
+                    return ActionRunState.Stop; 
                 }
 
-                // --- 2. NERVOUS CHECK (Approaching) ---
+                // --- 2. NERVOUS CHECK ---
                 if (dist < initialPlayerDistance)
                 {
                     nervousTimer += Time.deltaTime;
-                    if (nervousTimer >= NERVOUS_THRESHOLD)
+                    if (nervousTimer >= config.nervousThreshold)
                     {
-                        return ActionRunState.Stop; // Fail action -> Replan to Flee
+                        data.wasSuccessful = false;
+                        return ActionRunState.Stop; 
                     }
                 }
                 else
@@ -62,27 +64,29 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
             }
             
-            // 3. PATIENCE CHECK (Timeout)
-            if (Time.time > data.startTime + 5.0f)
+            // --- 3. PATIENCE CHECK ---
+            if (Time.time > data.startTime + config.hideBehindCoverDuration)
             {
-                return ActionRunState.Completed; // Success, we are "Safe"
+                data.wasSuccessful = true;
+                return ActionRunState.Completed;
             }
 
             return ActionRunState.Continue;
         }
 
-        // --- THE FIX ---
-        // This is called ONLY if Perform returns ActionRunState.Completed
         public override void End(IMonoAgent agent, Data data) 
         { 
-            // We waited successfully
-            brain?.OnSafetyAchieved();
+            if (data.wasSuccessful)
+            {
+                brain?.OnSafetyAchieved();
+            }
         }
 
         public class Data : IActionData
         {
             public ITarget Target { get; set; }
             public float startTime;
+            public bool wasSuccessful; 
         }
     }
 }
