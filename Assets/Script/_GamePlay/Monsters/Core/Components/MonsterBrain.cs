@@ -12,9 +12,9 @@ public abstract class MonsterBrain : MonoBehaviour
     public TraceStorageSO TraceStorage => config?.traceStorage;
     public TransformAnchorSO PlayerAnchor => config?.playerAnchor;
 
-    public bool IsPlayerVisible { get; private set; }
-    public Vector3 LastKnownPlayerPosition { get; private set; } 
-    public Transform CurrentPlayerTarget { get; private set; }
+    public bool IsPlayerVisible { get; set; }
+    public Vector3 LastKnownPlayerPosition { get; set; } 
+    public Transform CurrentPlayerTarget { get; set; }
     public bool IsInvestigating { get; private set; }
     public bool IsFleeing { get; protected set; }
     public bool IsAttacking { get; set; }

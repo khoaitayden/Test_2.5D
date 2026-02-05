@@ -3,9 +3,10 @@ using UnityEngine;
 
 public class KidnapMonsterBrain : MonsterBrain
 {
-    public bool IsHideMode { get; private set; }
-    public bool HasReachedCover { get; private set; } 
-    public bool IsSafe { get; private set; }
+    public bool IsHideMode { get; protected set; }
+    public bool HasReachedCover { get; protected set; } 
+    public bool IsSafe { get; protected set; }
+    public bool CanHide { get; set;}
 
     [SerializeField] private KidnapMonsterConfig kidnapConfig;
     [SerializeField] private KidnapHideFinder hideFinder; 
@@ -15,8 +16,10 @@ public class KidnapMonsterBrain : MonsterBrain
         base.Awake();
         if(kidnapConfig == null) kidnapConfig = GetComponent<KidnapMonsterConfig>();
         if(hideFinder == null) hideFinder = GetComponent<KidnapHideFinder>();
-        IsHideMode=false;
-        HasReachedCover=false;
+        IsHideMode = false;
+        HasReachedCover = false;
+        IsSafe = false;
+        CanHide = true;
     }
 
     protected override string GetAgentTypeName() => "KidnapMonsterAgent";
@@ -32,7 +35,7 @@ public class KidnapMonsterBrain : MonsterBrain
             IsHideMode = true;
             HasReachedCover = false;
             IsSafe = false; 
-            
+            CanHide=true;
             UpdateGOAPState();
         }
     }

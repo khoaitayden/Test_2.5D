@@ -52,9 +52,12 @@ namespace CrashKonijn.Goap.MonsterGen
                 if (dist < initialPlayerDistance)
                 {
                     nervousTimer += Time.deltaTime;
+                    Debug.Log("NervousTimer: "+ nervousTimer);
                     if (nervousTimer >= config.nervousThreshold)
                     {
                         data.wasSuccessful = false;
+                        brain.CanHide=false;
+                        Debug.Log("Panic run");
                         return ActionRunState.Stop; 
                     }
                 }
@@ -76,6 +79,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         public override void End(IMonoAgent agent, Data data) 
         { 
+            Debug.Log("Ending");
             if (data.wasSuccessful)
             {
                 brain?.OnSafetyAchieved();

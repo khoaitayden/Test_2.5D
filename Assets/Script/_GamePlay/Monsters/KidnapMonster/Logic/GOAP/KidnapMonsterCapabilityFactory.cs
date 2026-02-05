@@ -50,6 +50,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<HideTarget>()
                 .AddEffect<IsSafe>(EffectType.Increase)
                 .AddCondition<IsHiding>(Comparison.GreaterThanOrEqual, 1)
+                .AddCondition<CanHide> (Comparison.GreaterThanOrEqual, 1)
                 .SetBaseCost(6)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
             
