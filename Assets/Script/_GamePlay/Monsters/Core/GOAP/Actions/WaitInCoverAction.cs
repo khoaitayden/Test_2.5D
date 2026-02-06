@@ -12,6 +12,7 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private float initialPlayerDistance;
         private float nervousTimer; 
+        private float playerLastDistance;
 
         public override void Created() { }
 
@@ -34,6 +35,7 @@ namespace CrashKonijn.Goap.MonsterGen
             }
             
             nervousTimer = 0f;
+            playerLastDistance=Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
@@ -49,9 +51,10 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
 
                 // --- 2. NERVOUS CHECK ---
-                if (dist < initialPlayerDistance)
+                if ((dist < initialPlayerDistance)&&(dist!=playerLastDistance))
                 {
                     nervousTimer += Time.deltaTime;
+                    playerLastDistance=dist;
                     Debug.Log("NervousTimer: "+ nervousTimer);
                     if (nervousTimer >= config.nervousThreshold)
                     {
