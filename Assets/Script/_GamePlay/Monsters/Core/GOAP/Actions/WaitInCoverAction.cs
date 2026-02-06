@@ -44,7 +44,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
-                if (dist < config.playerComeCloseFleeDistance)
+                if (dist < config.playerComeCloseAttackDistance)
                 {
                     data.wasSuccessful = false;
                     return ActionRunState.Stop; 
@@ -66,7 +66,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
                 else
                 {
-                    nervousTimer = 0f;
+                    nervousTimer -= Time.deltaTime;
                 }
             }
             

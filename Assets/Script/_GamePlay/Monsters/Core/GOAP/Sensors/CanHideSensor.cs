@@ -26,7 +26,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 if (kidnapConfig != null)
                 {
                     float dist = Vector3.Distance(agent.Transform.position, kidnapBrain.PlayerAnchor.Value.position);
-                    if (dist < kidnapConfig.playerComeCloseFleeDistance)
+                    if (dist < kidnapConfig.playerComeCloseAttackDistance)
                     {
                         Debug.Log("Player is to close to hide.");
                         return 0;
@@ -34,7 +34,6 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
                 if (kidnapBrain.CanHide == false)
                 {
-                    Debug.Log("Brain says can't hide now.");
                     return 0;
                 }
 
