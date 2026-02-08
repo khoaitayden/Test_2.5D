@@ -20,7 +20,6 @@ namespace CrashKonijn.Goap.MonsterGen
             {
                 return false;
             }
-            //return (brain != null && brain.IsSafe) ? 1 : 0;
         }
     }
 }

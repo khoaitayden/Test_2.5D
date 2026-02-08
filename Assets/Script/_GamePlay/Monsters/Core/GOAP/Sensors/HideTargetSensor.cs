@@ -24,7 +24,6 @@ namespace CrashKonijn.Goap.MonsterGen
             
                 if (spot.HasValue)
                 {
-                    Debug.Log("Found tree");
                     return new PositionTarget(spot.Value);
                 }
             }

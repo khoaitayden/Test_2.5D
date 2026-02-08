@@ -44,7 +44,10 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             movement.Stop();
             var brain = agent.GetComponent<KidnapMonsterBrain>();
-            if(brain != null) brain.OnSafetyAchieved();
+            if(brain != null) {
+                brain.OnSafetyAchieved();
+                //brain.IsSafe=true;
+            };
             
         }
 
