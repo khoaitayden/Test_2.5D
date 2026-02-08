@@ -23,15 +23,15 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (kidnapBrain != null && kidnapBrain.PlayerAnchor != null && kidnapBrain.PlayerAnchor.Value != null)
             {
-                // if (kidnapConfig != null)
-                // {
-                //     float dist = Vector3.Distance(agent.Transform.position, kidnapBrain.PlayerAnchor.Value.position);
-                //     if (dist < kidnapConfig.playerComeCloseKidnapDistance)
-                //     {
-                //         Debug.Log("Player is to close to hide.");
-                //         return 0;
-                //     }
-                // }
+                if (kidnapConfig != null)
+                {
+                    float dist = Vector3.Distance(agent.Transform.position, kidnapBrain.PlayerAnchor.Value.position);
+                    if (dist < kidnapConfig.playerComeCloseKidnapDistance)
+                    {
+                        Debug.Log("Player is to close to hide.");
+                        return 0;
+                    }
+                }
                 if (kidnapBrain.CanHide == false)
                 {
                     return 0;

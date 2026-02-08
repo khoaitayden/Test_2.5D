@@ -3,6 +3,7 @@ using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEditor.VersionControl;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -45,6 +46,8 @@ namespace CrashKonijn.Goap.MonsterGen
             if (Vector3.Distance(agent.Transform.position, playerTransform.position) < 2.0f)
             {
                 KidnapPlayer();
+                var provider =agent.GetComponent<GoapActionProvider>();
+                provider.WorldData.SetState<HasKidnappedPlayer>(1);
                 return ActionRunState.Completed;
             }
 

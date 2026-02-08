@@ -44,11 +44,11 @@ namespace CrashKonijn.Goap.MonsterGen
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
-                // if (dist < config.playerComeCloseKidnapDistance)
-                // {
-                //     data.wasSuccessful = false;
-                //     return ActionRunState.Stop; 
-                // }
+                if (dist < config.playerComeCloseKidnapDistance)
+                {
+                    data.wasSuccessful = false;
+                    return ActionRunState.Stop; 
+                }
 
                 // --- 2. NERVOUS CHECK ---
                 if ((dist < initialPlayerDistance)&&(dist!=playerLastDistance))

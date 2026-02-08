@@ -21,4 +21,8 @@ public class KidnapMonsterConfig : MonsterConfigBase
     public float playerComeCloseKidnapDistance = 10f;
     public float hideBehindCoverDuration = 5f;
     public float nervousThreshold = 0.75f;
+
+    [Header("Light Expose Sensitivity Settings")]
+    public float lightToleranceDuration = 2.0f;
+    public float lightDecaySpeed = 1.0f; 
 }

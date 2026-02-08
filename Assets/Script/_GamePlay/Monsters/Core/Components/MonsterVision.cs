@@ -44,6 +44,7 @@ public class MonsterVision : MonoBehaviour, ILitObject
             PerformVisionCheck();
         }
     }
+
     public void OnLit(LightSourceType sourceType)
     {
         if (sourceType == LightSourceType.Flashlight)
