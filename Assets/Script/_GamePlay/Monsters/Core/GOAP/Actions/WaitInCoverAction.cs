@@ -28,21 +28,25 @@ namespace CrashKonijn.Goap.MonsterGen
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 initialPlayerDistance = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
+                playerLastDistance = initialPlayerDistance; 
             }
             else
             {
                 initialPlayerDistance = float.MaxValue; 
+                playerLastDistance = float.MaxValue;
             }
             
             nervousTimer = 0f;
-            playerLastDistance=Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
-            // --- 1. PANIC CHECK ---
             if (playerAnchor != null && playerAnchor.Value != null)
             {
+                // --- 0. ROTATE TO FACE PLAYER (NEW) ---
+                RotateTowardsPlayer(agent);
+
+                // --- 1. PANIC CHECK ---
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
                 if (dist < config.playerComeCloseKidnapDistance)
                 {
@@ -51,15 +55,15 @@ namespace CrashKonijn.Goap.MonsterGen
                 }
 
                 // --- 2. NERVOUS CHECK ---
-                if ((dist < initialPlayerDistance)&&(dist!=playerLastDistance))
+                if (dist < initialPlayerDistance && dist < playerLastDistance - 0.05f) 
                 {
                     nervousTimer += Time.deltaTime;
-                    playerLastDistance=dist;
-                    Debug.Log("NervousTimer: "+ nervousTimer);
+                    // Debug.Log($"Nervous: {nervousTimer}");
+                    
                     if (nervousTimer >= config.nervousThreshold)
                     {
                         data.wasSuccessful = false;
-                        brain.CanHide=false;
+                        if(brain != null) brain.CanHide = false;
                         Debug.Log("Panic run");
                         return ActionRunState.Stop; 
                     }
@@ -67,7 +71,10 @@ namespace CrashKonijn.Goap.MonsterGen
                 else
                 {
                     nervousTimer -= Time.deltaTime;
+                    if (nervousTimer < 0) nervousTimer = 0;
                 }
+                
+                playerLastDistance = dist;
             }
             
             // --- 3. PATIENCE CHECK ---
@@ -80,9 +87,21 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
 
+        private void RotateTowardsPlayer(IMonoAgent agent)
+        {
+            Vector3 direction = (playerAnchor.Value.position - agent.Transform.position).normalized;
+            direction.y = 0; // Keep upright, don't look up/down at feet
+
+            if (direction != Vector3.zero)
+            {
+                Quaternion lookRotation = Quaternion.LookRotation(direction);
+                agent.Transform.rotation = Quaternion.Slerp(agent.Transform.rotation, lookRotation, Time.deltaTime * 5f);
+            }
+        }
+
         public override void End(IMonoAgent agent, Data data) 
         { 
-            Debug.Log("Ending");
+            Debug.Log("Ending Wait");
             if (data.wasSuccessful)
             {
                 brain?.OnSafetyAchieved();

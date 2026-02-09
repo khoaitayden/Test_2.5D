@@ -33,7 +33,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<PlayerTarget>()
                 .AddEffect<HasKidnappedPlayer>(EffectType.Increase)
                 .AddCondition<IsPlayerInSight>(Comparison.GreaterThanOrEqual, 1)
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
                 .AddCondition<CanHide>(Comparison.SmallerThan, 1) 
                 .SetBaseCost(1)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);

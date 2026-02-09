@@ -36,19 +36,19 @@ public class KidnapMonsterBrain : MonsterBrain
     protected override void RequestInitialGoal() => DecideGoal();
 
     // --- MAIN UPDATE LOOP ---
-   private void Update()
+    private void Update()
     {
-        HandleLightExposure();
+        if (!IsHideMode)
+        {
+            HandleLightExposure();
+        }
     }
-
     // We can keep this empty or remove it, since we handle logic in Update now
     public override void OnLitByFlashlight() { }
 
     private void HandleLightExposure()
     {
-        // 1. CHECK THE VISION COMPONENT DIRECTLY
-        // This is stable. It doesn't depend on execution order.
-        bool isLit = (vision != null && vision.IsLit);
+        bool isLit = vision != null && vision.IsLit;
 
         if (isLit)
         {
@@ -60,13 +60,10 @@ public class KidnapMonsterBrain : MonsterBrain
                 lightExposureTimer -= Time.deltaTime * kidnapConfig.lightDecaySpeed;
         }
 
-        // Clamp logic
-        //lightExposureTimer = Mathf.Clamp(lightExposureTimer, 0f, kidnapConfig.lightToleranceDuration);
-        
-        // Debug to see it working
-        Debug.Log($"Light Timer: {lightExposureTimer} / {kidnapConfig.lightToleranceDuration}");
+        lightExposureTimer = Mathf.Clamp(lightExposureTimer, 0f, kidnapConfig.lightToleranceDuration);
+        Debug.Log(lightExposureTimer);
 
-        // 2. Check Threshold
+        // TRIGGER LOGIC
         if (lightExposureTimer >= kidnapConfig.lightToleranceDuration)
         {
             TriggerHideLogic();
@@ -75,16 +72,22 @@ public class KidnapMonsterBrain : MonsterBrain
 
     private void TriggerHideLogic()
     {
-        if (IsHideMode || IsPlayerTooClose()) return;
+        if (IsPlayerTooClose()) return;
 
         Debug.Log("[Kidnap] Light tolerance exceeded. Entering Hide Mode.");
+        
         IsHideMode = true;
+        
+        // Reset flags for fresh hide sequence
         HasReachedCover = false;
         IsSafe = false; 
         CanHide = true;
+
+        lightExposureTimer = 0f; 
+
         UpdateGOAPState();
     }
-    // --- EXISTING LOGIC ---
+
 
     private bool IsPlayerTooClose()
     {
@@ -113,7 +116,6 @@ public class KidnapMonsterBrain : MonsterBrain
         IsSafe = false; 
         CanHide = false;
         
-        // Reset light timer so we don't hide immediately again unless shined on
         lightExposureTimer = 0f; 
         
         UpdateGOAPState();
@@ -121,7 +123,6 @@ public class KidnapMonsterBrain : MonsterBrain
 
     private void DecideGoal()
     {
-        // PRIORITY 1: ATTACK
         if (IsPlayerTooClose())
         {
             provider.WorldData.SetState<HasKidnappedPlayer>(0);
@@ -129,12 +130,10 @@ public class KidnapMonsterBrain : MonsterBrain
             return;
         }
 
-        // PRIORITY 2: HIDE (Only if timer exceeded)
         if (IsHideMode)
         {
             provider.RequestGoal<HideGoal>();
         }
-        // PRIORITY 3: HUNT
         else
         {   
             provider.WorldData.SetState<HasKidnappedPlayer>(0);
