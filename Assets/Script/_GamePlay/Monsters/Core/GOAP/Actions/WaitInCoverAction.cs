@@ -1,6 +1,8 @@
 using CrashKonijn.Agent.Core;
+using CrashKonijn.Goap.MonsterGen.Capabilities;
 using CrashKonijn.Goap.Runtime;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -9,10 +11,12 @@ namespace CrashKonijn.Goap.MonsterGen
         private KidnapMonsterConfig config;
         private TransformAnchorSO playerAnchor;
         private KidnapMonsterBrain brain;
+        private MonsterMovement movement;
 
         private float initialPlayerDistance;
         private float nervousTimer; 
         private float playerLastDistance;
+        private Vector3 currentCoverTreePosition; 
 
         public override void Created() { }
 
@@ -20,20 +24,22 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             config = agent.GetComponent<KidnapMonsterConfig>();
             brain = agent.GetComponent<KidnapMonsterBrain>();
+            movement = agent.GetComponent<MonsterMovement>(); 
+            
             if (brain != null) playerAnchor = brain.PlayerAnchor;
             
             data.startTime = Time.time;
             data.wasSuccessful = false;
             
+            if (data.Target != null)
+            {
+                currentCoverTreePosition = FindTreeCenter(agent.Transform.position);
+            }
+
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 initialPlayerDistance = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
                 playerLastDistance = initialPlayerDistance; 
-            }
-            else
-            {
-                initialPlayerDistance = float.MaxValue; 
-                playerLastDistance = float.MaxValue;
             }
             
             nervousTimer = 0f;
@@ -43,30 +49,15 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (playerAnchor != null && playerAnchor.Value != null)
             {
-                // --- 0. ROTATE TO FACE PLAYER (NEW) ---
-                RotateTowardsPlayer(agent);
+                UpdateHidingPosition(agent);
 
-                // --- 1. PANIC CHECK ---
+                // --- PANIC CHECKS ---
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
-                if (dist < config.playerComeCloseKidnapDistance)
+                if (dist < config.playerComeCloseKidnapDistance || (dist < playerLastDistance - 0.05f && (nervousTimer += Time.deltaTime) >= config.nervousThreshold))
                 {
                     data.wasSuccessful = false;
+                    if(brain != null) brain.CanHide = false;
                     return ActionRunState.Stop; 
-                }
-
-                // --- 2. NERVOUS CHECK ---
-                if (dist < initialPlayerDistance && dist < playerLastDistance - 0.05f) 
-                {
-                    nervousTimer += Time.deltaTime;
-                    // Debug.Log($"Nervous: {nervousTimer}");
-                    
-                    if (nervousTimer >= config.nervousThreshold)
-                    {
-                        data.wasSuccessful = false;
-                        if(brain != null) brain.CanHide = false;
-                        Debug.Log("Panic run");
-                        return ActionRunState.Stop; 
-                    }
                 }
                 else
                 {
@@ -77,7 +68,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 playerLastDistance = dist;
             }
             
-            // --- 3. PATIENCE CHECK ---
+            // --- PATIENCE CHECK ---
             if (Time.time > data.startTime + config.hideBehindCoverDuration)
             {
                 data.wasSuccessful = true;
@@ -87,21 +78,50 @@ namespace CrashKonijn.Goap.MonsterGen
             return ActionRunState.Continue;
         }
 
-        private void RotateTowardsPlayer(IMonoAgent agent)
+        private void UpdateHidingPosition(IMonoAgent agent)
         {
-            Vector3 direction = (playerAnchor.Value.position - agent.Transform.position).normalized;
-            direction.y = 0; // Keep upright, don't look up/down at feet
+            if (currentCoverTreePosition == Vector3.zero) return;
 
-            if (direction != Vector3.zero)
-            {
-                Quaternion lookRotation = Quaternion.LookRotation(direction);
-                agent.Transform.rotation = Quaternion.Slerp(agent.Transform.rotation, lookRotation, Time.deltaTime * 5f);
-            }
+            Vector3 playerPos = playerAnchor.Value.position;
+            Vector3 shadowDirection = (currentCoverTreePosition - playerPos).normalized;
+
+            Vector3 idealHideSpot = currentCoverTreePosition + (shadowDirection * config.hideDistanceBehindTree);
+
+            movement.MoveTo(idealHideSpot, config.rotateHidingSpeed);
+            
+            Vector3 lookDir = (playerPos - agent.Transform.position).normalized;
+            lookDir.y = 0;
+            if(lookDir != Vector3.zero) 
+                agent.Transform.rotation = Quaternion.Slerp(agent.Transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * config.hideLookSpeed);
         }
+
+        private Vector3 FindTreeCenter(Vector3 myPos)
+            {
+                Vector3 toPlayer = playerAnchor.Value.position - myPos;
+
+                Collider[] hits = Physics.OverlapSphere(myPos, config.treeDetectionRadius, config.obstacleLayerMask);
+                
+                // Return closest tree
+                float closest = float.MaxValue;
+                Vector3 bestTree = Vector3.zero;
+                
+                foreach(var hit in hits)
+                {
+                    float d = Vector3.Distance(myPos, hit.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        bestTree = hit.bounds.center;
+                        bestTree.y = myPos.y;
+                    }
+                }
+                
+                return bestTree;
+            }
 
         public override void End(IMonoAgent agent, Data data) 
         { 
-            Debug.Log("Ending Wait");
+            movement.Stop();
             if (data.wasSuccessful)
             {
                 brain?.OnSafetyAchieved();
