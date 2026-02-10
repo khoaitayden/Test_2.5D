@@ -35,6 +35,7 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (movement.HasArrivedOrStuck())
             {
+                brain.WipeMemory();
                 return ActionRunState.Completed;
             }
             return ActionRunState.Continue;
@@ -47,6 +48,7 @@ namespace CrashKonijn.Goap.MonsterGen
             if(brain != null) {
                 brain.OnSafetyAchieved();
                 //brain.IsSafe=true;
+                
             };
             
         }
