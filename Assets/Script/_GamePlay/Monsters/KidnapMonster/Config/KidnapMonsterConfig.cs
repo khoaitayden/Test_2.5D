@@ -5,6 +5,7 @@ public class KidnapMonsterConfig : MonsterConfigBase
 {
     [Header("Kidnap")]
     public float mapRadius = 100f; 
+    public float grabPreparationDistance=4f;
     public int teleportSampleAttempts = 20;
     
     public float energyDrainPercent = 0.5f;

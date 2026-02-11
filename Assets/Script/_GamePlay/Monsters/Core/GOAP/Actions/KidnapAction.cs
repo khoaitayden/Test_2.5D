@@ -3,7 +3,6 @@ using CrashKonijn.Goap.Runtime;
 using CrashKonijn.Goap.MonsterGen.Capabilities;
 using UnityEngine;
 using UnityEngine.AI;
-using UnityEditor.VersionControl;
 
 namespace CrashKonijn.Goap.MonsterGen
 {
@@ -12,7 +11,11 @@ namespace CrashKonijn.Goap.MonsterGen
         private KidnapMonsterConfig config;
         private MonsterMovement movement;
         private MonsterBrain brain;
+        private KidnapClawController clawController; 
         private Transform playerTransform;
+
+        // Constants
+        private const float CONTACT_DISTANCE = 4f; 
 
         public override void Created() { }
 
@@ -21,6 +24,7 @@ namespace CrashKonijn.Goap.MonsterGen
             config = agent.GetComponent<KidnapMonsterConfig>();
             movement = agent.GetComponent<MonsterMovement>();
             brain = agent.GetComponent<MonsterBrain>();
+            clawController = agent.GetComponent<KidnapClawController>();
             
             data.startTime = Time.time; 
 
@@ -29,7 +33,8 @@ namespace CrashKonijn.Goap.MonsterGen
                 playerTransform = tt.Transform;
                 movement.Chase(playerTransform, config.chaseSpeed);
             }
-            Debug.Log("Start attack player");
+            
+            Debug.Log("[KidnapAction] Started chasing player.");
         }
 
         public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
@@ -43,10 +48,18 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (playerTransform == null) return ActionRunState.Stop;
 
-            if (Vector3.Distance(agent.Transform.position, playerTransform.position) < 2.0f)
+            float dist = Vector3.Distance(agent.Transform.position, playerTransform.position);
+            if (clawController==null)Debug.Log("LMAO");
+            if (clawController != null)
+            {
+                float t = Mathf.InverseLerp(config.grabPreparationDistance, CONTACT_DISTANCE, dist);
+                Debug.Log($"Claw Blend: {t}");
+                clawController.UpdateClawBlend(t, playerTransform);
+            }
+
+            if (dist < CONTACT_DISTANCE)
             {
                 KidnapPlayer();
-                var provider =agent.GetComponent<GoapActionProvider>();
                 return ActionRunState.Completed;
             }
 
@@ -56,27 +69,32 @@ namespace CrashKonijn.Goap.MonsterGen
         public override void End(IMonoAgent agent, Data data)
         {
             movement.Stop();
+            if (clawController != null)
+            {
+                clawController.UpdateClawBlend(0f, null);
+            }
         }
 
         private void KidnapPlayer()
         {
+            // 1. Drain Energy
             if (config != null && config.currentEnergy != null && config.maxEnergy != null)
             {
                 float drainAmount = config.maxEnergy.Value * config.energyDrainPercent;
                 config.currentEnergy.ApplyChange(-drainAmount, 0f, config.maxEnergy.Value);
             }
 
+            // 2. Teleport Logic
             Vector3 finalPos = FindFurthestNavMeshPoint();
 
             var controller = playerTransform.GetComponent<CharacterController>();
             if (controller != null) controller.enabled = false;
-            
             playerTransform.position = finalPos;
-            
             if (controller != null) controller.enabled = true;
 
-            Debug.Log($"Player Kidnapped to {finalPos}!");
+            Debug.Log($"[KidnapAction] Player Kidnapped to {finalPos}!");
             
+            // 3. Reset Brain
             if (brain != null) brain.WipeMemory();
         }
 
