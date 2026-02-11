@@ -57,6 +57,10 @@ PrefabInstance:
       value: Branch_2
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 0b82790855910ad42ac26c46acbfdbb2, type: 3}
+      propertyPath: m_Layer
+      value: 17
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 0b82790855910ad42ac26c46acbfdbb2, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}

@@ -61,7 +61,7 @@ public class KidnapMonsterBrain : MonsterBrain
         }
 
         lightExposureTimer = Mathf.Clamp(lightExposureTimer, 0f, kidnapConfig.lightToleranceDuration);
-        Debug.Log(lightExposureTimer);
+        //Debug.Log(lightExposureTimer);
 
         // TRIGGER LOGIC
         if (lightExposureTimer >= kidnapConfig.lightToleranceDuration)
@@ -125,7 +125,6 @@ public class KidnapMonsterBrain : MonsterBrain
     {
         if (IsPlayerTooClose())
         {
-            provider.WorldData.SetState<HasKidnappedPlayer>(0);
             provider.RequestGoal<KidnapGoal>();
             return;
         }
@@ -136,7 +135,6 @@ public class KidnapMonsterBrain : MonsterBrain
         }
         else
         {   
-            provider.WorldData.SetState<HasKidnappedPlayer>(0);
             provider.RequestGoal<KidnapGoal>();
         }
     }

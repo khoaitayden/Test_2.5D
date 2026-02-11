@@ -30,8 +30,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (movement.HasArrivedOrStuck())
             {
-                Debug.Log("Arrived");
-                
                 return ActionRunState.Completed;
             }
             return ActionRunState.Continue;

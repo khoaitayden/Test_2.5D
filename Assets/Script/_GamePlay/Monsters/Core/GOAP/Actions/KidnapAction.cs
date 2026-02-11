@@ -47,7 +47,6 @@ namespace CrashKonijn.Goap.MonsterGen
             {
                 KidnapPlayer();
                 var provider =agent.GetComponent<GoapActionProvider>();
-                provider.WorldData.SetState<HasKidnappedPlayer>(1);
                 return ActionRunState.Completed;
             }
 
