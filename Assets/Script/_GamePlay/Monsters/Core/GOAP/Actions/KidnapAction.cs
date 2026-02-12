@@ -11,11 +11,10 @@ namespace CrashKonijn.Goap.MonsterGen
         private KidnapMonsterConfig config;
         private MonsterMovement movement;
         private MonsterBrain brain;
-        private KidnapClawController clawController; 
+        private KidnapClawAnimationController clawController; 
         private Transform playerTransform;
 
-        // Constants
-        private const float CONTACT_DISTANCE = 4f; 
+        private const float CONTACT_DISTANCE = 3.5f; 
 
         public override void Created() { }
 
@@ -24,7 +23,7 @@ namespace CrashKonijn.Goap.MonsterGen
             config = agent.GetComponent<KidnapMonsterConfig>();
             movement = agent.GetComponent<MonsterMovement>();
             brain = agent.GetComponent<MonsterBrain>();
-            clawController = agent.GetComponent<KidnapClawController>();
+            clawController = agent.GetComponent<KidnapClawAnimationController>();
             
             data.startTime = Time.time; 
 
@@ -77,14 +76,12 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private void KidnapPlayer()
         {
-            // 1. Drain Energy
             if (config != null && config.currentEnergy != null && config.maxEnergy != null)
             {
                 float drainAmount = config.maxEnergy.Value * config.energyDrainPercent;
                 config.currentEnergy.ApplyChange(-drainAmount, 0f, config.maxEnergy.Value);
             }
 
-            // 2. Teleport Logic
             Vector3 finalPos = FindFurthestNavMeshPoint();
 
             var controller = playerTransform.GetComponent<CharacterController>();
@@ -94,7 +91,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             Debug.Log($"[KidnapAction] Player Kidnapped to {finalPos}!");
             
-            // 3. Reset Brain
             if (brain != null) brain.WipeMemory();
         }
 
