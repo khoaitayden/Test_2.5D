@@ -28,7 +28,6 @@ public class KidnapClawAnimationController : MonoBehaviour
     public void UpdateClawBlend(float value, Transform player)
     {
         currentBlendValue = value;
-        Debug.Log(value);
         _playerTarget = player; 
 
         if (animator != null)

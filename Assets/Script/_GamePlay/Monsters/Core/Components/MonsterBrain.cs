@@ -95,7 +95,6 @@ public abstract class MonsterBrain : MonoBehaviour
 
     public void OnMovementStuck()
     {
-        Debug.Log($"[{name}] Stuck! Engaging Flee Mode.");
         IsInvestigating = false; 
         IsPlayerVisible = false;
         CurrentPlayerTarget = null;

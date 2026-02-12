@@ -42,7 +42,6 @@ namespace CrashKonijn.Goap.MonsterGen
         {
             if (data.isDone) return ActionRunState.Completed;
 
-            // Global Timeout
             if (Time.time - data.investigationStartTime > config.maxInvestigationTime)
             {
                 return ActionRunState.Completed; 
@@ -50,15 +49,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (movement.HasArrivedOrStuck())
             {
-                float dist = Vector3.Distance(agent.Transform.position, data.Target.Position);
-                
-                if (dist > 3.0f) 
-                {
-                    Debug.LogWarning($"[Search] Stuck {dist:F1}m away from cover. Triggering Flee.");
-                    brain?.OnMovementStuck();
-                    return ActionRunState.Stop; 
-                }
-
                 return ActionRunState.Completed;
             }
 

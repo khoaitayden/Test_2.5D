@@ -52,7 +52,6 @@ namespace CrashKonijn.Goap.MonsterGen
             if (clawController != null)
             {
                 float t = Mathf.InverseLerp(config.grabPreparationDistance, CONTACT_DISTANCE, dist);
-                Debug.Log($"Claw Blend: {t}");
                 clawController.UpdateClawBlend(t, playerTransform);
             }
 

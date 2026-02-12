@@ -91,7 +91,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddEffect<CanPatrol>(EffectType.Increase)
                 .AddEffect<IsPlayerInSight>(EffectType.Increase) 
                 .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(10)
+                .SetBaseCost(15)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // --- SENSORS ---

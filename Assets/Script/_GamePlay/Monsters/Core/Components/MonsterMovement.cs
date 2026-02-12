@@ -147,7 +147,6 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             {
                 if (agent.remainingDistance < 2.0f) return true;
             }
-
             return false;
         }
     }

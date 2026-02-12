@@ -14,10 +14,7 @@ public class KidnapMonsterBrain : MonsterBrain
     [SerializeField] private KidnapHideFinder hideFinder;
     [SerializeField] private MonsterVision vision; 
 
-
-    // Internal State
     private float lightExposureTimer = 0f;
-    private bool isCurrentlyLit = false;
 
     protected override void Awake()
     {
@@ -32,38 +29,27 @@ public class KidnapMonsterBrain : MonsterBrain
     }
 
     protected override string GetAgentTypeName() => "KidnapMonsterAgent";
-
     protected override void RequestInitialGoal() => DecideGoal();
 
-    // --- MAIN UPDATE LOOP ---
     private void Update()
     {
-        if (!IsHideMode)
+        if (!IsHideMode && !IsFleeing) // Don't check light if already fleeing
         {
             HandleLightExposure();
         }
     }
-    // We can keep this empty or remove it, since we handle logic in Update now
+
     public override void OnLitByFlashlight() { }
 
     private void HandleLightExposure()
     {
         bool isLit = vision != null && vision.IsLit;
 
-        if (isLit)
-        {
-            lightExposureTimer += Time.deltaTime;
-        }
-        else
-        {
-            if (lightExposureTimer > 0)
-                lightExposureTimer -= Time.deltaTime * kidnapConfig.lightDecaySpeed;
-        }
+        if (isLit) lightExposureTimer += Time.deltaTime;
+        else if (lightExposureTimer > 0) lightExposureTimer -= Time.deltaTime * kidnapConfig.lightDecaySpeed;
 
         lightExposureTimer = Mathf.Clamp(lightExposureTimer, 0f, kidnapConfig.lightToleranceDuration);
-        //Debug.Log(lightExposureTimer);
 
-        // TRIGGER LOGIC
         if (lightExposureTimer >= kidnapConfig.lightToleranceDuration)
         {
             TriggerHideLogic();
@@ -75,19 +61,13 @@ public class KidnapMonsterBrain : MonsterBrain
         if (IsPlayerTooClose()) return;
 
         Debug.Log("[Kidnap] Light tolerance exceeded. Entering Hide Mode.");
-        
         IsHideMode = true;
-        
-        // Reset flags for fresh hide sequence
         HasReachedCover = false;
         IsSafe = false; 
         CanHide = true;
-
         lightExposureTimer = 0f; 
-
         UpdateGOAPState();
     }
-
 
     private bool IsPlayerTooClose()
     {
@@ -105,7 +85,8 @@ public class KidnapMonsterBrain : MonsterBrain
     {
         Debug.Log("[Kidnap] Safety Achieved.");
         IsSafe = true;
-        OnHideComplete(); 
+        OnFleeComplete(); 
+        OnHideComplete();
     }
 
     public void OnHideComplete()
@@ -115,14 +96,18 @@ public class KidnapMonsterBrain : MonsterBrain
         HasReachedCover = false;
         IsSafe = false; 
         CanHide = false;
-        
         lightExposureTimer = 0f; 
-        
         UpdateGOAPState();
     }
 
     private void DecideGoal()
     {
+        if (IsFleeing)
+        {
+            provider.RequestGoal<FleeGoal>();
+            return;
+        }
+
         if (IsPlayerTooClose())
         {
             provider.RequestGoal<KidnapGoal>();
@@ -132,11 +117,10 @@ public class KidnapMonsterBrain : MonsterBrain
         if (IsHideMode)
         {
             provider.RequestGoal<HideGoal>();
+            return;
         }
-        else
-        {   
-            provider.RequestGoal<KidnapGoal>();
-        }
+
+        provider.RequestGoal<KidnapGoal>();
     }
 
     protected override void UpdateGOAPState()

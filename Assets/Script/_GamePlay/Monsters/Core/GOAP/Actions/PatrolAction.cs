@@ -37,13 +37,6 @@ namespace CrashKonijn.Goap.MonsterGen
 
             if (movement.HasArrivedOrStuck())
             {
-                
-                if (Vector3.Distance(agent.Transform.position, data.Target.Position) > 5.0f)
-                {
-                    Debug.LogWarning("[Patrol] Stuck far from target. Fleeing.");
-                    if (brain != null) brain.OnMovementStuck();
-                    return ActionRunState.Stop;
-                }
                 return ActionRunState.Completed;
             }
 

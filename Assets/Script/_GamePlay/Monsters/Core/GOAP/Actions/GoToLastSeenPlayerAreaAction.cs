@@ -41,12 +41,6 @@ namespace CrashKonijn.Goap.MonsterGen
             
             if (movement.HasArrivedOrStuck())
             {
-                if (Vector3.Distance(agent.Transform.position, data.Target.Position) > 5.0f)
-                {
-                    brain?.OnMovementStuck();
-                    return ActionRunState.Stop;
-                }
-                
                 brain?.OnArrivedAtSuspiciousLocation();
                 return ActionRunState.Completed;
             }

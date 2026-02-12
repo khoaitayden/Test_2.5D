@@ -18,13 +18,16 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             builder.AddGoal<HideGoal>()
                 .AddCondition<IsSafe>(Comparison.GreaterThanOrEqual, 1);
 
+            // --- GOAL 3: FLEE ---
+            builder.AddGoal<FleeGoal>()
+            .AddCondition<IsFleeing>(Comparison.SmallerThan, 1);
+
             // --- ACTIONS ---
 
             // 1. FLEE ACTION
             builder.AddAction<FleeAction>()
                 .SetTarget<PlayerTarget>()
-                .AddCondition<CanHide>(Comparison.SmallerThan,1)
-                .AddEffect<IsSafe>(EffectType.Increase) 
+                .AddEffect<IsFleeing>(EffectType.Decrease)    
                 .SetBaseCost(10)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
@@ -59,8 +62,8 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
                 .AddCondition<IsTrackingTrace>(Comparison.GreaterThanOrEqual, 1)
                 .AddCondition<IsPlayerInSight>(Comparison.SmallerThan, 1)
-                .AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
-                .SetBaseCost(3)
+                //.AddCondition<IsFleeing>(Comparison.SmallerThan, 1)
+                .SetBaseCost(2)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // 5. PATROL ACTION
@@ -68,7 +71,7 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
                 .SetTarget<PatrolTarget>()
                 .AddEffect<IsPlayerInSight>(EffectType.Increase)
                 .AddCondition<CanPatrol>(Comparison.GreaterThanOrEqual, 1)
-                .SetBaseCost(10)
+                .SetBaseCost(15)
                 .SetMoveMode(ActionMoveMode.PerformWhileMoving);
 
             // --- SENSORS ---

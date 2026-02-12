@@ -45,19 +45,34 @@ namespace CrashKonijn.Goap.MonsterGen
             nervousTimer = 0f;
         }
 
-        public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
+ public override IActionRunState Perform(IMonoAgent agent, Data data, IActionContext context)
         {
             if (playerAnchor != null && playerAnchor.Value != null)
             {
                 UpdateHidingPosition(agent);
 
-                // --- PANIC CHECKS ---
                 float dist = Vector3.Distance(agent.Transform.position, playerAnchor.Value.position);
-                if (dist < config.playerComeCloseKidnapDistance || (dist < playerLastDistance - 0.05f && (nervousTimer += Time.deltaTime) >= config.nervousThreshold))
+
+                // --- 1. IMMEDIATE PANIC CHECK ---
+                if (dist < config.playerComeCloseKidnapDistance)
                 {
                     data.wasSuccessful = false;
-                    if(brain != null) brain.CanHide = false;
                     return ActionRunState.Stop; 
+                }
+
+                // --- 2. NERVOUS CHECK ---
+                if (dist < playerLastDistance - 0.05f) 
+                {
+                    nervousTimer += Time.deltaTime;
+                    
+                    if (nervousTimer >= config.nervousThreshold)
+                    {
+                        data.wasSuccessful = false;
+                        if(brain != null) brain.OnMovementStuck(); 
+                        
+                        Debug.Log("Panic run (Nervous Timeout)");
+                        return ActionRunState.Stop; 
+                    }
                 }
                 else
                 {
@@ -68,7 +83,7 @@ namespace CrashKonijn.Goap.MonsterGen
                 playerLastDistance = dist;
             }
             
-            // --- PATIENCE CHECK ---
+            // --- 3. PATIENCE CHECK ---
             if (Time.time > data.startTime + config.hideBehindCoverDuration)
             {
                 data.wasSuccessful = true;
