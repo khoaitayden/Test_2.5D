@@ -4,18 +4,21 @@ public class PlayerTraceEmitter : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private TraceEventChannelSO traceChannel;
+    [SerializeField] private PlayerMovement playerMovement;
+
     [Header("Intervals (Seconds)")]
-    [Tooltip("Random time between traces while running (e.g. 5 to 10s)")]
     public Vector2 runInterval = new Vector2(5f, 10f);
-    
-    [Tooltip("Random time between traces while walking (e.g. 15 to 20s)")]
     public Vector2 walkInterval = new Vector2(15f, 20f);
 
     private float timer;
     private float currentThreshold;
-    
-    // Position tracking to ensure we actually moved
     private Vector3 lastPos;
+
+    void Awake()
+    {
+        // Try to find it if not assigned
+        if (playerMovement == null) playerMovement = GetComponentInParent<PlayerMovement>();
+    }
 
     void Start()
     {
@@ -25,12 +28,17 @@ public class PlayerTraceEmitter : MonoBehaviour
 
     void Update()
     {
-        bool isSprinting = InputManager.Instance.IsSprinting;
+        bool isSprinting = playerMovement.IsSprinting;
+        
         bool isSneaking = InputManager.Instance.IsSlowWalking;
+
+        if (playerMovement.CurrentHorizontalSpeed <= playerMovement.sneakSpeed && !isSneaking) 
+        {
+             isSneaking = true; 
+        }
 
         if (isSneaking)
         {
-  
             timer = 0f;
             return;
         }

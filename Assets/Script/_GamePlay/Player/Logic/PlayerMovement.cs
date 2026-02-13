@@ -12,28 +12,36 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private FloatVariableSO currentEnergy;
 
     [Header("Movement Settings")]
-    [SerializeField] private float baseMoveSpeed = 6f; 
+    [SerializeField] private float baseMoveSpeed; 
     [SerializeField] private float sprintSpeedMultiplier = 1.5f;
     [SerializeField] private float slowWalkSpeedMultiplier = 0.5f; 
     [SerializeField] private float rotationSpeed = 20f;
     [SerializeField] private float acceleration = 10f;
     [SerializeField] private float deceleration = 15f;
 
+    [Header("Auto-Run Settings")]
+    [SerializeField] private float autoRunThreshold = 0.9f;
+    [SerializeField] private float timeToAutoRun = 1.5f;
+
+    public float sneakSpeed {get; protected set;}
+    public float runSpeed {get; protected set;}
     private Vector3 horizontalVelocity = Vector3.zero;
     private float environmentSpeedMultiplier = 1f; 
     private Coroutine slowCoroutine;
+    private float _pushDurationTimer;
+    private bool _isAutoSprinting;
 
     public Vector3 WorldSpaceMoveDirection { get; private set; }
     public float CurrentHorizontalSpeed => horizontalVelocity.magnitude;
     public bool IsMoving => CurrentHorizontalSpeed > 0.01f;
 
-    private bool IsSprintingInput => InputManager.Instance.IsSprinting;
-    private bool IsSlowWalkingInput => InputManager.Instance.IsSlowWalking;
+    public bool IsSprinting => (InputManager.Instance.IsSprinting || _isAutoSprinting) && IsMoving;
 
     void Awake()
     {
-        if (controller == null) controller = GetComponent<CharacterController>();
-        if (mainCameraTransform == null) mainCameraTransform = Camera.main.transform;
+        sneakSpeed=baseMoveSpeed*slowWalkSpeedMultiplier;
+        runSpeed=baseMoveSpeed*sprintSpeedMultiplier;
+
     }
 
     public void HandleHorizontalMovement(bool isLocked)
@@ -48,26 +56,56 @@ public class PlayerMovement : MonoBehaviour
 
         HandleRotation();
 
-        float targetSpeed = CalculateTargetSpeed();
+        float inputMagnitude = InputManager.Instance.MoveInput.magnitude;
+        Debug.Log(inputMagnitude);
+        HandleAutoRunLogic(inputMagnitude);
+
+        float targetSpeed = CalculateTargetSpeed(inputMagnitude);
+        
         CalculateHorizontalVelocity(targetSpeed);
 
         controller.Move(horizontalVelocity * Time.deltaTime);
-        
     }
+
+    private void HandleAutoRunLogic(float magnitude)
+    {
+        if (magnitude >= autoRunThreshold)
+        {
+            if (!InputManager.Instance.IsSlowWalking)
+            {
+                _pushDurationTimer += Time.deltaTime;
+                if (_pushDurationTimer >= timeToAutoRun)
+                {
+                    _isAutoSprinting = true;
+                }
+            }
+        }
+        else
+        {
+            _pushDurationTimer = 0f;
+            _isAutoSprinting = false;
+        }
+    }
+
     private void StopMovement()
     {
         horizontalVelocity = Vector3.zero;
+        _pushDurationTimer = 0f;
+        _isAutoSprinting = false;
     }
+
     private Vector3 GetCameraRelativeInput()
     {
         Vector2 input = InputManager.Instance.MoveInput;
-        if (input.sqrMagnitude < 0.01f) return Vector3.zero;
+        // Lowered threshold slightly to make it more responsive
+        if (input.sqrMagnitude < 0.001f) return Vector3.zero;
 
         Vector3 camFwd = mainCameraTransform.forward;
         Vector3 camRight = mainCameraTransform.right;
         camFwd.y = 0;
         camRight.y = 0;
         
+        // Use normalized here for direction, but we use magnitude later for speed
         return (camFwd.normalized * input.y + camRight.normalized * input.x).normalized;
     }
 
@@ -80,24 +118,26 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private float CalculateTargetSpeed()
+    private float CalculateTargetSpeed(float inputMagnitude)
     {
         float speed = baseMoveSpeed;
 
-        bool hasEnergy = currentEnergy.Value > 0;
-        
+        bool hasEnergy = currentEnergy != null && currentEnergy.Value > 0;
+
         if (!hasEnergy)
         {
             speed *= slowWalkSpeedMultiplier;
         }
-        else if (IsSprintingInput)
+        else if (IsSprinting) 
         {
             speed *= sprintSpeedMultiplier;
         }
-        else if (IsSlowWalkingInput)
+        else if (InputManager.Instance.IsSlowWalking)
         {
             speed *= slowWalkSpeedMultiplier;
         }
+
+        speed *= Mathf.Clamp01(inputMagnitude);
 
         return speed * environmentSpeedMultiplier;
     }

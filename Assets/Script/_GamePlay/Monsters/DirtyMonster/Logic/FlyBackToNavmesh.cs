@@ -33,7 +33,6 @@ public partial class FlyBackToNavMesh : Action
 
         // Start Animation
         if (Animator.Value != null) Animator.Value.SetBool(IsFlying.Value, true);
-        Debug.Log("FlyingDown");
         return Status.Running;
     }
 
