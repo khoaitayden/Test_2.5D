@@ -334,6 +334,32 @@ MonoBehaviour:
         isBuiltIn: 1
         script: {fileID: 0}
         hasToggle: 1
+      - displayName: BehaviorGraphAgent
+        name: Unity.Behavior.BehaviorGraphAgent, Unity.Behavior, Version=0.0.0.0,
+          Culture=neutral, PublicKeyToken=null
+        content:
+          m_Text: 
+          m_Image: {fileID: 0}
+          m_Tooltip: 
+          m_TextWithWhitespace: 
+        shown: 0
+        excluded: 0
+        isBuiltIn: 1
+        script: {fileID: 0}
+        hasToggle: 1
+      - displayName: BehaviorGraphCollisionEvents
+        name: Unity.Behavior.BehaviorGraphCollisionEvents, Unity.Behavior, Version=0.0.0.0,
+          Culture=neutral, PublicKeyToken=null
+        content:
+          m_Text: 
+          m_Image: {fileID: 0}
+          m_Tooltip: 
+          m_TextWithWhitespace: 
+        shown: 0
+        excluded: 0
+        isBuiltIn: 1
+        script: {fileID: 0}
+        hasToggle: 1
       - displayName: BezierShape
         name: UnityEngine.ProBuilder.BezierShape, Unity.ProBuilder, Version=0.0.0.0,
           Culture=neutral, PublicKeyToken=null
@@ -2117,7 +2143,7 @@ MonoBehaviour:
         hasToggle: 0
       - displayName: OnScreenButton
         name: UnityEngine.InputSystem.OnScreen.OnScreenButton, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -2130,7 +2156,7 @@ MonoBehaviour:
         hasToggle: 1
       - displayName: OnScreenStick
         name: UnityEngine.InputSystem.OnScreen.OnScreenStick, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -2220,7 +2246,7 @@ MonoBehaviour:
         script: {fileID: 0}
         hasToggle: 1
       - displayName: PlayerInput
-        name: UnityEngine.InputSystem.PlayerInput, Unity.InputSystem, Version=1.17.0.0,
+        name: UnityEngine.InputSystem.PlayerInput, Unity.InputSystem, Version=1.18.0.0,
           Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
@@ -2233,7 +2259,7 @@ MonoBehaviour:
         script: {fileID: 0}
         hasToggle: 1
       - displayName: PlayerInputManager
-        name: UnityEngine.InputSystem.PlayerInputManager, Unity.InputSystem, Version=1.17.0.0,
+        name: UnityEngine.InputSystem.PlayerInputManager, Unity.InputSystem, Version=1.18.0.0,
           Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
@@ -2637,7 +2663,7 @@ MonoBehaviour:
         hasToggle: 1
       - displayName: TouchSimulation
         name: UnityEngine.InputSystem.EnhancedTouch.TouchSimulation, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -2649,7 +2675,7 @@ MonoBehaviour:
         script: {fileID: 0}
         hasToggle: 1
       - displayName: TrackedPoseDriver
-        name: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.17.0.0,
+        name: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.18.0.0,
           Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
@@ -2766,7 +2792,7 @@ MonoBehaviour:
         script: {fileID: 0}
         hasToggle: 1
       - displayName: VirtualMouseInput
-        name: UnityEngine.InputSystem.UI.VirtualMouseInput, Unity.InputSystem, Version=1.17.0.0,
+        name: UnityEngine.InputSystem.UI.VirtualMouseInput, Unity.InputSystem, Version=1.18.0.0,
           Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
@@ -3890,7 +3916,7 @@ MonoBehaviour:
         script: {fileID: 0}
         hasToggle: 1
       - displayName: BaseInputOverride
-        name: UnityEngine.InputSystem.UI.BaseInputOverride, Unity.InputSystem, Version=1.17.0.0,
+        name: UnityEngine.InputSystem.UI.BaseInputOverride, Unity.InputSystem, Version=1.18.0.0,
           Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
@@ -4099,7 +4125,7 @@ MonoBehaviour:
         hasToggle: 1
       - displayName: InputSystemUIInputModule
         name: UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -4151,7 +4177,7 @@ MonoBehaviour:
         hasToggle: 1
       - displayName: MultiplayerEventSystem
         name: UnityEngine.InputSystem.UI.MultiplayerEventSystem, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -4424,7 +4450,7 @@ MonoBehaviour:
         hasToggle: 1
       - displayName: TrackedDeviceRaycaster
         name: UnityEngine.InputSystem.UI.TrackedDeviceRaycaster, Unity.InputSystem,
-          Version=1.17.0.0, Culture=neutral, PublicKeyToken=null
+          Version=1.18.0.0, Culture=neutral, PublicKeyToken=null
         content:
           m_Text: 
           m_Image: {fileID: 0}
@@ -5381,5 +5407,5 @@ MonoBehaviour:
         isBuiltIn: 0
         script: {fileID: 11500000, guid: ce1e465c42dc5f24392a8867cd1a7ef5, type: 3}
         hasToggle: 1
-    unityVersion: 6000.3.2f1
-    unityCount: 375
+    unityVersion: 6000.3.6f1
+    unityCount: 377

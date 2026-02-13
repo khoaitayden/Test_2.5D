@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!319 &31900000
+AvatarMask:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: KinapLeg
+  m_Mask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+  m_Elements:
+  - m_Path: 
+    m_Weight: 1
+  - m_Path: Armature
+    m_Weight: 0
+  - m_Path: Armature/LowerBody
+    m_Weight: 1
+  - m_Path: Armature/LowerBody/UpperBoddy
+    m_Weight: 1
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.B
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.B/Arm.2.B
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.B/Arm.2.B/Arm.3.B
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.B/Arm.2.B/Arm.3.B/Arm.4.B
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.B/Arm.2.B/Arm.3.B/Arm.4.B/Arm.4.B_end
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerBottom.1.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerBottom.1.C/FingerBottom.2.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerBottom.1.C/FingerBottom.2.C/FingerBottom.3.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerBottom.1.C/FingerBottom.2.C/FingerBottom.3.C/FingerBottom.3.C_end
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerMiddle.1.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerMiddle.1.C/FingerMiddle.2.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerMiddle.1.C/FingerMiddle.2.C/FingerMiddle.3.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerMiddle.1.C/FingerMiddle.2.C/FingerMiddle.3.C/FingerMiddle.3.C_end
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerTop.1.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerTop.1.C/FingerTop.2.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerTop.1.C/FingerTop.2.C/FingerTop.3.C
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Arm.1.C/Arm.2.C/Arm.3.C/Hand.C/FingerTop.1.C/FingerTop.2.C/FingerTop.3.C/FingerTop.3.C_end
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Neck
+    m_Weight: 0
+  - m_Path: Armature/LowerBody/UpperBoddy/Neck/Neck_end
+    m_Weight: 0
+  - m_Path: Body
+    m_Weight: 0
+  - m_Path: Head
+    m_Weight: 0

@@ -69,7 +69,6 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
     private void HandleBurning()
     {
-        // Stop alarm immediately if burned
         if (isAlarmActive)
         {
             isAlarmActive = false;
@@ -96,8 +95,7 @@ public class EyeMonster : MonoBehaviour, ILitObject
 
         if (isAlarmActive)
         {
-
-            
+            activeExposureTimer += Time.deltaTime; 
             if (activeExposureTimer >= exposureDuration)
             {
                 Vanish();
@@ -109,7 +107,6 @@ public class EyeMonster : MonoBehaviour, ILitObject
         {
             exposeTimer += Time.deltaTime;
             
-            // Trigger Alarm?
             if (exposeTimer >= timeToExpose)
             {
                 isAlarmActive = true;
