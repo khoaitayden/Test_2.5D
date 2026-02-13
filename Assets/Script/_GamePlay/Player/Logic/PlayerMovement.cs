@@ -57,7 +57,6 @@ public class PlayerMovement : MonoBehaviour
         HandleRotation();
 
         float inputMagnitude = InputManager.Instance.MoveInput.magnitude;
-        Debug.Log(inputMagnitude);
         HandleAutoRunLogic(inputMagnitude);
 
         float targetSpeed = CalculateTargetSpeed(inputMagnitude);

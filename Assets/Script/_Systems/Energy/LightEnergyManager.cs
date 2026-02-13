@@ -14,7 +14,7 @@ public class LightEnergyManager : MonoBehaviour
 
     [Header("Base Settings")]
     [SerializeField] private float maxDuration = 100f; 
-    [SerializeField] private float startingPercentage = 0.5f;
+    [SerializeField] private float startingPercentage;
 
     [Header("Drain Multipliers")]
     [SerializeField] private float flashlightCostMult ;
@@ -52,8 +52,9 @@ public class LightEnergyManager : MonoBehaviour
         if (isPlayerExpose.Value)
             finalMultiplier *= exposedCostMult;
 
-        if (isPlayerAttached.Value)
+        if (isPlayerAttached.Value){
             finalMultiplier *= attachedCostMult;
+        }
 
         float drain = drainRateBase * finalMultiplier * Time.deltaTime;
         currentEnergy.ApplyChange(-drain, 0f, maxEnergy.Value);
