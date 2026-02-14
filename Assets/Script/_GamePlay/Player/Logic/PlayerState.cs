@@ -11,7 +11,7 @@ public class PlayerState : MonoBehaviour
     [SerializeField] private VoidAngelSequence voidAngelSceneObject;
 
     [Header("State")]
-    [SerializeField] private bool isDead = false;
+    [SerializeField] private bool isDead;
 
     [Header("Settings")]
     [SerializeField] private float deathDelayOnEmptyEnergy;
@@ -21,7 +21,10 @@ public class PlayerState : MonoBehaviour
     [SerializeField] private GameEventSO onDeathEvent; 
 
     public bool IsDead => isDead;
-
+    void Awake()
+    {
+        isDead=false;
+    }
     void Update()
     {
         if (transform.position.y < voidDeathYThreshold && !isDead)
