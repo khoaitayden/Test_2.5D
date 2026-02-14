@@ -96,13 +96,9 @@ namespace CrashKonijn.Goap.MonsterGen.Capabilities
             //     return false;
             // }
 
-            if (path.status == NavMeshPathStatus.PathPartial)
+            if (path.status == NavMeshPathStatus.PathPartial && path.corners.Length > 0)
             {
-
-                if (path.corners.Length > 0)
-                {
-                    finalDestination = path.corners[path.corners.Length - 1];
-                }
+                finalDestination = path.corners[path.corners.Length - 1];
             }
 
             if (Vector3.Distance(transform.position, finalDestination) < 1.0f)

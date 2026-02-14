@@ -8,6 +8,7 @@ namespace CrashKonijn.Goap.MonsterGen
     public class PatrolTargetSensor : LocalTargetSensorBase
     {
         private MonsterConfigBase config;
+        private NavMeshAgent agentComponent;
 
         public override void Created() { }
         public override void Update() { }
@@ -15,11 +16,14 @@ namespace CrashKonijn.Goap.MonsterGen
         public override ITarget Sense(IActionReceiver agent, IComponentReference references, ITarget existingTarget)
         {
             if (config == null) config = references.GetCachedComponent<MonsterConfigBase>();
+            if (agentComponent == null) agentComponent = references.GetCachedComponent<NavMeshAgent>();
 
             if (existingTarget != null)
             {
                 float dist = Vector3.Distance(agent.Transform.position, existingTarget.Position);
-                if (dist > 5.0f) 
+                bool isMovingOrHasPath = agentComponent.hasPath || agentComponent.velocity.sqrMagnitude > 0.1f;
+
+                if (dist > 5.0f && isMovingOrHasPath) 
                 {
                     return existingTarget;
                 }
@@ -37,6 +41,8 @@ namespace CrashKonijn.Goap.MonsterGen
 
         private Vector3? GetRandomPoint(Vector3 origin)
         {
+            NavMeshPath path = new NavMeshPath(); // Reusable path object
+
             for (int i = 0; i < 10; i++)
             {
                 Vector2 rndDir = Random.insideUnitCircle.normalized;
@@ -46,9 +52,14 @@ namespace CrashKonijn.Goap.MonsterGen
                 if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, config.traceNavMeshFallbackRadius, NavMesh.AllAreas))
                 {
 
-                    if (Vector3.Distance(origin, hit.position) > 5.0f)
+                    agentComponent.CalculatePath(hit.position, path);
+
+                    if (path.status == NavMeshPathStatus.PathComplete)
                     {
-                        return hit.position;
+                        if (Vector3.Distance(origin, hit.position) > 5.0f)
+                        {
+                            return hit.position;
+                        }
                     }
                 }
             }
