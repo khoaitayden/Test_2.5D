@@ -12,9 +12,7 @@ public class PlayerClimbing : MonoBehaviour
     [SerializeField] private float climbSnapSpeed = 5f; 
     
     [Header("Dismount Settings")]
-    [Tooltip("How much force is applied horizontally when jumping off.")]
     [SerializeField] private float jumpOffForceHorizontal = 4f;
-    [Tooltip("How much force is applied upward when jumping off.")]
     [SerializeField] private float jumpOffForceUp = 5f;
 
     private Ladder nearbyLadder;
@@ -86,7 +84,7 @@ public class PlayerClimbing : MonoBehaviour
         Vector3 targetPos = nearbyLadder.GetClosestPointOnLadder(transform.position);
         targetPos -= nearbyLadder.ClimbDirection * (controller.radius + 0.1f);
         
-        Vector3 moveDir = (targetPos - transform.position);
+        Vector3 moveDir = targetPos - transform.position;
         moveDir.y = 0;
 
         velocity.x = moveDir.x * climbSnapSpeed;

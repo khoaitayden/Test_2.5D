@@ -104,7 +104,6 @@ public class PlayerMovement : MonoBehaviour
         camFwd.y = 0;
         camRight.y = 0;
         
-        // Use normalized here for direction, but we use magnitude later for speed
         return (camFwd.normalized * input.y + camRight.normalized * input.x).normalized;
     }
 

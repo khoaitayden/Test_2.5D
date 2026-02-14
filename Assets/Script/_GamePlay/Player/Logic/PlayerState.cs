@@ -8,15 +8,14 @@ public class PlayerState : MonoBehaviour
     [SerializeField] private CharacterController controller;
     [SerializeField] private TransformAnchorSO respawnPointAnchor;
 
-    // NEW: Reference the SCENE OBJECT, not a prefab
     [SerializeField] private VoidAngelSequence voidAngelSceneObject;
 
     [Header("State")]
     [SerializeField] private bool isDead = false;
 
     [Header("Settings")]
-    [SerializeField] private float deathDelayOnEmptyEnergy = 5.0f;
-    [SerializeField] private float voidDeathYThreshold = -40f;
+    [SerializeField] private float deathDelayOnEmptyEnergy;
+    [SerializeField] private float voidDeathYThreshold;
 
     [Header("Events")]
     [SerializeField] private GameEventSO onDeathEvent; 
@@ -25,7 +24,6 @@ public class PlayerState : MonoBehaviour
 
     void Update()
     {
-        // Void Check
         if (transform.position.y < voidDeathYThreshold && !isDead)
         {
             TriggerVoidDeath();
@@ -35,8 +33,7 @@ public class PlayerState : MonoBehaviour
     private void TriggerVoidDeath()
     {
         Debug.Log("Fallen into Void...");
-        isDead = true;
-
+        isDead = true; 
 
         if (voidAngelSceneObject != null)
         {
@@ -44,15 +41,28 @@ public class PlayerState : MonoBehaviour
         }
         else
         {
-            // Fallback if you forgot to assign it
             Die();
         }
+    }
+
+    public void OnEmptyEnergy()
+    {
+        if (isDead) return;
+
+        StartCoroutine(OnEmptyEnergyRoutine());
+    }
+
+    public IEnumerator OnEmptyEnergyRoutine()
+    {
+        yield return new WaitForSeconds(deathDelayOnEmptyEnergy);
+        if (isDead) yield break; 
+        Die(); 
     }
 
     public void GotAttack()
     {
         if (isDead) return;
-        Die(); // Normal death (Monster hit)
+        Die(); 
     }
 
     private void Die()
@@ -67,12 +77,6 @@ public class PlayerState : MonoBehaviour
         if (onDeathEvent != null) onDeathEvent.Raise();
     }
 
-    public IEnumerator OnEmptyEnergyRoutine()
-    {
-        yield return new WaitForSeconds(deathDelayOnEmptyEnergy);
-        Die(); // Energy death uses normal screen
-    }
-
     public void RevivePlayer()
     {
         Debug.Log("Reviving Player...");
@@ -84,11 +88,6 @@ public class PlayerState : MonoBehaviour
             transform.position = respawnPointAnchor.Value.position;
             controller.enabled = true;
         }
-    }
-
-    public void OnEmptyEnergy()
-    {
-        StartCoroutine(OnEmptyEnergyRoutine());
     }
 
     void OnTriggerEnter(Collider other)

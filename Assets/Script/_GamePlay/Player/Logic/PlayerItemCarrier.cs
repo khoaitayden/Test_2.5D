@@ -22,8 +22,7 @@ public class PlayerItemCarrier : MonoBehaviour
 
     void Start()
     {
-        // RESET ON START
-        currentItem = null; // Clear internal item
+        currentItem = null; 
         UpdateVisuals();
         UpdateState(); 
     }
