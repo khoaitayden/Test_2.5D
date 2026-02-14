@@ -11,7 +11,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
     public float lightToggleHoldDuration = 0.5f;
 
     private PlayerInput _playerInput;
-
+     public bool IsAnalogMovement { get; private set; } 
     public Vector2 MoveInput { get; private set; }
     public bool IsSprinting { get; private set; }
     public bool IsSlowWalking { get; private set; }
@@ -51,6 +51,7 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
             IsSlowWalking = false;
             IsJumpHeld = false;
             IsFlashlightHeld = false;
+            IsAnalogMovement = false;
             _isWispSwitchDown = false;
         }
     }
@@ -74,10 +75,19 @@ public class InputManager : MonoBehaviour, PlayerInput.IPlayerActions
         if (context.canceled)
         {
             MoveInput = Vector2.zero;
+            IsAnalogMovement = false;
         }
         else
         {
             MoveInput = context.ReadValue<Vector2>();
+
+            InputControl control = context.control;
+
+            bool isGamepad = control.device is Gamepad;
+            
+            bool isStick = control.name.IndexOf("stick", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            IsAnalogMovement = isGamepad && isStick;
         }
     }
 

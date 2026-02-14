@@ -66,17 +66,16 @@ public class PlayerMovement : MonoBehaviour
         controller.Move(horizontalVelocity * Time.deltaTime);
     }
 
-    private void HandleAutoRunLogic(float magnitude)
+    private void HandleAutoRunLogic(float magnitude)    
     {
-        if (magnitude >= autoRunThreshold)
+        if (magnitude >= autoRunThreshold && 
+            !InputManager.Instance.IsSlowWalking && 
+            InputManager.Instance.IsAnalogMovement) 
         {
-            if (!InputManager.Instance.IsSlowWalking)
+            _pushDurationTimer += Time.deltaTime;
+            if (_pushDurationTimer >= timeToAutoRun)
             {
-                _pushDurationTimer += Time.deltaTime;
-                if (_pushDurationTimer >= timeToAutoRun)
-                {
-                    _isAutoSprinting = true;
-                }
+                _isAutoSprinting = true;
             }
         }
         else
@@ -96,7 +95,6 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 GetCameraRelativeInput()
     {
         Vector2 input = InputManager.Instance.MoveInput;
-        // Lowered threshold slightly to make it more responsive
         if (input.sqrMagnitude < 0.001f) return Vector3.zero;
 
         Vector3 camFwd = mainCameraTransform.forward;

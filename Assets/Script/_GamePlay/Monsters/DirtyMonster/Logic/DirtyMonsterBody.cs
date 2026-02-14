@@ -3,7 +3,6 @@ using UnityEngine;
 public class DirtyMonsterBody : MonoBehaviour
 {
     [Header("Kill Settings")]
-    [Tooltip("How much higher the player needs to be to kill the monster")]
     [SerializeField] private float killHeightOffset;
     [SerializeField] private float slowDuration;
     [SerializeField] private float slowMultiplier;
@@ -40,19 +39,10 @@ public class DirtyMonsterBody : MonoBehaviour
 
     public void Die()
     {
-        // 1. Play Visuals
-        if (sfx_Death != null)
-        {
-            Instantiate(sfx_Death, transform.position, Quaternion.identity);
-        }
-
-        // 2. NEW: Play Sound
         if (SoundManager.Instance != null && sfx_Death != null)
         {
             SoundManager.Instance.PlaySound(sfx_Death, transform.position);
         }
-
-        // 3. Return to Pool
         gameObject.SetActive(false);
     }
 }
